@@ -410,7 +410,7 @@ def process(infile, outfile, args):
              (201 <= stashcode.item <= 288  or 302 <= stashcode.item <= 303):
                 # Pressure level data should be masked
                 if have_heaviside_uv:
-                    apply_mask(c, heaviside_uv, args.hcrit)
+                    apply_mask(c, heaviside_uv, args.hcrit)  # noqa TODO: fix referencing warning
                 else:
                     continue
 
@@ -418,7 +418,7 @@ def process(infile, outfile, args):
              (293 <= stashcode.item <= 298):
                 # Pressure level data should be masked
                 if have_heaviside_t:
-                    apply_mask(c, heaviside_t, args.hcrit)
+                    apply_mask(c, heaviside_t, args.hcrit)  # noqa TODO: fix referencing warning
                 else:
                     continue
 
