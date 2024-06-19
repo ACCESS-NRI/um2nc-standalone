@@ -38,12 +38,7 @@ def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
     newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
     tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
-
-    if time.bounds is not None:
-        tbnds = np.array(time.bounds)
-        has_bnds = True
-    else:
-        has_bnds = False
+    tbnds = np.array(time.bounds) if time.bounds is not None else None
 
     for i in range(len(time.points)):
         date = time.units.num2date(tvals[i])
@@ -51,7 +46,7 @@ def convert_proleptic(time):
                                                     date.hour, date.minute, date.second)
         tvals[i] = newunits.date2num(newdate)
 
-        if has_bnds: # Fields with instantaneous data don't have bounds
+        if tbnds is not None:  # Fields with instantaneous data don't have bounds
             for j in range(2):
                 date = time.units.num2date(tbnds[i][j])
                 newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
@@ -60,7 +55,7 @@ def convert_proleptic(time):
 
     time.points = tvals
 
-    if has_bnds:
+    if tbnds is not None:
         time.bounds = tbnds
 
     time.units = newunits
