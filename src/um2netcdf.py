@@ -1,10 +1,17 @@
-#!/usr/bin/env python
+import sys
+import argparse
+import datetime
 
-import iris, numpy as np, datetime, sys
 import stashvar_cmip6 as stashvar
-from iris.coords import CellMethod
-import cf_units, cftime, mule
+
+import mule
+import numpy as np
+import cf_units, cftime
 from netCDF4 import default_fillvals
+
+import iris.util
+import iris.exceptions
+from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -368,7 +375,6 @@ def process(infile, outfile, args):
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
 
 if __name__ == '__main__':
-    import sys, argparse
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3, help='specify kind of netCDF format for output file: 1 classic, 2 64-bit offset, 3 netCDF-4, 4 netCDF-4 classic model. Default 3', choices=[1,2,3,4])
