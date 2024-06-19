@@ -112,6 +112,9 @@ def fix_level_coord(cube, z_rho, z_theta):
         c_sigma = cube.coord('sigma')
     except iris.exceptions.CoordinateNotFoundError:
         c_lev = None
+        c_height = None
+        c_sigma = None
+
     if c_lev:
         d_rho = abs(c_height.points[0]-z_rho)
         if d_rho.min() < 1e-6:
