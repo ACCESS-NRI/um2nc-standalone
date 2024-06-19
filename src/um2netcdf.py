@@ -6,7 +6,8 @@ import stashvar_cmip6 as stashvar
 
 import mule
 import numpy as np
-import cf_units, cftime
+import cftime
+import cf_units
 from netCDF4 import default_fillvals
 
 import iris.util
@@ -135,7 +136,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         plevs.attributes['positive'] = 'down'
         plevs.convert_units('Pa')
         # Otherwise they're off by 1e-10 which looks odd in ncdump
-        plevs.points = np.round(plevs.points,5)
+        plevs.points = np.round(plevs.points, 5)
         if plevs.points[0] < plevs.points[-1]:
             # Flip to get pressure decreasing as in CMIP6 standard
             cube = iris.util.reverse(cube, 'pressure')
@@ -200,7 +201,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
                 tdim = tdim[0]
                 neworder = list(range(cube.ndim))
                 neworder.remove(tdim)
-                neworder.insert(0,tdim)
+                neworder.insert(0, tdim)
 
                 if verbose > 1:
                     print("Incorrect dimension order", cube)
@@ -214,7 +215,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
                        unlimited_dimensions=['time'],
                        fill_value=fill_value)
         else:
-            tmp = iris.util.new_axis(cube,cube.coord('time'))
+            tmp = iris.util.new_axis(cube, cube.coord('time'))
             sman.write(tmp,
                        zlib=True,
                        complevel=compression,
@@ -247,7 +248,7 @@ def apply_mask(c, heaviside, hcrit):
         # If the shapes match it's simple
         # Temporarily turn off warnings from 0/0
         # TODO; refactor to use np.where()
-        with np.errstate(divide='ignore',invalid='ignore'):
+        with np.errstate(divide='ignore', invalid='ignore'):
             c.data = np.ma.masked_array(c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
     else:
         # Are the levels of c a subset of the levels of the heaviside variable?
@@ -261,7 +262,7 @@ def apply_mask(c, heaviside, hcrit):
             # Double check they're actually the same after extraction
             if not np.all(c_p.points == h_tmp.coord('pressure').points):
                 raise Exception('Unexpected mismatch in levels of extracted heaviside function')
-            with np.errstate(divide='ignore',invalid='ignore'):
+            with np.errstate(divide='ignore', invalid='ignore'):
                 c.data = np.ma.masked_array(c.data/h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
         else:
             raise Exception('Unable to match levels of heaviside function to variable %s' % c.name())
@@ -332,8 +333,8 @@ def process(infile, outfile, args):
         if not args.nohist:
             history = "File %s converted with um2netcdf_iris.py v2.1 at %s" % \
                       (infile, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            sman.update_global_attributes({'history':history})
-        sman.update_global_attributes({'Conventions':'CF-1.6'})
+            sman.update_global_attributes({'history': history})
+        sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
         for c in cubes:
             stashcode = c.attributes['STASH']
@@ -368,7 +369,10 @@ def process(infile, outfile, args):
                 if c.standard_name != umvar.standard_name:
                     if args.verbose:
                         sys.stderr.write("Standard name mismatch %d %d %s %s\n" %
-                           (stashcode.section, stashcode.item, c.standard_name, umvar.standard_name))
+                                         (stashcode.section,
+                                          stashcode.item,
+                                          c.standard_name,
+                                          umvar.standard_name))
                     c.standard_name = umvar.standard_name
 
             if c.units and umvar.units:
@@ -379,7 +383,7 @@ def process(infile, outfile, args):
                 if ustr != umvar.units:
                     if args.verbose:
                         sys.stderr.write("Units mismatch %d %d %s %s\n" %
-                             (stashcode.section, stashcode.item, c.units, umvar.units))
+                                         (stashcode.section, stashcode.item, c.units, umvar.units))
                     c.units = umvar.units
 
             # Temporary work around for xconv
@@ -407,15 +411,14 @@ def process(infile, outfile, args):
             fix_level_coord(c, z_rho, z_theta)
 
             if not args.nomask and stashcode.section == 30 and \
-             (201 <= stashcode.item <= 288  or 302 <= stashcode.item <= 303):
+                    (201 <= stashcode.item <= 288 or 302 <= stashcode.item <= 303):
                 # Pressure level data should be masked
                 if have_heaviside_uv:
                     apply_mask(c, heaviside_uv, args.hcrit)  # noqa TODO: fix referencing warning
                 else:
                     continue
 
-            if not args.nomask and stashcode.section == 30 and \
-             (293 <= stashcode.item <= 298):
+            if not args.nomask and stashcode.section == 30 and (293 <= stashcode.item <= 298):
                 # Pressure level data should be masked
                 if have_heaviside_t:
                     apply_mask(c, heaviside_t, args.hcrit)  # noqa TODO: fix referencing warning
@@ -441,9 +444,9 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', dest='verbose',
                         action='count', default=0, help='verbose output (-vv for extra verbose)')
     parser.add_argument('--include', dest='include_list', type=int,
-                        nargs='+', help = 'List of stash codes to include')
+                        nargs='+', help='List of stash codes to include')
     parser.add_argument('--exclude', dest='exclude_list', type=int,
-                        nargs='+', help = 'List of stash codes to exclude')
+                        nargs='+', help='List of stash codes to exclude')
     parser.add_argument('--nomask', dest='nomask', action='store_true',
                         default=False,
                         help="Don't apply heaviside function mask to pressure level fields")
