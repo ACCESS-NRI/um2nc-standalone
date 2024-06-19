@@ -287,16 +287,12 @@ def process(infile, outfile, args):
 
     if args.include_list and args.exclude_list:
         raise Exception("Error: include list and exclude list are mutually exclusive")
+
     cubes = iris.load(infile)
+    cubes.sort(key=lambda cs: cs.attributes['STASH'])
 
-    # Sort the list by stashcode
-    def keyfunc(c):
-        return c.attributes['STASH']
-    cubes.sort(key=keyfunc)
-
-    # Check whether there are any pressure level fields that should be
-    # masked. Can use temperature to mask instantaneous fields, so really
-    # should check whether these are time means
+    # Check whether there are any pressure level fields that should be masked. Can use temperature
+    # to mask instantaneous fields, so really should check whether these are time means
     need_heaviside_uv = need_heaviside_t = False
     have_heaviside_uv = have_heaviside_t = False
 
@@ -459,5 +455,5 @@ if __name__ == '__main__':
     parser.add_argument('infile', help='Input file')
     parser.add_argument('outfile', help='Output file')
 
-    args = parser.parse_args()
-    process(args.infile, args.outfile, args)
+    cli_args = parser.parse_args()
+    process(cli_args.infile, cli_args.outfile, cli_args)
