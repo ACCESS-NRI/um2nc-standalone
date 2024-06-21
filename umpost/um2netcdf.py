@@ -284,12 +284,11 @@ def process(infile, outfile, args):
 
     if isinstance(ff, mule.ancil.AncilFile):
         raise NotImplementedError('Ancillary files are currently not supported')
-    grid_type = get_grid_type(ff)
 
-    dlat = ff.real_constants.row_spacing
-    dlon = ff.real_constants.col_spacing
-    z_rho = ff.level_dependent_constants.zsea_at_rho
-    z_theta = ff.level_dependent_constants.zsea_at_theta
+    # TODO: eventually move these calls closer to their usage
+    grid_type = get_grid_type(ff)
+    dlat, dlon = get_grid_spacing(ff)
+    z_rho, z_theta = get_z_sea_constants(ff)
 
     if args.include_list and args.exclude_list:
         raise Exception("Error: include list and exclude list are mutually exclusive")
@@ -403,6 +402,7 @@ def process(infile, outfile, args):
 
             # Interval in cell methods isn't reliable so better to remove it.
             c.cell_methods = fix_cell_methods(c.cell_methods)
+
             try:
                 fix_latlon_coord(c, grid_type, dlat, dlon)
             except iris.exceptions.CoordinateNotFoundError:
@@ -453,6 +453,43 @@ def get_grid_type(ff):
         return GRID_NEW_DYNAMICS
     else:
         raise UMError(f"Unable to determine grid staggering from header '{staggering}'")
+
+
+def get_grid_spacing(ff):
+    """
+    Helper function for accessing grid spacing variables.
+
+    Parameters
+    ----------
+    ff : an open fields file.
+
+    Returns
+    -------
+    (row_spacing, column spacing tuple)
+    """
+    return ff.real_constants.row_spacing, ff.real_constants.col_spacing
+
+
+def get_z_sea_constants(ff):
+    """
+    Helper function to obtain z axis/ocean altitude constants.
+
+    Z sea represents the geo-potential height of the free surface of the sea (the layer of water in
+    contact with the atmosphere). Theta is the equivalent potential temperature, rho levels are ways
+    to define atmospheric levels based on the density (rho) of the air at that level. In a nutshell,
+    they are two ways of representing the "altitude" of the "sea-level".
+
+    Parameters
+    ----------
+    ff : an open fields file.
+
+    Returns
+    -------
+    (z_rho, z_theta) tuple.
+    """
+    z_rho = ff.level_dependent_constants.zsea_at_rho
+    z_theta = ff.level_dependent_constants.zsea_at_theta
+    return z_rho, z_theta
 
 
 if __name__ == '__main__':
