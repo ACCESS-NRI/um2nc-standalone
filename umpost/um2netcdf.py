@@ -282,6 +282,8 @@ def process(infile, outfile, args):
     # mule 2020.01.1 doesn't handle pathlib Paths properly
     ff = mule.load_umfile(str(infile))
 
+    if isinstance(ff, mule.ancil.AncilFile):
+        raise NotImplementedError('Ancillary files are currently not supported')
     grid_type = get_grid_type(ff)
 
     dlat = ff.real_constants.row_spacing
