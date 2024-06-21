@@ -2,7 +2,7 @@ import sys
 import argparse
 import datetime
 
-import stashvar_cmip6 as stashvar
+from umpost import stashvar_cmip6 as stashvar
 
 import mule
 import numpy as np
@@ -14,6 +14,15 @@ import iris.util
 import iris.exceptions
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
+
+
+GRID_END_GAME = 'EG'
+GRID_NEW_DYNAMICS = 'ND'
+
+
+class UMError(Exception):
+    """Generic class for um2nc specific errors."""
+    pass
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -272,13 +281,8 @@ def process(infile, outfile, args):
     # Use mule to get the model levels to help with dimension naming
     # mule 2020.01.1 doesn't handle pathlib Paths properly
     ff = mule.load_umfile(str(infile))
-    if ff.fixed_length_header.grid_staggering == 6:
-        grid_type = 'EG'
-    elif ff.fixed_length_header.grid_staggering == 3:
-        grid_type = 'ND'
-    else:
-        raise Exception("Unable to determine grid staggering from header %d" %
-                        ff.fixed_length_header.grid_staggering)
+
+    grid_type = get_grid_type(ff)
 
     dlat = ff.real_constants.row_spacing
     dlon = ff.real_constants.col_spacing
@@ -425,6 +429,28 @@ def process(infile, outfile, args):
                 print(c.name(), itemcode)
 
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
+
+
+def get_grid_type(ff):
+    """
+    Returns grid type from a fields file.
+
+    Parameters
+    ----------
+    ff : an open fields file.
+
+    Returns
+    -------
+    String code for grid type, or raise a UMError.
+    """
+    staggering = ff.fixed_length_header.grid_staggering
+
+    if staggering == 6:
+        return GRID_END_GAME
+    elif staggering == 3:
+        return GRID_NEW_DYNAMICS
+    else:
+        raise UMError(f"Unable to determine grid staggering from header '{staggering}'")
 
 
 if __name__ == '__main__':
