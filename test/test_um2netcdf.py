@@ -1,3 +1,5 @@
+import unittest.mock as mock
+
 import umpost.um2netcdf as um2nc
 
 import pytest
@@ -23,3 +25,13 @@ def test_get_grid_type_error():
 
     with pytest.raises(um2nc.UMError):
         um2nc.get_grid_type(ff)
+
+
+def test_ancillary_files_no_support():
+    af = mule.ancil.AncilFile()
+
+    with mock.patch("mule.load_umfile") as mload:
+        mload.return_value = af
+
+        with pytest.raises(NotImplementedError):
+            um2nc.process("fake_infile", "fake_outfile", args=None)
