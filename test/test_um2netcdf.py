@@ -27,6 +27,37 @@ def test_get_grid_type_error():
         um2nc.get_grid_type(ff)
 
 
+# NB: these next tests are somewhat contrived using unittest.mock
+def test_get_grid_spacing():
+    r_spacing = 3.5
+    c_spacing = 4.5
+
+    # NB: use mocking while finding method to create synthetic mule objects from real data
+    m_real_constants = mock.Mock()
+    m_real_constants.row_spacing = r_spacing
+    m_real_constants.col_spacing = c_spacing
+
+    ff = mule.ff.FieldsFile()
+    ff.real_constants = m_real_constants
+
+    assert um2nc.get_grid_spacing(ff) == (r_spacing, c_spacing)
+
+
+def test_get_z_sea_constants():
+    z_rho = 5.5
+    z_theta = 7.5
+
+    # NB: use mocking while finding method to create synthetic mule objects from real data
+    m_level_constants = mock.Mock()
+    m_level_constants.zsea_at_rho = z_rho
+    m_level_constants.zsea_at_theta = z_theta
+
+    ff = mule.ff.FieldsFile()
+    ff.level_dependent_constants = m_level_constants
+
+    assert um2nc.get_z_sea_constants(ff) == (z_rho, z_theta)
+
+
 def test_ancillary_files_no_support():
     af = mule.ancil.AncilFile()
 
