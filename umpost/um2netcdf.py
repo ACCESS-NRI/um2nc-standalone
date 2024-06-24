@@ -477,7 +477,7 @@ def get_grid_spacing(ff):
 
     Returns
     -------
-    (row_spacing, column_spacing tuple)
+    (row_spacing, column_spacing) tuple.
     """
     try:
         return ff.real_constants.row_spacing, ff.real_constants.col_spacing
