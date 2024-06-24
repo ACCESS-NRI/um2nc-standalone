@@ -477,7 +477,7 @@ def get_grid_spacing(ff):
 
     Returns
     -------
-    (row_spacing, column_spacing) tuple.
+    (row_spacing, column_spacing) tuple of floats.
     """
     try:
         return ff.real_constants.row_spacing, ff.real_constants.col_spacing
@@ -501,7 +501,7 @@ def get_z_sea_constants(ff):
 
     Returns
     -------
-    (z_rho, z_theta) tuple.
+    (z_rho, z_theta) tuple of array of floating point values.
     """
     try:
         z_rho = ff.level_dependent_constants.zsea_at_rho
