@@ -1,3 +1,15 @@
+"""
+UM to NetCDF Standalone (um2netcdf).
+
+um2netcdf is a standalone module to convert Unified Model Fields Files to NetCDF
+format, applying several modifications to format the output data. This project
+combines multiple separate development threads into a single canonical tool.
+
+Note that um2netcdf depends on the following data access libraries:
+* Mule https://github.com/metomi/mule
+* Iris https://github.com/SciTools/iris
+"""
+
 import sys
 import argparse
 import datetime
@@ -461,13 +473,17 @@ def get_grid_spacing(ff):
 
     Parameters
     ----------
-    ff : an open fields file.
+    ff : an open `mule` FieldsFile.
 
     Returns
     -------
-    (row_spacing, column spacing tuple)
+    (row_spacing, column_spacing tuple)
     """
-    return ff.real_constants.row_spacing, ff.real_constants.col_spacing
+    try:
+        return ff.real_constants.row_spacing, ff.real_constants.col_spacing
+    except AttributeError as err:
+        msg = f"Mule {type(ff)} file lacks row and/or col spacing. File type not yet supported."
+        raise NotImplementedError(msg) from err
 
 
 def get_z_sea_constants(ff):
@@ -481,15 +497,19 @@ def get_z_sea_constants(ff):
 
     Parameters
     ----------
-    ff : an open fields file.
+    ff : an open `mule` FieldsFile.
 
     Returns
     -------
     (z_rho, z_theta) tuple.
     """
-    z_rho = ff.level_dependent_constants.zsea_at_rho
-    z_theta = ff.level_dependent_constants.zsea_at_theta
-    return z_rho, z_theta
+    try:
+        z_rho = ff.level_dependent_constants.zsea_at_rho
+        z_theta = ff.level_dependent_constants.zsea_at_theta
+        return z_rho, z_theta
+    except AttributeError as err:
+        msg = f"Mule {type(ff)} file lacks z sea rho or theta. File type not yet supported."
+        raise NotImplementedError(msg) from err
 
 
 if __name__ == '__main__':
