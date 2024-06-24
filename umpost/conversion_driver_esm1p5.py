@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
+"""
+ESM1.5 conversion driver
 
-# First attempt at running um to netcdf conversion as a userscript for
-# ESM1.5. Adapted from Martin Dix's conversion driver for CM2
+Wrapper script for automated fields file to NetCDF conversion
+during ESM1.5 simulations. Runs conversion module (currently 
+um2netcdf4) on each atmospheric output in a specified directory.
+
+Adapted from Martin Dix's conversion driver for CM2: 
+https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
+"""
+
 
 
 import os
@@ -17,7 +25,19 @@ from collections.abc import Sequence
 
 
 def convert_esm1p5_dir(FF_dir, NC_dir, FF_name_pattern):
-    """Convert all fields file ESM1.5 UM outputs in FF_dir to netcdf format in NC_dir"""
+    """
+    Convert ESM1.5 fields file outputs in specified directory to netCDF.
+    
+    Parameters
+    ----------
+    FF_dir : Path to source directory containing UM fields files for conversion.
+    NC_dir : Path to target directory for saving NetCDF files.
+    FF_naming_pattern : Regex pattern. Files with matching names will be converted.
+
+    Returns
+    -------
+    None
+    """
 
     if isinstance(FF_dir, str):
         FF_dir = Path(FF_dir)
