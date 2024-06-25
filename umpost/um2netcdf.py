@@ -32,7 +32,7 @@ GRID_END_GAME = 'EG'
 GRID_NEW_DYNAMICS = 'ND'
 
 
-class UMError(Exception):
+class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
     pass
 
@@ -464,7 +464,7 @@ def get_grid_type(ff):
     elif staggering == 3:
         return GRID_NEW_DYNAMICS
     else:
-        raise UMError(f"Unable to determine grid staggering from header '{staggering}'")
+        raise PostProcessingError(f"Unable to determine grid staggering from header '{staggering}'")
 
 
 def get_grid_spacing(ff):

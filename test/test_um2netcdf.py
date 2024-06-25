@@ -23,7 +23,7 @@ def test_get_nd_grid_type():
 def test_get_grid_type_error():
     ff = mule.ff.FieldsFile()  # "empty" fields file has no grid staggering
 
-    with pytest.raises(um2nc.UMError):
+    with pytest.raises(um2nc.PostProcessingError):
         um2nc.get_grid_type(ff)
 
 
