@@ -307,10 +307,10 @@ def process(infile, outfile, args):
 
     cubes = iris.load(infile)
     cubes.sort(key=lambda cs: cs.attributes['STASH'])
-    cube_index = {to_item_code(c.attributes['STASH']): c for c in cubes}
+    cube_lookup = {to_item_code(c.attributes['STASH']): c for c in cubes}
 
     (need_heaviside_uv, heaviside_uv,
-     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cube_index)
+     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cube_lookup)
 
     do_mask = not args.nomask  # make warning logic more readable
 
@@ -507,13 +507,13 @@ def to_item_code(stash_code):
     return 1000 * stash_code.section + stash_code.item
 
 
-def check_pressure_level_masking(cube_index):
+def check_pressure_level_masking(cube_lookup):
     """
     Examines cubes for heaviside uv/t pressure level masking components.
 
     Parameters
     ----------
-    cube_index : dict style mapping of integer item codes to corresponding iris Cube objects.
+    cube_lookup : dict style mapping of integer item codes to corresponding iris Cube objects.
 
     Returns
     -------
@@ -528,18 +528,18 @@ def check_pressure_level_masking(cube_index):
     heaviside_t = None
 
     # NB: can this be done with key existence tests?
-    for item_code, c in cube_index.items():
+    for item_code, cube in cube_lookup.items():
         if require_heaviside_uv(item_code):
             need_heaviside_uv = True
 
         if is_heaviside_uv(item_code):
-            heaviside_uv = c
+            heaviside_uv = cube
 
         if require_heaviside_t(item_code):
             need_heaviside_t = True
 
         if is_heaviside_t(item_code):
-            heaviside_t = c
+            heaviside_t = cube
 
     return need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t
 
