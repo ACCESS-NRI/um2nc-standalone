@@ -308,27 +308,8 @@ def process(infile, outfile, args):
     cubes = iris.load(infile)
     cubes.sort(key=lambda cs: cs.attributes['STASH'])
 
-    # Check whether there are any pressure level fields that should be masked. Can use temperature
-    # to mask instantaneous fields, so really should check whether these are time means
-    need_heaviside_uv = need_heaviside_t = False
-    have_heaviside_uv = have_heaviside_t = False
-
-    for c in cubes:
-        stashcode = c.attributes['STASH']
-        if (stashcode.section == 30 and
-           (201 <= stashcode.item <= 288 or 302 <= stashcode.item <= 303)):
-            need_heaviside_uv = True
-
-        if stashcode.section == 30 and stashcode.item == 301:
-            have_heaviside_uv = True
-            heaviside_uv = c
-
-        if stashcode.section == 30 and 293 <= stashcode.item <= 298:
-            need_heaviside_t = True
-
-        if stashcode.section == 30 and stashcode.item == 304:
-            have_heaviside_t = True
-            heaviside_t = c
+    (need_heaviside_uv, have_heaviside_uv, heaviside_uv,
+     need_heaviside_t, have_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
 
     if not args.nomask and need_heaviside_uv and not have_heaviside_uv:
         print("""Warning - heaviside_uv field needed for masking pressure level data is not present.
@@ -525,6 +506,45 @@ def to_item_code(stashcode):
     A single integer "item code".
     """
     return 1000 * stashcode.section + stashcode.item
+
+
+def check_pressure_level_masking(cubes):
+    # Check whether there are any pressure level fields that should be masked. Can use temperature
+    # to mask instantaneous fields, so really should check whether these are time means
+    need_heaviside_uv = need_heaviside_t = False
+    have_heaviside_uv = have_heaviside_t = False
+    heaviside_uv = heaviside_t = None
+
+    # TODO: simplify logic (are the "need" flags needed, or test if data exists?)
+    for c in cubes:
+        item_code = to_item_code(c.attributes['STASH'])
+
+        if require_heaviside_uv(item_code):
+            need_heaviside_uv = True
+
+        if item_code == 30301:
+            have_heaviside_uv = True
+            heaviside_uv = c
+
+        if require_heaviside_t(item_code):
+            need_heaviside_t = True
+
+        if item_code == 30304:
+            have_heaviside_t = True
+            heaviside_t = c
+
+    return (need_heaviside_uv, have_heaviside_uv, heaviside_uv,
+            need_heaviside_t, have_heaviside_t, heaviside_t)
+
+
+def require_heaviside_uv(item_code):
+    # TODO: constants for magic numbers
+    return 30201 <= item_code <= 30288 or 30302 <= item_code <= 30303
+
+
+def require_heaviside_t(item_code):
+    # TODO: constants for magic numbers
+    return 30293 <= item_code <= 30298
 
 
 if __name__ == '__main__':
