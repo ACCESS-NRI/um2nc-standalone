@@ -55,32 +55,40 @@ def pg_calendar(self):
 PPField.calendar = pg_calendar
 
 
+new_units = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
+
+
 # TODO: rename time to avoid clash with builtin time module
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
-    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
-    tbnds = np.array(time.bounds) if time.bounds is not None else None
+    time_points = np.array(time.points)  # Need a copy because can't assign to time.points[i]
+    bounds = None
 
-    for i in range(len(time.points)):
-        date = time.units.num2date(tvals[i])
-        newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                    date.hour, date.minute, date.second)
-        tvals[i] = newunits.date2num(newdate)
+    for i, pt in enumerate(time.points):
+        date = time.units.num2date(pt)
+        new_date = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
+                                                     date.hour, date.minute, date.second)
+        time_points[i] = new_units.date2num(new_date)
+        bounds = np.array(time.bounds) if time.bounds is not None else None
 
-        if tbnds is not None:  # Fields with instantaneous data don't have bounds
-            for j in range(2):
-                date = time.units.num2date(tbnds[i][j])
-                newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                            date.hour, date.minute, date.second)
-                tbnds[i][j] = newunits.date2num(newdate)
+        if bounds is not None:  # Fields with instantaneous data don't have bounds
+            dates = [time.units.num2date(b) for b in bounds[i]]
+            new_dates = [cftime.DatetimeProlepticGregorian(
+                date.year, date.month, date.day, date.hour, date.minute, date.second
+            ) for date in dates]
 
-    time.points = tvals
+            bounds[i] = [new_units.date2num(new_date) for new_date in new_dates]
 
-    if tbnds is not None:
-        time.bounds = tbnds
+    return time_points, bounds
 
-    time.units = newunits
+
+def update_time(time, time_values, time_bounds):
+    time.points = time_values
+
+    if time_bounds is not None:
+        time.bounds = time_bounds
+
+    time.units = new_units
 
 
 def fix_latlon_coord(cube, grid_type, dlat, dlon):
@@ -189,7 +197,8 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         assert time.units.origin == 'hours since 1970-01-01 00:00:00'
 
         if time.units.calendar == 'proleptic_gregorian' and refdate.year < 1600:
-            convert_proleptic(time)
+            tvals, tbnds = convert_proleptic(time)
+            update_time(time, tvals, tbnds)
         else:
             if time.units.calendar == 'gregorian':
                 new_calendar = 'proleptic_gregorian'

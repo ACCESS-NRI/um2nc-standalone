@@ -2,8 +2,27 @@ import unittest.mock as mock
 
 import umpost.um2netcdf as um2nc
 
+import iris.coords
+
+import cf_units
+import numpy as np
 import pytest
 import mule
+
+
+def test_convert_proleptic():
+    # Create time obj from file: aiihca.paa1jan.subset
+    m_time = mock.Mock(spec=iris.coords.DimCoord)
+    m_time.points = np.array([-16382964.0])
+    m_time.bounds = np.array([[-16383336.0, -16382592.0]])
+
+    units = cf_units.Unit("hours since 1970-01-01 00:00:00", calendar="standard")
+    m_time.units = units
+
+    # TODO: check these values are correct!
+    time_points, time_bounds = um2nc.convert_proleptic(m_time)
+    assert np.all(time_points == [36539.5])
+    assert np.all(time_bounds == [[36524.0, 36555.0]])
 
 
 def test_get_eg_grid_type():
