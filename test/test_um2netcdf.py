@@ -92,6 +92,16 @@ def test_check_pressure_level_masking_need_heaviside_uv():
     assert heaviside_t is None
 
 
+def test_check_pressure_level_masking_missing_heaviside_uv():
+    ua_plev_cube = object()
+    cube_index = {30201: ua_plev_cube}
+
+    need_heaviside_uv, heaviside_uv, _, _ = um2nc.check_pressure_level_masking(cube_index)
+
+    assert need_heaviside_uv
+    assert heaviside_uv is None
+
+
 def test_check_pressure_level_masking_need_heaviside_t():
     ta_plev_cube = object()
     heaviside_t_cube = object()
@@ -105,3 +115,13 @@ def test_check_pressure_level_masking_need_heaviside_t():
     assert heaviside_uv is None
     assert need_heaviside_t
     assert heaviside_t
+
+
+def test_check_pressure_level_masking_missing_heaviside_t():
+    ta_plev_cube = object()
+    cube_index = {30294: ta_plev_cube}
+
+    _, _, need_heaviside_t, heaviside_t = um2nc.check_pressure_level_masking(cube_index)
+
+    assert need_heaviside_t
+    assert heaviside_t is None
