@@ -307,17 +307,14 @@ def process(infile, outfile, args):
 
     cubes = iris.load(infile)
     cubes.sort(key=lambda cs: cs.attributes['STASH'])
+    cube_index = {to_item_code(c.attributes['STASH']): c for c in cubes}
 
-    (need_heaviside_uv, have_heaviside_uv, heaviside_uv,
-     need_heaviside_t, have_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
+    (need_heaviside_uv, heaviside_uv,
+     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cube_index)
 
-    if not args.nomask and need_heaviside_uv and not have_heaviside_uv:
-        print("""Warning - heaviside_uv field needed for masking pressure level data is not present.
-    These fields will be skipped""")
-
-    if not args.nomask and need_heaviside_t and not have_heaviside_t:
-        print("""Warning - heaviside_t field needed for masking pressure level data is not present.
-    These fields will be skipped""")
+    do_mask = not args.nomask  # make warning logic more readable
+    check_pressure_warnings(do_mask, need_heaviside_uv,  # TODO; fix name
+                            heaviside_uv, need_heaviside_t, heaviside_t)
 
     nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
                   3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
@@ -330,7 +327,7 @@ def process(infile, outfile, args):
             sman.update_global_attributes({'history': history})
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in cubes:
+        for c in cubes:  # TODO: use cube_index here
             stashcode = c.attributes['STASH']
             itemcode = to_item_code(stashcode)
 
@@ -408,14 +405,14 @@ def process(infile, outfile, args):
             if not args.nomask and stashcode.section == 30 and \
                     (201 <= stashcode.item <= 288 or 302 <= stashcode.item <= 303):
                 # Pressure level data should be masked
-                if have_heaviside_uv:
+                if heaviside_uv:
                     apply_mask(c, heaviside_uv, args.hcrit)  # noqa TODO: fix referencing warning
                 else:
                     continue
 
             if not args.nomask and stashcode.section == 30 and (293 <= stashcode.item <= 298):
                 # Pressure level data should be masked
-                if have_heaviside_t:
+                if heaviside_t:
                     apply_mask(c, heaviside_t, args.hcrit)  # noqa TODO: fix referencing warning
                 else:
                     continue
@@ -508,43 +505,58 @@ def to_item_code(stashcode):
     return 1000 * stashcode.section + stashcode.item
 
 
-def check_pressure_level_masking(cubes):
+def check_pressure_level_masking(cube_index):
     # Check whether there are any pressure level fields that should be masked. Can use temperature
     # to mask instantaneous fields, so really should check whether these are time means
     need_heaviside_uv = need_heaviside_t = False
-    have_heaviside_uv = have_heaviside_t = False
-    heaviside_uv = heaviside_t = None
+    heaviside_uv = None
+    heaviside_t = None
 
-    # TODO: simplify logic (are the "need" flags needed, or test if data exists?)
-    for c in cubes:
-        item_code = to_item_code(c.attributes['STASH'])
-
+    # NB: can this be done with key existence tests?
+    for item_code, c in cube_index.items():
         if require_heaviside_uv(item_code):
             need_heaviside_uv = True
 
-        if item_code == 30301:
-            have_heaviside_uv = True
+        if is_heaviside_uv(item_code):
             heaviside_uv = c
 
         if require_heaviside_t(item_code):
             need_heaviside_t = True
 
-        if item_code == 30304:
-            have_heaviside_t = True
+        if is_heaviside_t(item_code):
             heaviside_t = c
 
-    return (need_heaviside_uv, have_heaviside_uv, heaviside_uv,
-            need_heaviside_t, have_heaviside_t, heaviside_t)
+    return need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t
 
 
 def require_heaviside_uv(item_code):
-    # TODO: constants for magic numbers
+    # TODO: constants for magic numbers?
     return 30201 <= item_code <= 30288 or 30302 <= item_code <= 30303
+
+
+def is_heaviside_uv(item_code):
+    # TODO: constants for magic numbers
+    return item_code == 30301
 
 
 def require_heaviside_t(item_code):
     # TODO: constants for magic numbers
     return 30293 <= item_code <= 30298
+
+
+def is_heaviside_t(item_code):
+    # TODO: constants for magic numbers
+    return item_code == 30304
+
+
+def check_pressure_warnings(do_mask, need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t):
+    if do_mask and need_heaviside_uv and heaviside_uv is None:
+        print("Warning: heaviside_uv field needed for masking pressure level data is not present. "
+              "These fields will be skipped")
+
+    if do_mask and need_heaviside_t and heaviside_t is None:
+        print("Warning: heaviside_t field needed for masking pressure level data is not present. "
+              "These fields will be skipped")
 
 
 if __name__ == '__main__':

@@ -84,19 +84,30 @@ def mock_dict(d):
 
 
 def test_check_pressure_level_masking_need_heaviside_uv():
-    # NB: this mock setup is not ideal
-    m_stash_code = mock.MagicMock()
-    m_stash_code.section = 30
-    m_stash_code.item = 201
+    ua_plev_cube = object()
+    heaviside_uv_cube = object()
+    cube_index = {30201: ua_plev_cube,
+                  30301: heaviside_uv_cube}
 
-    m_heaviside_uv_cube = mock.Mock()
-    m_heaviside_uv_cube.attributes = mock_dict({"STASH": m_stash_code})
-
-    cubes = (m_heaviside_uv_cube, )
-
-    (need_heaviside_uv, have_heaviside_uv, heaviside_uv,
-     need_heaviside_t, have_heaviside_t, heaviside_t) = um2nc.check_pressure_level_masking(cubes)
+    (need_heaviside_uv, heaviside_uv,
+     need_heaviside_t, heaviside_t) = um2nc.check_pressure_level_masking(cube_index)
 
     assert need_heaviside_uv
-    assert have_heaviside_uv is False
+    assert heaviside_uv
+    assert need_heaviside_t is False
+    assert heaviside_t is None
+
+
+def test_check_pressure_level_masking_need_heaviside_t():
+    ta_plev_cube = object()
+    heaviside_t_cube = object()
+    cube_index = {30294: ta_plev_cube,
+                  30304: heaviside_t_cube}
+
+    (need_heaviside_uv, heaviside_uv,
+     need_heaviside_t, heaviside_t) = um2nc.check_pressure_level_masking(cube_index)
+
+    assert need_heaviside_uv is False
     assert heaviside_uv is None
+    assert need_heaviside_t
+    assert heaviside_t
