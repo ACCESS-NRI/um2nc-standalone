@@ -490,19 +490,19 @@ def get_z_sea_constants(ff):
         raise NotImplementedError(msg) from err
 
 
-def to_item_code(stashcode):
+def to_item_code(stash_code):
     """
     Returns a stash code (with section and item members) as a combined integer "code".
 
     Parameters
     ----------
-    stashcode : TODO: find source, iris?
+    stash_code : TODO: find source, iris?
 
     Returns
     -------
     A single integer "item code".
     """
-    return 1000 * stashcode.section + stashcode.item
+    return 1000 * stash_code.section + stash_code.item
 
 
 def check_pressure_level_masking(cube_index):
