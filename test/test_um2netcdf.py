@@ -77,12 +77,6 @@ def test_stash_code_to_item_code_conversion():
     assert result == 30255
 
 
-def mock_dict(d):
-    m = mock.MagicMock()
-    m.__getitem__.side_effect = d.__getitem__
-    return m
-
-
 def test_check_pressure_level_masking_need_heaviside_uv():
     ua_plev_cube = object()
     heaviside_uv_cube = object()
