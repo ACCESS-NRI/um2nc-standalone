@@ -52,11 +52,16 @@ def convert_esm1p5_dir(ff_dir, nc_dir, FF_name_pattern):
         NC_name = FF_name + ".nc"
         NC_file_path = nc_dir / NC_name
 
+        # TODO: um2netcdf will update the way arguments are fed to `process`.
+        # https://github.com/ACCESS-NRI/um2nc-standalone/issues/17
+        # Update the below arguments once the changes are added.
+
         # Named tuple to hold the argument list
         Args = collections.namedtuple(
             "Args",
             "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit",
         )
+        # TODO: Confirm with Martin the below arguments are appropriate defaults.
         args = Args(3, 4, True, False, 0.5, False, None, None, False, False)
 
         print("Converting file " + FF_name)
