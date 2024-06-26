@@ -35,105 +35,179 @@ ARG_NAMES = collections.namedtuple(
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
 
-def list_ff_outputs(ff_dir, ff_name_pattern):
+def get_esm1p5_run_id(current_atm_output_dir):
     """
-    Find files in ff_dir with names matching ff_name_pattern.
-    """
-
-    ff_dir = Path(ff_dir) if isinstance(ff_dir, str) else ff_dir
-
-    # Find output fields files in the specified directory
-    ff_paths = []
-    for filepath in ff_dir.glob("*"):
-        if re.match(ff_name_pattern, filepath.name):
-            ff_paths.append(filepath)
-
-    return ff_paths
-
-
-def set_nc_path(ff_path, nc_dir):
-    """
-    Create path to write converted NetCDF file to
+    Find the run ID used by the Unified Model in the current ESM1.5 experiment.
 
     Parameters
     ----------
-    ff_path : path to UM fields file to be converted.
+    current_atm_output_dir : path to current simulation's atmospheric output directory
+
+    Returns
+    -------
+    run_id : 5 character run ID for the current UM simulation
+
+    """
+
+    current_atm_output_dir = (
+        Path(current_atm_output_dir)
+        if isinstance(current_atm_output_dir, str)
+        else current_atm_output_dir
+    )
+
+    xhist_nml = f90nml.read(current_atm_output_dir / "xhist")
+    run_id = xhist_nml["nlchisto"]["run_id"]
+
+    return run_id
+
+
+def set_esm1p5_fields_file_pattern(run_id):
+    """
+    Generate a regex pattern for matching fields file names from the
+    current ESM1.5 simulation.
+
+    Parameters
+    ----------
+    run_id : 5 character run ID for the current UM simulation.
+
+    Returns
+    -------
+    fields_file_name_pattern: Regex pattern for matching fields file names
+    """
+
+    # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
+    # '.' (absolute standard time convention) + 'p' (pp file).
+    # See get_name.F90 in the UM7.3 source code for details.
+    fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
+
+    return fields_file_name_pattern
+
+
+def set_nc_write_path(fields_file_path, nc_dir):
+    """
+    Set filepath for writing NetCDF to based on fields file name.
+
+    Parameters
+    ----------
+    fields_file_path : path to single UM fields file to be converted.
     nc_dir : path to target directory for saving NetCDF files.
 
     Returns
     -------
-    nc_path : path for writing converted file.
+    nc_path : path for writing converted fields_file_path file.
     """
-    ff_path = Path(ff_path) if isinstance(ff_path, str) else ff_path
+    fields_file_path = (
+        Path(fields_file_path)
+        if isinstance(fields_file_path, str)
+        else fields_file_path
+    )
 
-    ff_name = ff_path.name
-    nc_name = ff_name + ".nc"
+    fields_file_name = fields_file_path.name
+    nc_name = fields_file_name + ".nc"
     nc_path = nc_dir / nc_name
 
     return nc_path
 
 
-def convert_ff_list(ff_path_list, nc_dir):
+def find_matching_fields_files(fields_file_dir, fields_file_name_pattern):
     """
-    Convert listed fields files to netCDF.
+    Find files in fields_file_dir with names matching fields_file_name_pattern.
 
     Parameters
     ----------
-    ff_path_list : paths to fields files to be converted.
+    fields_file_dir : path to directory containing fields files for conversion.
+    fields_file_name_pattern : Regex pattern for matching fields file names
+
+    Returns
+    -------
+    fields_file_paths : list of filepaths to fields files with names matching fields_file_name_pattern
+    """
+
+    fields_file_dir = (
+        Path(fields_file_dir) if isinstance(fields_file_dir, str) else fields_file_dir
+    )
+
+    fields_file_paths = []
+    for filepath in fields_file_dir.glob("*"):
+        if re.match(fields_file_name_pattern, filepath.name):
+            fields_file_paths.append(filepath)
+
+    return fields_file_paths
+
+
+def convert_fields_file_dir(fields_file_dir, nc_dir, fields_file_name_pattern):
+    """
+    Convert matching fields files in fields_file_dir to NetCDF files in nc_dir.
+
+    Parameters
+    ----------
+    fields_file_dir : path to directory containing fields files for conversion.
     nc_dir : path to target directory for saving NetCDF files.
+    fields_file_name_pattern : Regex pattern. Files with matching names will be converted.
 
     Returns
     -------
     None
     """
 
-    for ff_path in ff_path_list:
+    # Find fields files matching fields_file_name_pattern in fields_file_dir
+    fields_file_path_list = find_matching_fields_files(
+        fields_file_dir, fields_file_name_pattern
+    )
 
-        ff_path = Path(ff_path) if isinstance(ff_path, str) else ff_path
-        nc_path = set_nc_path(ff_path, nc_dir)
+    for fields_file_path in fields_file_path_list:
 
-        print("Converting file " + ff_path.name)
+        nc_path = set_nc_write_path(fields_file_path, nc_dir)
+
+        print("Converting file " + fields_file_path.name)
 
         try:
-            um2netcdf4.process(ff_path, nc_path, ARG_VALS)
+            um2netcdf4.process(fields_file_path, nc_path, ARG_VALS)
 
         except Exception as exc:
             # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
             if exc.args[0] == "Variable can not be processed":
-                warnings.warn("Unable to convert file: " + ff_path.name)
+                warnings.warn("Unable to convert file: " + fields_file_path.name)
             else:
                 raise
 
 
-if __name__ == "__main__":
+def convert_esm1p5_output_dir(current_output_dir):
+    """Driver function for converting ESM1.5 atmospheric outputs during a simulation."""
 
+    current_output_dir = (
+        Path(current_output_dir)
+        if isinstance(current_output_dir, str)
+        else current_output_dir
+    )
+
+    current_atm_output_dir = current_output_dir / "atmosphere"
+
+    if not (current_atm_output_dir.is_dir()):
+        raise FileNotFoundError(
+            errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir
+        )
+
+    # Create a directory for writing NetCDF files
+    current_run_nc_dir = current_atm_output_dir / "NetCDF"
+    current_run_nc_dir.mkdir(exist_ok=True)
+
+    # Find fields file outputs to be converted
+    run_id = get_esm1p5_run_id(current_atm_output_dir)
+    fields_file_name_pattern = set_esm1p5_fields_file_pattern(run_id)
+
+    # Run the conversion
+    convert_fields_file_dir(
+        current_atm_output_dir, current_run_nc_dir, fields_file_name_pattern
+    )
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "current_output_dir", help="ESM1.5 output directory to be converted", type=str
     )
     args = parser.parse_args()
 
-    current_run_output_dir = Path(args.current_output_dir)
-    current_run_ff_dir = current_run_output_dir / "atmosphere"
-
-    # Check that the directory containing fields files for conversion exists
-    if not (current_run_ff_dir.is_dir()):
-        raise FileNotFoundError(
-            errno.ENOENT, os.strerror(errno.ENOENT), current_run_ff_dir
-        )
-
-    current_run_nc_dir = current_run_ff_dir / "netCDF"
-    current_run_nc_dir.mkdir(exist_ok=True)
-
-    # Find the run_id used in the file names
-    xhist_nml = f90nml.read(current_run_ff_dir / "xhist")
-    run_id = xhist_nml["nlchisto"]["run_id"]
-
-    # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
-    # '.' (absolute standard time convention) + 'p' (pp file).
-    # See get_name.F90 in the UM7.3 source code for details.
-    ff_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
-
-    current_run_ff_outputs = list_ff_outputs(current_run_ff_dir, ff_name_pattern)
-
-    convert_ff_list(current_run_ff_outputs, current_run_nc_dir)
+    current_output_dir = args.current_output_dir
+    convert_esm1p5_output_dir(current_output_dir)
