@@ -351,7 +351,7 @@ def process(infile, outfile, args):
 
         for c in cubes:
             stashcode = c.attributes['STASH']
-            itemcode = 1000*stashcode.section + stashcode.item
+            itemcode = to_item_code(stashcode)
 
             if args.include_list and itemcode not in args.include_list:
                 continue
@@ -510,6 +510,21 @@ def get_z_sea_constants(ff):
     except AttributeError as err:
         msg = f"Mule {type(ff)} file lacks z sea rho or theta. File type not yet supported."
         raise NotImplementedError(msg) from err
+
+
+def to_item_code(stashcode):
+    """
+    Returns a stash code (with section and item members) as a combined integer "code".
+
+    Parameters
+    ----------
+    stashcode : TODO: find source, iris?
+
+    Returns
+    -------
+    A single integer "item code".
+    """
+    return 1000 * stashcode.section + stashcode.item
 
 
 if __name__ == '__main__':

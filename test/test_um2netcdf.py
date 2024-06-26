@@ -66,3 +66,12 @@ def test_ancillary_files_no_support():
 
         with pytest.raises(NotImplementedError):
             um2nc.process("fake_infile", "fake_outfile", args=None)
+
+
+def test_stashcode_to_item_code_conversion():
+    m_stashcode = mock.Mock()
+    m_stashcode.section = 30
+    m_stashcode.item = 255
+
+    result = um2nc.to_item_code(m_stashcode)
+    assert result == 30255
