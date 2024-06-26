@@ -313,8 +313,10 @@ def process(infile, outfile, args):
      need_heaviside_t, heaviside_t) = check_pressure_level_masking(cube_index)
 
     do_mask = not args.nomask  # make warning logic more readable
-    check_pressure_warnings(do_mask, need_heaviside_uv,  # TODO; fix name
-                            heaviside_uv, need_heaviside_t, heaviside_t)
+
+    if do_mask:
+        check_pressure_warnings(need_heaviside_uv, heaviside_uv,  # TODO; fix name
+                                need_heaviside_t, heaviside_t)
 
     nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
                   3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
@@ -549,12 +551,22 @@ def is_heaviside_t(item_code):
     return item_code == 30304
 
 
-def check_pressure_warnings(do_mask, need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t):
-    if do_mask and need_heaviside_uv and heaviside_uv is None:
+def check_pressure_warnings(need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t):
+    """
+    Prints warnings if either of heaviside uv/t are required and not present.
+
+    Parameters
+    ----------
+    need_heaviside_uv : (bool)
+    heaviside_uv : iris Cube or None
+    need_heaviside_t : (bool)
+    heaviside_t : iris Cube or None
+    """
+    if need_heaviside_uv and heaviside_uv is None:
         print("Warning: heaviside_uv field needed for masking pressure level data is not present. "
               "These fields will be skipped")
 
-    if do_mask and need_heaviside_t and heaviside_t is None:
+    if need_heaviside_t and heaviside_t is None:
         print("Warning: heaviside_t field needed for masking pressure level data is not present. "
               "These fields will be skipped")
 
