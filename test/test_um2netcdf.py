@@ -68,10 +68,10 @@ def test_ancillary_files_no_support():
             um2nc.process("fake_infile", "fake_outfile", args=None)
 
 
-def test_stashcode_to_item_code_conversion():
-    m_stashcode = mock.Mock()
-    m_stashcode.section = 30
-    m_stashcode.item = 255
+def test_stash_code_to_item_code_conversion():
+    m_stash_code = mock.Mock()
+    m_stash_code.section = 30
+    m_stash_code.item = 255
 
-    result = um2nc.to_item_code(m_stashcode)
+    result = um2nc.to_item_code(m_stash_code)
     assert result == 30255
