@@ -22,13 +22,25 @@ import errno
 from pathlib import Path
 
 
+# TODO: um2netcdf will update the way arguments are fed to `process`.
+# https://github.com/ACCESS-NRI/um2nc-standalone/issues/17
+# Update the below arguments once the changes are added.
+
+# Named tuple to hold the argument list
+ARG_NAMES = collections.namedtuple(
+    "Args",
+    "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit",
+)
+# TODO: Confirm with Martin the below arguments are appropriate defaults.
+ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
+
+
 def list_ff_outputs(ff_dir, ff_name_pattern):
     """
-    List paths to files in ff_dir with names matching ff_name_pattern.
+    Find files in ff_dir with names matching ff_name_pattern.
     """
 
-    if isinstance(ff_dir, str):
-        ff_dir = Path(ff_dir)
+    ff_dir = Path(ff_dir) if isinstance(ff_dir, str) else ff_dir
 
     # Find output fields files in the specified directory
     ff_paths = []
@@ -36,8 +48,8 @@ def list_ff_outputs(ff_dir, ff_name_pattern):
         if re.match(ff_name_pattern, filepath.name):
             ff_paths.append(filepath)
 
-    return ff_paths 
-    
+    return ff_paths
+
 
 def set_nc_path(ff_path, nc_dir):
     """
@@ -54,14 +66,11 @@ def set_nc_path(ff_path, nc_dir):
     """
     ff_path = Path(ff_path) if isinstance(ff_path, str) else ff_path
 
-    ff_name = ff_path.name 
+    ff_name = ff_path.name
     nc_name = ff_name + ".nc"
-    nc_path = nc_dir / nc_name 
+    nc_path = nc_dir / nc_name
 
     return nc_path
-
-
-
 
 
 def convert_ff_list(ff_path_list, nc_dir):
@@ -78,28 +87,15 @@ def convert_ff_list(ff_path_list, nc_dir):
     None
     """
 
-
     for ff_path in ff_path_list:
 
         ff_path = Path(ff_path) if isinstance(ff_path, str) else ff_path
-        nc_path = set_nc_path(ff_path, nc_dir)   
-
-        # TODO: um2netcdf will update the way arguments are fed to `process`.
-        # https://github.com/ACCESS-NRI/um2nc-standalone/issues/17
-        # Update the below arguments once the changes are added.
-
-        # Named tuple to hold the argument list
-        Args = collections.namedtuple(
-            "Args",
-            "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit",
-        )
-        # TODO: Confirm with Martin the below arguments are appropriate defaults.
-        args = Args(3, 4, True, False, 0.5, False, None, None, False, False)
+        nc_path = set_nc_path(ff_path, nc_dir)
 
         print("Converting file " + ff_path.name)
 
         try:
-            um2netcdf4.process(ff_path, nc_path, args)
+            um2netcdf4.process(ff_path, nc_path, ARG_VALS)
 
         except Exception as exc:
             # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
@@ -109,11 +105,6 @@ def convert_ff_list(ff_path_list, nc_dir):
                 raise
 
 
-
-
-
-
-    
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
