@@ -11,7 +11,6 @@ https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 """
 
 
-
 import os
 import collections
 import um2netcdf4
@@ -21,17 +20,16 @@ import warnings
 import argparse
 import errno
 from pathlib import Path
-from collections.abc import Sequence
 
 
-def convert_esm1p5_dir(FF_dir, NC_dir, FF_name_pattern):
+def convert_esm1p5_dir(ff_dir, nc_dir, FF_name_pattern):
     """
     Convert ESM1.5 fields file outputs in specified directory to netCDF.
-    
+
     Parameters
     ----------
-    FF_dir : Path to source directory containing UM fields files for conversion.
-    NC_dir : Path to target directory for saving NetCDF files.
+    ff_dir : Path to source directory containing UM fields files for conversion.
+    nc_dir : Path to target directory for saving NetCDF files.
     FF_naming_pattern : Regex pattern. Files with matching names will be converted.
 
     Returns
@@ -39,20 +37,20 @@ def convert_esm1p5_dir(FF_dir, NC_dir, FF_name_pattern):
     None
     """
 
-    if isinstance(FF_dir, str):
-        FF_dir = Path(FF_dir)
+    if isinstance(ff_dir, str):
+        ff_dir = Path(ff_dir)
 
     # Find output fields files in the specified directory
     output_fields_files = [
         filename
-        for filename in os.listdir(FF_dir)
+        for filename in os.listdir(ff_dir)
         if re.match(FF_name_pattern, filename)
     ]
 
     for FF_name in output_fields_files:
-        FF_file_path = FF_dir / FF_name
+        FF_file_path = ff_dir / FF_name
         NC_name = FF_name + ".nc"
-        NC_file_path = NC_dir / NC_name
+        NC_file_path = nc_dir / NC_name
 
         # Named tuple to hold the argument list
         Args = collections.namedtuple(
@@ -70,7 +68,6 @@ def convert_esm1p5_dir(FF_dir, NC_dir, FF_name_pattern):
             # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
             if exc.args[0] == "Variable can not be processed":
                 warnings.warn("Unable to convert file: " + FF_name)
-                pass
             else:
                 raise
 
@@ -84,19 +81,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     current_run_output_dir = Path(args.current_output_dir)
-    current_run_FF_dir = current_run_output_dir / "atmosphere"
+    current_run_ff_dir = current_run_output_dir / "atmosphere"
 
     # Check that the directory containing fields files for conversion exists
-    if not (current_run_FF_dir.is_dir()):
+    if not (current_run_ff_dir.is_dir()):
         raise FileNotFoundError(
-            errno.ENOENT, os.strerror(errno.ENOENT), current_run_FF_dir
+            errno.ENOENT, os.strerror(errno.ENOENT), current_run_ff_dir
         )
 
-    current_run_NC_dir = current_run_FF_dir / "netCDF"
-    current_run_NC_dir.mkdir(exist_ok=True)
+    current_run_nc_dir = current_run_ff_dir / "netCDF"
+    current_run_nc_dir.mkdir(exist_ok=True)
 
     # Find the run_id used in the file names
-    xhist_nml = f90nml.read(current_run_FF_dir / "xhist")
+    xhist_nml = f90nml.read(current_run_ff_dir / "xhist")
     run_id = xhist_nml["nlchisto"]["run_id"]
 
     # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
@@ -104,4 +101,4 @@ if __name__ == "__main__":
     # See get_name.F90 in the UM7.3 source code for details.
     FF_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
 
-    convert_esm1p5_dir(current_run_FF_dir, current_run_NC_dir, FF_name_pattern)
+    convert_esm1p5_dir(current_run_ff_dir, current_run_nc_dir, FF_name_pattern)
