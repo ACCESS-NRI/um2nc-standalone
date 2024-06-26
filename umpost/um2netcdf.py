@@ -508,6 +508,19 @@ def to_item_code(stash_code):
 
 
 def check_pressure_level_masking(cube_index):
+    """
+    Examines cubes for heaviside uv/t pressure level masking components.
+
+    Parameters
+    ----------
+    cube_index : dict style mapping of integer item codes to corresponding iris Cube objects.
+
+    Returns
+    -------
+    Tuple: (need_heaviside_uv [bool], heaviside_uv [iris cube or None],
+            need_heaviside_t [bool], heaviside_t [iris cube or None])
+
+    """
     # Check whether there are any pressure level fields that should be masked. Can use temperature
     # to mask instantaneous fields, so really should check whether these are time means
     need_heaviside_uv = need_heaviside_t = False
