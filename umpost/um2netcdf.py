@@ -28,6 +28,10 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 
+# cube attribute names
+STASH = "STASH"
+ITEM_CODE = "item_code"
+
 GRID_END_GAME = 'EG'
 GRID_NEW_DYNAMICS = 'ND'
 
@@ -268,7 +272,7 @@ def apply_mask(c, heaviside, hcrit):
     if c.shape == heaviside.shape:
         # If the shapes match it's simple
         # Temporarily turn off warnings from 0/0
-        # TODO; refactor to use np.where()
+        # TODO: refactor to use np.where()
         with np.errstate(divide='ignore', invalid='ignore'):
             c.data = np.ma.masked_array(c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
     else:
@@ -306,16 +310,19 @@ def process(infile, outfile, args):
         raise Exception("Error: include list and exclude list are mutually exclusive")
 
     cubes = iris.load(infile)
-    cubes.sort(key=lambda cs: cs.attributes['STASH'])
-    cube_lookup = {to_item_code(c.attributes['STASH']): c for c in cubes}
+
+    for cube in cubes:
+        cube.attributes[ITEM_CODE] = to_item_code(cube.attributes[STASH])
+
+    cubes.sort(key=lambda cs: cs.attributes[ITEM_CODE])
 
     (need_heaviside_uv, heaviside_uv,
-     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cube_lookup)
+     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
 
     do_mask = not args.nomask  # make warning logic more readable
 
     if do_mask:
-        check_pressure_warnings(need_heaviside_uv, heaviside_uv,  # TODO; fix name
+        check_pressure_warnings(need_heaviside_uv, heaviside_uv,  # TODO: fix name
                                 need_heaviside_t, heaviside_t)
 
     nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
@@ -507,13 +514,13 @@ def to_item_code(stash_code):
     return 1000 * stash_code.section + stash_code.item
 
 
-def check_pressure_level_masking(cube_lookup):
+def check_pressure_level_masking(cubes):
     """
     Examines cubes for heaviside uv/t pressure level masking components.
 
     Parameters
     ----------
-    cube_lookup : dict style mapping of integer item codes to corresponding iris Cube objects.
+    cubes : sequence iris Cube objects.
 
     Returns
     -------
@@ -528,7 +535,9 @@ def check_pressure_level_masking(cube_lookup):
     heaviside_t = None
 
     # NB: can this be done with key existence tests?
-    for item_code, cube in cube_lookup.items():
+    for cube in cubes:
+        item_code = cube.attributes[ITEM_CODE]
+
         if require_heaviside_uv(item_code):
             need_heaviside_uv = True
 
