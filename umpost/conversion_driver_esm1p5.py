@@ -35,9 +35,10 @@ ARG_NAMES = collections.namedtuple(
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
 
-def get_esm1p5_run_id(current_atm_output_dir):
+def get_um_run_id(current_atm_output_dir):
     """
     Find the run ID used by the Unified Model in the current ESM1.5 experiment.
+    Required for finding experiment's UM output files.
 
     Parameters
     ----------
@@ -63,8 +64,7 @@ def get_esm1p5_run_id(current_atm_output_dir):
 
 def set_esm1p5_fields_file_pattern(run_id):
     """
-    Generate a regex pattern for matching fields file names from the
-    current ESM1.5 simulation.
+    Generate regex pattern for finding current experiment's UM outputs.
 
     Parameters
     ----------
@@ -83,18 +83,18 @@ def set_esm1p5_fields_file_pattern(run_id):
     return fields_file_name_pattern
 
 
-def set_nc_write_path(fields_file_path, nc_dir):
+def set_nc_write_path(fields_file_path, nc_write_dir):
     """
     Set filepath for writing NetCDF to based on fields file name.
 
     Parameters
     ----------
     fields_file_path : path to single UM fields file to be converted.
-    nc_dir : path to target directory for saving NetCDF files.
+    nc_write_dir : path to target directory for writing NetCDF files.
 
     Returns
     -------
-    nc_path : path for writing converted fields_file_path file.
+    nc_write_path : path for writing converted fields_file_path file.
     """
     fields_file_path = (
         Path(fields_file_path)
@@ -104,9 +104,9 @@ def set_nc_write_path(fields_file_path, nc_dir):
 
     fields_file_name = fields_file_path.name
     nc_name = fields_file_name + ".nc"
-    nc_path = nc_dir / nc_name
+    nc_write_path = nc_write_dir / nc_name
 
-    return nc_path
+    return nc_write_path
 
 
 def find_matching_fields_files(fields_file_dir, fields_file_name_pattern):
@@ -116,11 +116,11 @@ def find_matching_fields_files(fields_file_dir, fields_file_name_pattern):
     Parameters
     ----------
     fields_file_dir : path to directory containing fields files for conversion.
-    fields_file_name_pattern : Regex pattern for matching fields file names
+    fields_file_name_pattern : Regex pattern for matching fields file names.
 
     Returns
     -------
-    fields_file_paths : list of filepaths to fields files with names matching fields_file_name_pattern
+    fields_file_paths : list of filepaths to fields files with names matching fields_file_name_pattern.
     """
 
     fields_file_dir = (
@@ -135,14 +135,14 @@ def find_matching_fields_files(fields_file_dir, fields_file_name_pattern):
     return fields_file_paths
 
 
-def convert_fields_file_dir(fields_file_dir, nc_dir, fields_file_name_pattern):
+def convert_fields_file_dir(fields_file_dir, nc_write_dir, fields_file_name_pattern):
     """
-    Convert matching fields files in fields_file_dir to NetCDF files in nc_dir.
+    Convert matching fields files in fields_file_dir to NetCDF files innc_write_dir.
 
     Parameters
     ----------
     fields_file_dir : path to directory containing fields files for conversion.
-    nc_dir : path to target directory for saving NetCDF files.
+    nc_write_dir : path to target directory for saving NetCDF files.
     fields_file_name_pattern : Regex pattern. Files with matching names will be converted.
 
     Returns
@@ -157,12 +157,12 @@ def convert_fields_file_dir(fields_file_dir, nc_dir, fields_file_name_pattern):
 
     for fields_file_path in fields_file_path_list:
 
-        nc_path = set_nc_write_path(fields_file_path, nc_dir)
+        nc_write_path = set_nc_write_path(fields_file_path, nc_write_dir)
 
         print("Converting file " + fields_file_path.name)
 
         try:
-            um2netcdf4.process(fields_file_path, nc_path, ARG_VALS)
+            um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
 
         except Exception as exc:
             # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
@@ -193,7 +193,7 @@ def convert_esm1p5_output_dir(current_output_dir):
     current_run_nc_dir.mkdir(exist_ok=True)
 
     # Find fields file outputs to be converted
-    run_id = get_esm1p5_run_id(current_atm_output_dir)
+    run_id = get_um_run_id(current_atm_output_dir)
     fields_file_name_pattern = set_esm1p5_fields_file_pattern(run_id)
 
     # Run the conversion
