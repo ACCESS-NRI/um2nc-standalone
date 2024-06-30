@@ -95,6 +95,11 @@ def test_find_matching_fields_files(tmp_path):
 # TODO: def test_convert_esm1p5_output_dir()
 
 
+def test_convert_fields_file_dir(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        esm1p5_convert.convert_fields_file_dir(tmp_path / "abcde/", tmp_path, "*.")
+
+
 def test_convert_esm1p5_output_dir_error(tmp_path):
     with pytest.raises(FileNotFoundError):
         esm1p5_convert.convert_esm1p5_output_dir(tmp_path)

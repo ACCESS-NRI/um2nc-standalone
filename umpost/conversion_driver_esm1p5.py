@@ -56,6 +56,8 @@ def get_um_run_id(current_atm_output_dir):
         else current_atm_output_dir
     )
 
+    # TODO: get confirmation that this is a good place to
+    # get the run_id from
     xhist_nml = f90nml.read(current_atm_output_dir / "xhist")
     run_id = xhist_nml["nlchisto"]["run_id"]
 
@@ -102,6 +104,8 @@ def set_nc_write_path(fields_file_path, nc_write_dir):
         else fields_file_path
     )
 
+    nc_write_dir = Path(nc_write_dir) if isinstance(nc_write_dir, str) else nc_write_dir
+
     fields_file_name = fields_file_path.name
     nc_name = fields_file_name + ".nc"
     nc_write_path = nc_write_dir / nc_name
@@ -137,7 +141,7 @@ def find_matching_fields_files(fields_file_dir, fields_file_name_pattern):
 
 def convert_fields_file_dir(fields_file_dir, nc_write_dir, fields_file_name_pattern):
     """
-    Convert matching fields files in fields_file_dir to NetCDF files innc_write_dir.
+    Convert matching fields files in fields_file_dir to NetCDF files in nc_write_dir.
 
     Parameters
     ----------
@@ -149,6 +153,16 @@ def convert_fields_file_dir(fields_file_dir, nc_write_dir, fields_file_name_patt
     -------
     None
     """
+
+    # First check that fields_file_dir exists.
+    fields_file_dir = (
+        Path(fields_file_dir) if isinstance(fields_file_dir, str) else fields_file_dir
+    )
+
+    if not fields_file_dir.exists():
+        raise FileNotFoundError(
+            errno.ENOENT, os.strerror(errno.ENOENT), fields_file_dir
+        )
 
     # Find fields files matching fields_file_name_pattern in fields_file_dir
     fields_file_path_list = find_matching_fields_files(
@@ -183,7 +197,7 @@ def convert_esm1p5_output_dir(current_output_dir):
 
     current_atm_output_dir = current_output_dir / "atmosphere"
 
-    if not (current_atm_output_dir.is_dir()):
+    if not (current_atm_output_dir.exists()):
         raise FileNotFoundError(
             errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir
         )
