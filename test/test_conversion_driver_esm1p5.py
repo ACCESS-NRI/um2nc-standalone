@@ -86,11 +86,6 @@ def test_find_matching_fields_files(tmp_path):
     assert set(found_fields_files) == set(expected_fields_files)
 
 
-# -  We need to know that nc_write_path actually exists.
-# - and for that matter fields_file_dir
-# - do we want to know whether no fields files were found. Do we want to raise a warning?
-#       error might be too strong as someone might run with no atm output?
-
 # TODO: def test_convert_fields_file_dir():
 # TODO: def test_convert_esm1p5_output_dir()
 
