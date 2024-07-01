@@ -75,15 +75,8 @@ def test_find_matching_fields_files():
     assert set(found_fields_files) == set(expected_fields_files)
 
 
-# TODO: def test_convert_fields_file_dir():
+# TODO: def test_convert_fields_file_list():
 # TODO: def test_convert_esm1p5_output_dir()
-
-
-def test_convert_fields_file_dir_error():
-    with pytest.raises(FileNotFoundError):
-        esm1p5_convert.convert_fields_file_dir(
-            "/test_convert_fields_file_dir_error/fake/path/", "/nc_dir/", "*."
-        )
 
 
 def test_convert_esm1p5_output_dir_error():

@@ -109,36 +109,19 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     return fields_file_paths
 
 
-def convert_fields_file_dir(fields_file_dir, nc_write_dir, fields_file_name_pattern):
+def convert_fields_file_list(fields_file_path_list, nc_write_dir):
     """
-    Convert matching fields files in fields_file_dir to NetCDF files in nc_write_dir.
+    Convert group of fields files to NetCDF, writing output in nc_write_dir.
 
     Parameters
     ----------
-    fields_file_dir : path to directory containing fields files for conversion.
-    nc_write_dir : path to target directory for saving NetCDF files.
-    fields_file_name_pattern : Regex pattern. Files with matching names will be converted.
+    fields_file_list : list of paths to fields files for conversion.
+    nc_write_dir : directory to save NetCDF files into.
 
     Returns
     -------
     None
     """
-
-    # First check that fields_file_dir exists.
-    fields_file_dir = (
-        Path(fields_file_dir) if isinstance(fields_file_dir, str) else fields_file_dir
-    )
-
-    if not fields_file_dir.exists():
-        raise FileNotFoundError(
-            errno.ENOENT, os.strerror(errno.ENOENT), fields_file_dir
-        )
-
-    # Find fields files matching fields_file_name_pattern in fields_file_dir
-    fields_file_dir_contents = fields_file_dir.glob("*")
-    fields_file_path_list = find_matching_fields_files(
-        fields_file_dir_contents, fields_file_name_pattern
-    )
 
     for fields_file_path in fields_file_path_list:
 
@@ -182,10 +165,14 @@ def convert_esm1p5_output_dir(current_output_dir):
     run_id = xhist_nml["nlchisto"]["run_id"]
     fields_file_name_pattern = set_esm1p5_fields_file_pattern(run_id)
 
-    # Run the conversion
-    convert_fields_file_dir(
-        current_atm_output_dir, current_run_nc_dir, fields_file_name_pattern
+    atm_dir_contents = current_atm_output_dir.glob("*")
+
+    fields_file_path_list = find_matching_fields_files(
+        atm_dir_contents, fields_file_name_pattern
     )
+
+    # Run the conversion
+    convert_fields_file_list(fields_file_path_list, current_run_nc_dir)
 
 
 if __name__ == "__main__":
