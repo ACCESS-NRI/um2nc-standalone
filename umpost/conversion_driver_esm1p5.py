@@ -84,26 +84,25 @@ def set_nc_write_path(fields_file_path, nc_write_dir):
     return nc_write_path
 
 
-def find_matching_fields_files(fields_file_dir, fields_file_name_pattern):
+def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     """
-    Find files in fields_file_dir with names matching fields_file_name_pattern.
+    Find files in list of paths with names matching fields_file_name_pattern.
+    Used to find ESM1.5 UM outputs in a simulation output directory.
 
     Parameters
     ----------
-    fields_file_dir : path to directory containing fields files for conversion.
+    dir_contents : list of file paths, typically contents of a single directory.
     fields_file_name_pattern : Regex pattern for matching fields file names.
 
     Returns
     -------
-    fields_file_paths : list of filepaths to fields files with names matching fields_file_name_pattern.
+    fields_file_paths : subset of dir_contents with names matching fields_file_name_pattern.
     """
 
-    fields_file_dir = (
-        Path(fields_file_dir) if isinstance(fields_file_dir, str) else fields_file_dir
-    )
-
     fields_file_paths = []
-    for filepath in fields_file_dir.glob("*"):
+    for filepath in dir_contents:
+        filepath = Path(filepath)
+
         if re.match(fields_file_name_pattern, filepath.name):
             fields_file_paths.append(filepath)
 
@@ -136,8 +135,9 @@ def convert_fields_file_dir(fields_file_dir, nc_write_dir, fields_file_name_patt
         )
 
     # Find fields files matching fields_file_name_pattern in fields_file_dir
+    fields_file_dir_contents = fields_file_dir.glob("*")
     fields_file_path_list = find_matching_fields_files(
-        fields_file_dir, fields_file_name_pattern
+        fields_file_dir_contents, fields_file_name_pattern
     )
 
     for fields_file_path in fields_file_path_list:

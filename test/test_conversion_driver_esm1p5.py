@@ -20,60 +20,57 @@ def test_set_nc_write_path():
     assert nc_write_path == Path("/test/path/NetCDF/fields_123.file.nc")
 
 
-def test_find_matching_fields_files(tmp_path):
-    fields_file_dir = tmp_path / "fields_files"
-    fields_file_dir.mkdir()
+def test_find_matching_fields_files():
 
     dir_contents = [
-        "aiihca.paa1jan",
-        "aiihca.pga1jan",
-        "aiihca.pea1jan",
-        "aiihca.daa1jan",
-        "aiihca.dga1jan",
-        "aiihca.dea1jan",
-        "aiihca.paa1jan.nc",
-        "aiihca.paa1jan.OUTPUT",
-        "cable.nml",
-        "CONTCNTL",
-        "errflag",
-        "fort.57",
-        "ftxx.new",
-        "hnlist",
-        "INITHIS",
-        "namelists",
-        "prefix.CNTLATM",
-        "prefix.PRESM_A",
-        "STASHC",
-        "UAFILES_A",
-        "um_env.py",
-        "atm.fort6.pe0",
-        "CNTLALL",
-        "debug.root.01",
-        "exstat",
-        "ftxx",
-        "ftxx.vars",
-        "ihist",
-        "input_atm.nml",
-        "nout.000000",
-        "prefix.CNTLGEN",
-        "SIZES",
-        "thist",
-        "UAFLDS_A",
-        "xhist",
+        "dir_path/aiihca.paa1jan",
+        "dir_path/aiihca.pga1jan",
+        "dir_path/aiihca.pea1jan",
+        "dir_path/aiihca.daa1jan",
+        "dir_path/aiihca.dga1jan",
+        "dir_path/aiihca.dea1jan",
+        "dir_path/aiihca.paa1jan.nc",
+        "dir_path/aiihca.paa1jan.OUTPUT",
+        "dir_path/cable.nml",
+        "dir_path/CONTCNTL",
+        "dir_path/errflag",
+        "dir_path/fort.57",
+        "dir_path/ftxx.new",
+        "dir_path/hnlist",
+        "dir_path/INITHIS",
+        "dir_path/namelists",
+        "dir_path/prefix.CNTLATM",
+        "dir_path/prefix.PRESM_A",
+        "dir_path/STASHC",
+        "dir_path/UAFILES_A",
+        "dir_path/um_env.py",
+        "dir_path/atm.fort6.pe0",
+        "dir_path/CNTLALL",
+        "dir_path/input_atm.nml",
+        "dir_path/debug.root.01",
+        "dir_path/exstat",
+        "dir_path/ftxx",
+        "dir_path/ftxx.vars",
+        "dir_path/ihist",
+        "dir_path/input_atm.nml",
+        "dir_path/nout.000000",
+        "dir_path/prefix.CNTLGEN",
+        "dir_path/SIZES",
+        "dir_path/thist",
+        "dir_path/UAFLDS_A",
+        "dir_path/xhist",
     ]
-    for file in dir_contents:
-        (fields_file_dir / file).touch()
 
     fields_file_pattern = r"^aiihca.p[a-z0-9]+$"
 
     found_fields_files = esm1p5_convert.find_matching_fields_files(
-        fields_file_dir, fields_file_pattern
+        dir_contents, fields_file_pattern
     )
 
     expected_fields_files = [
-        fields_file_dir / "aiihca.paa1jan",
-        fields_file_dir / "aiihca.pea1jan",
-        fields_file_dir / "aiihca.pga1jan",
+        Path("dir_path/aiihca.paa1jan"),
+        Path("dir_path/aiihca.pea1jan"),
+        Path("dir_path/aiihca.pga1jan"),
     ]
     assert set(found_fields_files) == set(expected_fields_files)
 
