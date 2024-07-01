@@ -35,35 +35,6 @@ ARG_NAMES = collections.namedtuple(
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
 
-def get_um_run_id(current_atm_output_dir):
-    """
-    Find the run ID used by the Unified Model in the current ESM1.5 experiment.
-    Required for finding experiment's UM output files.
-
-    Parameters
-    ----------
-    current_atm_output_dir : path to current simulation's atmospheric output directory
-
-    Returns
-    -------
-    run_id : 5 character run ID for the current UM simulation
-
-    """
-
-    current_atm_output_dir = (
-        Path(current_atm_output_dir)
-        if isinstance(current_atm_output_dir, str)
-        else current_atm_output_dir
-    )
-
-    # TODO: get confirmation that this is a good place to
-    # get the run_id from
-    xhist_nml = f90nml.read(current_atm_output_dir / "xhist")
-    run_id = xhist_nml["nlchisto"]["run_id"]
-
-    return run_id
-
-
 def set_esm1p5_fields_file_pattern(run_id):
     """
     Generate regex pattern for finding current experiment's UM outputs.
@@ -207,7 +178,8 @@ def convert_esm1p5_output_dir(current_output_dir):
     current_run_nc_dir.mkdir(exist_ok=True)
 
     # Find fields file outputs to be converted
-    run_id = get_um_run_id(current_atm_output_dir)
+    xhist_nml = f90nml.read(current_atm_output_dir / "xhist")
+    run_id = xhist_nml["nlchisto"]["run_id"]
     fields_file_name_pattern = set_esm1p5_fields_file_pattern(run_id)
 
     # Run the conversion

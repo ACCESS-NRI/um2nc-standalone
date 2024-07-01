@@ -5,16 +5,6 @@ from pathlib import Path
 import f90nml
 
 
-def test_get_um_run_id(tmp_path):
-    # Set up a namelist to read the run_id from
-    xhist_dict = {"nlchisto": {"run_id": "my_run_id"}}
-    f90nml.write(xhist_dict, tmp_path / "xhist")
-
-    run_id = esm1p5_convert.get_um_run_id(tmp_path)
-
-    assert run_id == "my_run_id"
-
-
 def test_set_esm1p5_fields_file_pattern():
     run_id = "abcde"
     fields_file_pattern = esm1p5_convert.set_esm1p5_fields_file_pattern(run_id)
@@ -42,7 +32,8 @@ def test_find_matching_fields_files(tmp_path):
         "aiihca.dga1jan",
         "aiihca.dea1jan",
         "aiihca.paa1jan.nc",
-        "aiihca.paa1jan.OUTPUT" "cable.nml",
+        "aiihca.paa1jan.OUTPUT",
+        "cable.nml",
         "CONTCNTL",
         "errflag",
         "fort.57",
@@ -67,7 +58,8 @@ def test_find_matching_fields_files(tmp_path):
         "prefix.CNTLGEN",
         "SIZES",
         "thist",
-        "UAFLDS_A" "xhist",
+        "UAFLDS_A",
+        "xhist",
     ]
     for file in dir_contents:
         (fields_file_dir / file).touch()
