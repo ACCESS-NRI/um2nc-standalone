@@ -125,6 +125,12 @@ def convert_fields_file_list(fields_file_path_list, nc_write_dir):
 
     for fields_file_path in fields_file_path_list:
 
+        fields_file_path = (
+            Path(fields_file_path)
+            if isinstance(fields_file_path, str)
+            else fields_file_path
+        )
+
         nc_write_path = set_nc_write_path(fields_file_path, nc_write_dir)
 
         print("Converting file " + fields_file_path.name)
@@ -170,6 +176,8 @@ def convert_esm1p5_output_dir(current_output_dir):
     fields_file_path_list = find_matching_fields_files(
         atm_dir_contents, fields_file_name_pattern
     )
+
+    # TODO: What do we want to happen if no fields files are found?
 
     # Run the conversion
     convert_fields_file_list(fields_file_path_list, current_run_nc_dir)
