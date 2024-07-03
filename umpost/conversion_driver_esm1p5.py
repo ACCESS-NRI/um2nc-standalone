@@ -34,6 +34,13 @@ ARG_NAMES = collections.namedtuple(
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
+# TODO: um2nc standalone will raise more specific exceptions.
+# See https://github.com/ACCESS-NRI/um2nc-standalone/issues/18
+# Improve exception handling here once those changes have been made.
+ALLOWED_UM2NC_EXCEPTION_MESSAGES = {
+    "TIMESERIES_ERROR": "Variable can not be processed",
+}
+
 
 def set_esm1p5_fields_file_pattern(run_id):
     """
@@ -140,7 +147,7 @@ def convert_fields_file_list(fields_file_path_list, nc_write_dir):
 
         except Exception as exc:
             # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
-            if exc.args[0] == "Variable can not be processed":
+            if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
                 warnings.warn("Unable to convert file: " + fields_file_path.name)
             else:
                 raise
