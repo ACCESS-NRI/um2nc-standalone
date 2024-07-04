@@ -77,6 +77,7 @@ def test_find_matching_fields_files():
 
 def test_convert_fields_file_list_single():
     with mock.patch("um2netcdf4.process") as mock_process:
+        mock_process.return_value = None 
 
         esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
 
@@ -86,6 +87,7 @@ def test_convert_fields_file_list_single():
 def test_convert_fields_file_list_several():
     test_file_list = ["fake_file_1", "fake_file_2", "fake_file_3"]
     with mock.patch("um2netcdf4.process") as mock_process:
+        mock_process.return_value = None 
         esm1p5_convert.convert_fields_file_list(test_file_list, "fake_nc_write_dir")
 
         assert mock_process.call_count == len(test_file_list)
@@ -93,6 +95,7 @@ def test_convert_fields_file_list_several():
 
 def test_convert_fields_file_list_empty():
     with mock.patch("um2netcdf4.process") as mock_process:
+        mock_process.return_value = None 
         esm1p5_convert.convert_fields_file_list([], "fake_nc_write_dir")
 
         mock_process.assert_not_called()
@@ -108,7 +111,10 @@ def test_convert_fields_file_list_excepted_error():
     with mock.patch("um2netcdf4.process") as mock_process, mock.patch(
         "warnings.warn"
     ) as mock_warning:
+        mock_process.return_value = None
         mock_process.side_effect = Exception(allowed_timeseries_exception_message)
+
+        mock_warning.return_value = None 
 
         esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
 
@@ -117,6 +123,7 @@ def test_convert_fields_file_list_excepted_error():
 
 def test_convert_fields_file_list_generic_error():
     with mock.patch("um2netcdf4.process") as mock_process:
+        mock_process.return_value = None 
         mock_process.side_effect = Exception("test exception")
 
         with pytest.raises(Exception) as exc:
