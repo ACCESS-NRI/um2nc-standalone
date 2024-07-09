@@ -138,12 +138,8 @@ def test_convert_fields_file_list_excepted_error(mock_process_allowed_error):
     # Hopefully this test will be unnecessary with um2nc standalone.
     # Test that the "Variable can not be processed" error arising from time
     # series inputs is excepted.
-    with mock.patch("warnings.warn") as mock_warning:
-        mock_warning.return_value = None
-
+    with pytest.warns(Warning, match = "Unable to convert"):
         esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
-
-        mock_warning.assert_called()
 
 
 def test_convert_fields_file_list_generic_error(mock_process_generic_error,  generic_error_message):
