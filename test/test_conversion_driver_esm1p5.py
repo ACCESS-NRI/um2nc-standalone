@@ -102,7 +102,7 @@ def mock_process_with_exception(mock_process):
     mock_process.side_effect = None
 
 
-@pytest.mark.parameterize(
+@pytest.mark.parametrize(
     "input_list", [[], ["fake_file"], ["fake_file_1", "fake_file_2", "fake_file_3"]]
 )
 def test_convert_fields_file_list(mock_process, input_list):
