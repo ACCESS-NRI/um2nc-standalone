@@ -75,61 +75,82 @@ def test_find_matching_fields_files():
     assert set(found_fields_files) == set(expected_fields_files)
 
 
-def test_convert_fields_file_list_single():
-    with mock.patch("um2netcdf4.process") as mock_process:
-        mock_process.return_value = None 
+@pytest.fixture
+def base_mock_process():
+    # Create a patch of um2netcdf4.process
+    patcher = mock.patch("um2netcdf4.process")
+    yield patcher.start()
+    patcher.stop()
 
-        esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
 
-        mock_process.assert_called_once()
+@pytest.fixture
+def mock_process(base_mock_process):
+    base_mock_process.return_value = None
+    return base_mock_process
 
 
-def test_convert_fields_file_list_several():
+@pytest.fixture
+def allowed_error_message():
+    message = esm1p5_convert.ALLOWED_UM2NC_EXCEPTION_MESSAGES["TIMESERIES_ERROR"]
+    return message
+    
+@pytest.fixture
+def mock_process_allowed_error(mock_process, allowed_error_message):
+    mock_process.side_effect = Exception(allowed_error_message)
+    yield
+    mock_process.side_effect = None 
+
+
+@pytest.fixture
+def generic_error_message():
+    message = "Test error"
+    return message
+
+@pytest.fixture
+def mock_process_generic_error(mock_process, generic_error_message):
+    # Set the patch of um2netcdf4.process to raise a non-excepted error
+    mock_process.side_effect = Exception(generic_error_message)
+    yield
+    mock_process.side_effect = None
+
+
+def test_convert_fields_file_list_single(mock_process):
+    esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
+
+    mock_process.assert_called_once()
+
+
+def test_convert_fields_file_list_several(mock_process):
     test_file_list = ["fake_file_1", "fake_file_2", "fake_file_3"]
-    with mock.patch("um2netcdf4.process") as mock_process:
-        mock_process.return_value = None 
-        esm1p5_convert.convert_fields_file_list(test_file_list, "fake_nc_write_dir")
 
-        assert mock_process.call_count == len(test_file_list)
+    esm1p5_convert.convert_fields_file_list(test_file_list, "fake_nc_write_dir")
 
-
-def test_convert_fields_file_list_empty():
-    with mock.patch("um2netcdf4.process") as mock_process:
-        mock_process.return_value = None 
-        esm1p5_convert.convert_fields_file_list([], "fake_nc_write_dir")
-
-        mock_process.assert_not_called()
+    assert mock_process.call_count == len(test_file_list)
 
 
-def test_convert_fields_file_list_excepted_error():
+def test_convert_fields_file_list_empty(mock_process):
+    esm1p5_convert.convert_fields_file_list([], "fake_nc_write_dir")
+
+    mock_process.assert_not_called()
+
+
+def test_convert_fields_file_list_excepted_error(mock_process_allowed_error):
     # Hopefully this test will be unnecessary with um2nc standalone.
     # Test that the "Variable can not be processed" error arising from time
     # series inputs is excepted.
-    allowed_timeseries_exception_message = (
-        esm1p5_convert.ALLOWED_UM2NC_EXCEPTION_MESSAGES["TIMESERIES_ERROR"]
-    )
-    with mock.patch("um2netcdf4.process") as mock_process, mock.patch(
-        "warnings.warn"
-    ) as mock_warning:
-        mock_process.return_value = None
-        mock_process.side_effect = Exception(allowed_timeseries_exception_message)
-
-        mock_warning.return_value = None 
+    with mock.patch("warnings.warn") as mock_warning:
+        mock_warning.return_value = None
 
         esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
 
         mock_warning.assert_called()
 
 
-def test_convert_fields_file_list_generic_error():
-    with mock.patch("um2netcdf4.process") as mock_process:
-        mock_process.return_value = None 
-        mock_process.side_effect = Exception("test exception")
-
-        with pytest.raises(Exception) as exc:
-            esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
-            assert str(exc) == "test exception"
-
+def test_convert_fields_file_list_generic_error(mock_process_generic_error,  generic_error_message):
+    with pytest.raises(Exception) as exc_info:
+        esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
+    
+    assert str(exc_info.value) == generic_error_message
 
 def test_convert_esm1p5_output_dir_error():
     with pytest.raises(FileNotFoundError):
