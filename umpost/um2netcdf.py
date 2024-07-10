@@ -326,12 +326,16 @@ def process(infile, outfile, args):
         check_pressure_warnings(need_heaviside_uv, heaviside_uv,
                                 need_heaviside_t, heaviside_t)
 
+    # TODO: can NC type be a single arg?
+    #       defer to new process() API
     nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
                   3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
 
     with iris.fileformats.netcdf.Saver(outfile, nc_formats[args.nckind]) as sman:
         # Add global attributes
         if not args.nohist:
+            # TODO: fix program name
+            # TODO: update string formatting
             history = "File %s converted with um2netcdf_iris.py v2.1 at %s" % \
                       (infile, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             sman.update_global_attributes({'history': history})
