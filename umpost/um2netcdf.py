@@ -502,7 +502,7 @@ def get_z_sea_constants(ff):
 
 def to_item_code(stash_code):
     """
-    Returns a stash code (with section and item members) as a combined integer "code".
+    Returns stash code (with section & item members) as a single integer "code".
 
     Parameters
     ----------
@@ -529,8 +529,9 @@ def check_pressure_level_masking(cubes):
             need_heaviside_t [bool], heaviside_t [iris cube or None])
 
     """
-    # Check whether there are any pressure level fields that should be masked. Can use temperature
-    # to mask instantaneous fields, so really should check whether these are time means
+    # Check whether there are any pressure level fields that should be masked.
+    # Can use temperature to mask instantaneous fields, so really should check
+    # whether these are time means
     need_heaviside_uv = need_heaviside_t = False
     heaviside_uv = None
     heaviside_t = None
