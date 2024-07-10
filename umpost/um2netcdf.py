@@ -28,7 +28,7 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 
-# cube attribute names
+# Iris cube attribute names
 STASH = "STASH"
 ITEM_CODE = "item_code"
 
@@ -322,7 +322,8 @@ def process(infile, outfile, args):
     do_mask = not args.nomask  # make warning logic more readable
 
     if do_mask:
-        check_pressure_warnings(need_heaviside_uv, heaviside_uv,  # TODO: fix name
+        # TODO: rename func to better name
+        check_pressure_warnings(need_heaviside_uv, heaviside_uv,
                                 need_heaviside_t, heaviside_t)
 
     nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
@@ -336,7 +337,7 @@ def process(infile, outfile, args):
             sman.update_global_attributes({'history': history})
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in cubes:  # TODO: use cube_index here
+        for c in cubes:  # TODO: use new cube item code attr
             stashcode = c.attributes['STASH']
             itemcode = to_item_code(stashcode)
 
@@ -534,7 +535,6 @@ def check_pressure_level_masking(cubes):
     heaviside_uv = None
     heaviside_t = None
 
-    # NB: can this be done with key existence tests?
     for cube in cubes:
         item_code = cube.attributes[ITEM_CODE]
 
