@@ -82,13 +82,28 @@ class DummyCube:
     Imitation iris Cube for unit testing.
     """
 
-    def __init__(self, attributes=None):
+    def __init__(self, item_code, attributes=None):
+        self.item_code = item_code
         self.attributes = attributes
 
 
-def test_check_pressure_level_masking_need_heaviside_uv():
-    ua_plev_cube = DummyCube({um2nc.ITEM_CODE: 30201})
-    heaviside_uv_cube = DummyCube({um2nc.ITEM_CODE: 30301})
+@pytest.fixture
+def ua_plev_cube():
+    return DummyCube(30201)
+
+
+@pytest.fixture
+def heaviside_uv_cube():
+    return DummyCube(30301)
+
+
+@pytest.fixture
+def ta_plev_cube():
+    return DummyCube(30294)
+
+
+def test_check_pressure_level_masking_need_heaviside_uv(ua_plev_cube,
+                                                        heaviside_uv_cube):
     cubes = [ua_plev_cube, heaviside_uv_cube]
 
     (need_heaviside_uv, heaviside_uv,
@@ -100,20 +115,16 @@ def test_check_pressure_level_masking_need_heaviside_uv():
     assert heaviside_t is None
 
 
-def test_check_pressure_level_masking_missing_heaviside_uv():
-    ua_plev_cube = DummyCube({um2nc.ITEM_CODE: 30201})
+def test_check_pressure_level_masking_missing_heaviside_uv(ua_plev_cube):
     cubes = [ua_plev_cube]
-
     need_heaviside_uv, heaviside_uv, _, _ = um2nc.check_pressure_level_masking(cubes)
 
     assert need_heaviside_uv
     assert heaviside_uv is None
 
 
-def test_check_pressure_level_masking_need_heaviside_t():
-    ta_plev_cube = DummyCube({um2nc.ITEM_CODE: 30294})
-    heaviside_t_cube = DummyCube({um2nc.ITEM_CODE: 30304})
-
+def test_check_pressure_level_masking_need_heaviside_t(ta_plev_cube):
+    heaviside_t_cube = DummyCube(30304)
     cubes = (ta_plev_cube, heaviside_t_cube)
 
     (need_heaviside_uv, heaviside_uv,
@@ -125,10 +136,8 @@ def test_check_pressure_level_masking_need_heaviside_t():
     assert heaviside_t
 
 
-def test_check_pressure_level_masking_missing_heaviside_t():
-    ta_plev_cube = DummyCube({um2nc.ITEM_CODE: 30294})
+def test_check_pressure_level_masking_missing_heaviside_t(ta_plev_cube):
     cubes = (ta_plev_cube, )
-
     _, _, need_heaviside_t, heaviside_t = um2nc.check_pressure_level_masking(cubes)
 
     assert need_heaviside_t
