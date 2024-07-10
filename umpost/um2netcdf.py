@@ -312,9 +312,16 @@ def process(infile, outfile, args):
     cubes = iris.load(infile)
 
     for cube in cubes:
-        cube.attributes[ITEM_CODE] = to_item_code(cube.attributes[STASH])
+        item_code = to_item_code(cube.attributes[STASH])
 
-    cubes.sort(key=lambda cs: cs.attributes[ITEM_CODE])
+        # hack: manually store item_code in cubes
+        if hasattr(cube, ITEM_CODE):
+            msg = f"Cube {item_code} already has 'item_code' attr"
+            raise NotImplementedError(msg)
+
+        setattr(cube, ITEM_CODE, item_code)
+
+    cubes.sort(key=lambda cs: cs.item_code)
 
     (need_heaviside_uv, heaviside_uv,
      need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
@@ -345,9 +352,9 @@ def process(infile, outfile, args):
             stashcode = c.attributes['STASH']
             itemcode = to_item_code(stashcode)
 
-            if args.include_list and itemcode not in args.include_list:
+            if args.include_list and c.item_code not in args.include_list:
                 continue
-            if args.exclude_list and itemcode in args.exclude_list:
+            if args.exclude_list and c.item_code in args.exclude_list:
                 continue
 
             umvar = stashvar.StashVar(itemcode)
@@ -541,18 +548,16 @@ def check_pressure_level_masking(cubes):
     heaviside_t = None
 
     for cube in cubes:
-        item_code = cube.attributes[ITEM_CODE]
-
-        if require_heaviside_uv(item_code):
+        if require_heaviside_uv(cube.item_code):
             need_heaviside_uv = True
 
-        if is_heaviside_uv(item_code):
+        if is_heaviside_uv(cube.item_code):
             heaviside_uv = cube
 
-        if require_heaviside_t(item_code):
+        if require_heaviside_t(cube.item_code):
             need_heaviside_t = True
 
-        if is_heaviside_t(item_code):
+        if is_heaviside_t(cube.item_code):
             heaviside_t = cube
 
     return need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t
