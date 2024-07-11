@@ -1,4 +1,5 @@
 import unittest.mock as mock
+from dataclasses import dataclass
 
 import umpost.um2netcdf as um2nc
 
@@ -77,29 +78,72 @@ def test_stash_code_to_item_code_conversion():
     assert result == 30255
 
 
+@dataclass
+class DummyStash:
+    """
+    Partial Stash representation for testing.
+    """
+    section: int
+    item: int
+
+
+def add_stash(cube, stash):
+    d = {um2nc.STASH: stash}
+    setattr(cube, "attributes", d)
+
+
+@dataclass()
+class PartialCube:
+    # work around mocks & DummyCube having item_code attr
+    var_name: str
+    attributes: dict
+
+
+def test_set_item_codes():
+    cube0 = PartialCube("d0", {um2nc.STASH: DummyStash(1, 2)})
+    cube1 = PartialCube("d1", {um2nc.STASH: DummyStash(3, 4)})
+    cubes = [cube0, cube1]
+
+    for cube in cubes:
+        assert not hasattr(cube, um2nc.ITEM_CODE)
+
+    um2nc.set_item_codes(cubes)
+    c0, c1 = cubes
+
+    assert c0.item_code == 1002
+    assert c1.item_code == 3004
+
+
 class DummyCube:
     """
     Imitation iris Cube for unit testing.
     """
 
-    def __init__(self, item_code, attributes=None):
+    def __init__(self, item_code, var_name=None, attributes=None):
         self.item_code = item_code
+        self.var_name = var_name or "unknown_var"
         self.attributes = attributes
+
+
+def test_set_item_codes_fail_on_overwrite():
+    cubes = [DummyCube(1007, "fake_var")]
+    with pytest.raises(NotImplementedError):
+        um2nc.set_item_codes(cubes)
 
 
 @pytest.fixture
 def ua_plev_cube():
-    return DummyCube(30201)
+    return DummyCube(30201, "ua_plev")
 
 
 @pytest.fixture
 def heaviside_uv_cube():
-    return DummyCube(30301)
+    return DummyCube(30301, "heaviside_uv")
 
 
 @pytest.fixture
 def ta_plev_cube():
-    return DummyCube(30294)
+    return DummyCube(30294, "ta_plev")
 
 
 def test_check_pressure_level_masking_need_heaviside_uv(ua_plev_cube,
