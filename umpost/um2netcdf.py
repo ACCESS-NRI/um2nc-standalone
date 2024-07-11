@@ -310,17 +310,7 @@ def process(infile, outfile, args):
         raise Exception("Error: include list and exclude list are mutually exclusive")
 
     cubes = iris.load(infile)
-
-    for cube in cubes:
-        item_code = to_item_code(cube.attributes[STASH])
-
-        # hack: manually store item_code in cubes
-        if hasattr(cube, ITEM_CODE):
-            msg = f"Cube {item_code} already has 'item_code' attr"
-            raise NotImplementedError(msg)
-
-        setattr(cube, ITEM_CODE, item_code)
-
+    set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
     (need_heaviside_uv, heaviside_uv,
@@ -524,6 +514,17 @@ def to_item_code(stash_code):
     A single integer "item code".
     """
     return 1000 * stash_code.section + stash_code.item
+
+
+def set_item_codes(cubes):
+    for cube in cubes:
+        if hasattr(cube, ITEM_CODE):
+            msg = f"Cube {cube.var_name} already has 'item_code' attribute"
+            raise NotImplementedError(msg)
+
+        # hack: manually store item_code in cubes
+        item_code = to_item_code(cube.attributes[STASH])
+        setattr(cube, ITEM_CODE, item_code)
 
 
 def check_pressure_level_masking(cubes):
