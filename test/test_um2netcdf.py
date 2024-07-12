@@ -191,7 +191,7 @@ def test_check_pressure_level_masking_missing_heaviside_t(ta_plev_cube):
 # cube filtering tests
 # use wrap results in tuples to capture generator output in sequence
 
-def test_cube_filtering_mutually_exclusive():
+def test_cube_filtering_mutually_exclusive(ua_plev_cube, heaviside_uv_cube):
     include = [30201]
     exclude = [30293]
     cubes = (ua_plev_cube, heaviside_uv_cube)
