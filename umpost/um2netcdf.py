@@ -628,20 +628,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3,
-                        help='specify netCDF output format: 1 classic, 2 64-bit offset, 3 netCDF-4, 4 netCDF-4 classic model. Default 3',
+                        help=('specify netCDF output format: 1 classic, 2 64-bit'
+                              ' offset, 3 netCDF-4, 4 netCDF-4 classic model.'
+                              ' Default 3'),
                         choices=[1, 2, 3, 4])
     parser.add_argument('-c', dest='compression', required=False, type=int,
                         default=4, help='compression level (0=none, 9=max). Default 4')
     parser.add_argument('--64', dest='use64bit', action='store_true',
                         default=False, help='Use 64 bit netcdf for 64 bit input')
     parser.add_argument('-v', '--verbose', dest='verbose',
-                        action='count', default=0, help='verbose output (-vv for extra verbose)')
+                        action='count', default=0,
+                        help='verbose output (-vv for extra verbose)')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--include', dest='include_list', type=int,
-                        nargs='+', help='List of stash codes to include')
+                       nargs='+', help='List of stash codes to include')
     group.add_argument('--exclude', dest='exclude_list', type=int,
-                        nargs='+', help='List of stash codes to exclude')
+                       nargs='+', help='List of stash codes to exclude')
 
     parser.add_argument('--nomask', dest='nomask', action='store_true',
                         default=False,
@@ -651,7 +654,8 @@ if __name__ == '__main__':
     parser.add_argument('--simple', dest='simple', action='store_true',
                         default=False, help="Use a simple names of form fld_s01i123.")
     parser.add_argument('--hcrit', dest='hcrit', type=float, default=0.5,
-                        help="Critical value of heavyside fn for pressure level masking (default=0.5)")
+                        help=("Critical value of heavyside fn for pressure level"
+                              " masking (default=0.5)"))
 
     parser.add_argument('infile', help='Input file')
     parser.add_argument('outfile', help='Output file')
