@@ -636,10 +636,13 @@ if __name__ == '__main__':
                         default=False, help='Use 64 bit netcdf for 64 bit input')
     parser.add_argument('-v', '--verbose', dest='verbose',
                         action='count', default=0, help='verbose output (-vv for extra verbose)')
-    parser.add_argument('--include', dest='include_list', type=int,
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--include', dest='include_list', type=int,
                         nargs='+', help='List of stash codes to include')
-    parser.add_argument('--exclude', dest='exclude_list', type=int,
+    group.add_argument('--exclude', dest='exclude_list', type=int,
                         nargs='+', help='List of stash codes to exclude')
+
     parser.add_argument('--nomask', dest='nomask', action='store_true',
                         default=False,
                         help="Don't apply heaviside function mask to pressure level fields")
@@ -649,6 +652,7 @@ if __name__ == '__main__':
                         default=False, help="Use a simple names of form fld_s01i123.")
     parser.add_argument('--hcrit', dest='hcrit', type=float, default=0.5,
                         help="Critical value of heavyside fn for pressure level masking (default=0.5)")
+
     parser.add_argument('infile', help='Input file')
     parser.add_argument('outfile', help='Output file')
 
