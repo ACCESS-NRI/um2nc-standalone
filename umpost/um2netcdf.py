@@ -338,16 +338,15 @@ def process(infile, outfile, args):
             sman.update_global_attributes({'history': history})
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in cubes:  # TODO: use new cube item code attr
+        for c in cubes:
             stashcode = c.attributes['STASH']
-            itemcode = to_item_code(stashcode)
 
             if args.include_list and c.item_code not in args.include_list:
                 continue
             if args.exclude_list and c.item_code in args.exclude_list:
                 continue
 
-            umvar = stashvar.StashVar(itemcode)
+            umvar = stashvar.StashVar(c.item_code)
 
             if args.simple:
                 c.var_name = 'fld_s%2.2di%3.3d' % (stashcode.section, stashcode.item)
@@ -429,7 +428,7 @@ def process(infile, outfile, args):
                     continue
 
             if args.verbose:
-                print(c.name(), itemcode)
+                print(c.name(), c.item_code)
 
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
 
