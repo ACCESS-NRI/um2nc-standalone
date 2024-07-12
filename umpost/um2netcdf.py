@@ -306,9 +306,6 @@ def process(infile, outfile, args):
     dlat, dlon = get_grid_spacing(ff)
     z_rho, z_theta = get_z_sea_constants(ff)
 
-    if args.include_list and args.exclude_list:
-        raise Exception("Error: include list and exclude list are mutually exclusive")
-
     cubes = iris.load(infile)
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
@@ -338,14 +335,8 @@ def process(infile, outfile, args):
             sman.update_global_attributes({'history': history})
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in cubes:
+        for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
             stashcode = c.attributes['STASH']
-
-            if args.include_list and c.item_code not in args.include_list:
-                continue
-            if args.exclude_list and c.item_code in args.exclude_list:
-                continue
-
             umvar = stashvar.StashVar(c.item_code)
 
             if args.simple:
@@ -601,6 +592,36 @@ def check_pressure_warnings(need_heaviside_uv, heaviside_uv, need_heaviside_t, h
     if need_heaviside_t and heaviside_t is None:
         print("Warning: heaviside_t field needed for masking pressure level data is not present. "
               "These fields will be skipped")
+
+
+def filtered_cubes(cubes, include=None, exclude=None):
+    """
+    Generator filters & emits cubes by include or exclude lists.
+
+    Include & exclude args are mutually exclusive. If neither include or exclude
+    are specified, the generator yields the full cube list.
+
+    Parameters
+    ----------
+    cubes : Sequence of Iris Cube objects
+    include: Sequence of item_code (int) to include (discarding all others)
+    exclude: Sequence of item_code (int) to exclude (keeping all other cubes)
+    """
+    if include and exclude:
+        msg = "Include and exclude lists are mutually exclusive"
+        raise ValueError(msg)
+
+    f_cubes = None
+
+    if include is None and exclude is None:
+        f_cubes = cubes
+    elif include:
+        f_cubes = (c for c in cubes if c.item_code in include)
+    elif exclude:
+        f_cubes = (c for c in cubes if c.item_code not in exclude)
+
+    for c in f_cubes:
+        yield c
 
 
 if __name__ == '__main__':
