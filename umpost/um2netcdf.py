@@ -331,6 +331,8 @@ def process(infile, outfile, args):
                   3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
 
     with iris.fileformats.netcdf.Saver(outfile, nc_formats[args.nckind]) as sman:
+        # TODO: move attribute mods to end of process() to group sman ops
+        #       do when sman ops refactored into a write function
         # Add global attributes
         if not args.nohist:
             add_global_history(infile, sman)
