@@ -1,0 +1,6 @@
+[run]
+branch = True
+
+[html]
+title = Coverage report: um2nc-standalone
+directory = coverage_html
