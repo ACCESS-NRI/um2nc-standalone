@@ -15,6 +15,24 @@ TODO
 
 TODO
 
+### Running the tests
+
+This project uses `pytest`. To run the tests:
+
+```Bash
+$ cd <your um2nc-standalone dir>
+$ pytest
+```
+
+A minimal code coverage setup has been included, to run & generate an HTML coverage report:
+
+```
+$ cd <your um2nc-standalone dir>
+$ pytest --cov-report=html --cov=umpost
+```
+
+Then load the `index.html` from the project root/coverage_html dir.
+
 ## Further information
 
 TODO
