@@ -10,9 +10,11 @@ Note that um2netcdf depends on the following data access libraries:
 * Iris https://github.com/SciTools/iris
 """
 
+import os
 import sys
 import argparse
 import datetime
+import warnings
 
 from umpost import stashvar_cmip6 as stashvar
 
@@ -326,13 +328,12 @@ def process(infile, outfile, args):
                   3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
 
     with iris.fileformats.netcdf.Saver(outfile, nc_formats[args.nckind]) as sman:
+        # TODO: move attribute mods to end of process() to group sman ops
+        #       do when sman ops refactored into a write function
         # Add global attributes
         if not args.nohist:
-            # TODO: fix program name
-            # TODO: update string formatting
-            history = "File %s converted with um2netcdf_iris.py v2.1 at %s" % \
-                      (infile, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            sman.update_global_attributes({'history': history})
+            add_global_history(infile, sman)
+
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
         for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
@@ -622,6 +623,16 @@ def filtered_cubes(cubes, include=None, exclude=None):
 
     for c in f_cubes:
         yield c
+
+
+def add_global_history(infile, iris_out):
+    version = -1  # FIXME: determine version
+    t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    um2nc_path = os.path.abspath(__file__)
+    history = f"File {infile} converted with {um2nc_path} {version} at {t}"
+
+    iris_out.update_global_attributes({'history': history})
+    warnings.warn("um2nc version number not specified!")
 
 
 if __name__ == '__main__':
