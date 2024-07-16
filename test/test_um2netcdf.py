@@ -186,3 +186,34 @@ def test_check_pressure_level_masking_missing_heaviside_t(ta_plev_cube):
 
     assert need_heaviside_t
     assert heaviside_t is None
+
+
+# cube filtering tests
+# use wrap results in tuples to capture generator output in sequence
+
+def test_cube_filtering_mutually_exclusive(ua_plev_cube, heaviside_uv_cube):
+    include = [30201]
+    exclude = [30293]
+    cubes = (ua_plev_cube, heaviside_uv_cube)
+
+    with pytest.raises(ValueError):
+        tuple(um2nc.filtered_cubes(cubes, include, exclude))
+
+
+def test_cube_filtering_include(ua_plev_cube, heaviside_uv_cube):
+    include = [30201]
+    result = um2nc.filtered_cubes([ua_plev_cube, heaviside_uv_cube], include)
+    assert tuple(result) == (ua_plev_cube,)
+
+
+def test_cube_filtering_exclude(ua_plev_cube, heaviside_uv_cube):
+    exclude = [30201]
+    cubes = [ua_plev_cube, heaviside_uv_cube]
+    result = um2nc.filtered_cubes(cubes, None, exclude)
+    assert tuple(result) == (heaviside_uv_cube,)
+
+
+def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
+    cubes = [ua_plev_cube, heaviside_uv_cube]
+    result = list(um2nc.filtered_cubes(cubes))
+    assert result == cubes

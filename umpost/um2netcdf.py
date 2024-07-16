@@ -308,9 +308,6 @@ def process(infile, outfile, args):
     dlat, dlon = get_grid_spacing(ff)
     z_rho, z_theta = get_z_sea_constants(ff)
 
-    if args.include_list and args.exclude_list:
-        raise Exception("Error: include list and exclude list are mutually exclusive")
-
     cubes = iris.load(infile)
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
@@ -339,14 +336,8 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in cubes:
+        for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
             stashcode = c.attributes['STASH']
-
-            if args.include_list and c.item_code not in args.include_list:
-                continue
-            if args.exclude_list and c.item_code in args.exclude_list:
-                continue
-
             umvar = stashvar.StashVar(c.item_code)
 
             if args.simple:
@@ -604,6 +595,36 @@ def check_pressure_warnings(need_heaviside_uv, heaviside_uv, need_heaviside_t, h
               "These fields will be skipped")
 
 
+def filtered_cubes(cubes, include=None, exclude=None):
+    """
+    Generator filters & emits cubes by include or exclude lists.
+
+    Include & exclude args are mutually exclusive. If neither include or exclude
+    are specified, the generator yields the full cube list.
+
+    Parameters
+    ----------
+    cubes : Sequence of Iris Cube objects
+    include: Sequence of item_code (int) to include (discarding all others)
+    exclude: Sequence of item_code (int) to exclude (keeping all other cubes)
+    """
+    if include and exclude:
+        msg = "Include and exclude lists are mutually exclusive"
+        raise ValueError(msg)
+
+    f_cubes = None
+
+    if include is None and exclude is None:
+        f_cubes = cubes
+    elif include:
+        f_cubes = (c for c in cubes if c.item_code in include)
+    elif exclude:
+        f_cubes = (c for c in cubes if c.item_code not in exclude)
+
+    for c in f_cubes:
+        yield c
+
+
 def add_global_history(infile, iris_out):
     version = -1  # FIXME: determine version
     t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -618,18 +639,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3,
-                        help='specify netCDF output format: 1 classic, 2 64-bit offset, 3 netCDF-4, 4 netCDF-4 classic model. Default 3',
+                        help=('specify netCDF output format: 1 classic, 2 64-bit'
+                              ' offset, 3 netCDF-4, 4 netCDF-4 classic model.'
+                              ' Default 3'),
                         choices=[1, 2, 3, 4])
     parser.add_argument('-c', dest='compression', required=False, type=int,
                         default=4, help='compression level (0=none, 9=max). Default 4')
     parser.add_argument('--64', dest='use64bit', action='store_true',
                         default=False, help='Use 64 bit netcdf for 64 bit input')
     parser.add_argument('-v', '--verbose', dest='verbose',
-                        action='count', default=0, help='verbose output (-vv for extra verbose)')
-    parser.add_argument('--include', dest='include_list', type=int,
-                        nargs='+', help='List of stash codes to include')
-    parser.add_argument('--exclude', dest='exclude_list', type=int,
-                        nargs='+', help='List of stash codes to exclude')
+                        action='count', default=0,
+                        help='verbose output (-vv for extra verbose)')
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--include', dest='include_list', type=int,
+                       nargs='+', help='List of stash codes to include')
+    group.add_argument('--exclude', dest='exclude_list', type=int,
+                       nargs='+', help='List of stash codes to exclude')
+
     parser.add_argument('--nomask', dest='nomask', action='store_true',
                         default=False,
                         help="Don't apply heaviside function mask to pressure level fields")
@@ -638,7 +665,9 @@ if __name__ == '__main__':
     parser.add_argument('--simple', dest='simple', action='store_true',
                         default=False, help="Use a simple names of form fld_s01i123.")
     parser.add_argument('--hcrit', dest='hcrit', type=float, default=0.5,
-                        help="Critical value of heavyside fn for pressure level masking (default=0.5)")
+                        help=("Critical value of heavyside fn for pressure level"
+                              " masking (default=0.5)"))
+
     parser.add_argument('infile', help='Input file')
     parser.add_argument('outfile', help='Output file')
 
