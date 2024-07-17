@@ -5,16 +5,16 @@ from pathlib import Path
 import unittest.mock as mock
 
 
-def test_set_esm1p5_fields_file_pattern():
+def test_get_esm1p5_fields_file_pattern():
     run_id = "abcde"
-    fields_file_pattern = esm1p5_convert.set_esm1p5_fields_file_pattern(run_id)
+    fields_file_pattern = esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
     assert fields_file_pattern == r"^abcdea.p[a-z0-9]+$"
 
 
 @pytest.mark.parametrize("run_id", ["", "a", "ab", "567873"])
-def test_set_esm1p5_fields_file_pattern_wrong_id_length(run_id):
+def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
     with pytest.raises(ValueError):
-        esm1p5_convert.set_esm1p5_fields_file_pattern(run_id)
+        esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
 
 
 def test_get_nc_write_path():

@@ -42,7 +42,7 @@ ALLOWED_UM2NC_EXCEPTION_MESSAGES = {
 }
 
 
-def set_esm1p5_fields_file_pattern(run_id):
+def get_esm1p5_fields_file_pattern(run_id):
     """
     Generate regex pattern for finding current experiment's UM outputs.
 
@@ -194,7 +194,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     # Find fields file outputs to be converted
     xhist_nml = f90nml.read(current_atm_output_dir / "xhist")
     run_id = xhist_nml["nlchisto"]["run_id"]
-    fields_file_name_pattern = set_esm1p5_fields_file_pattern(run_id)
+    fields_file_name_pattern = get_esm1p5_fields_file_pattern(run_id)
 
     atm_dir_contents = current_atm_output_dir.glob("*")
 
