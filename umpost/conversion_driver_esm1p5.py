@@ -92,10 +92,10 @@ def get_nc_write_path(fields_file_path, nc_write_dir):
         nc_write_dir, str) else nc_write_dir
 
     fields_file_name = fields_file_path.name
-    nc_name = fields_file_name + ".nc"
-    nc_write_path = nc_write_dir / nc_name
+    nc_file_name = fields_file_name + ".nc"
+    nc_file_write_path = nc_write_dir / nc_file_name
 
-    return nc_write_path
+    return nc_file_write_path
 
 
 def find_matching_fields_files(dir_contents, fields_file_name_pattern):
