@@ -105,7 +105,6 @@ def mock_process_with_exception(mock_process):
 
     yield _mock_process_with_exception
 
-    mock_process.side_effect = None
 
 
 @pytest.mark.parametrize(
