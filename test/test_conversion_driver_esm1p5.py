@@ -11,6 +11,12 @@ def test_set_esm1p5_fields_file_pattern():
     assert fields_file_pattern == r"^abcdea.p[a-z0-9]+$"
 
 
+@pytest.mark.parametrize("run_id", ["", "a", "ab", "567873"])
+def test_set_esm1p5_fields_file_pattern_wrong_id_length(run_id):
+    with pytest.raises(ValueError):
+        esm1p5_convert.set_esm1p5_fields_file_pattern(run_id)
+
+
 def test_set_nc_write_path():
     fields_file_path = Path("/test/path/fields_123.file")
     nc_write_dir = Path("/test/path/NetCDF")

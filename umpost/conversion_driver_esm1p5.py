@@ -58,6 +58,12 @@ def set_esm1p5_fields_file_pattern(run_id):
     # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
     # '.' (absolute standard time convention) + 'p' (pp file).
     # See get_name.F90 in the UM7.3 source code for details.
+
+    if len(run_id) != 5:
+        raise ValueError(
+            f"Recieved run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
+        )
+
     fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
 
     return fields_file_name_pattern
@@ -82,7 +88,8 @@ def set_nc_write_path(fields_file_path, nc_write_dir):
         else fields_file_path
     )
 
-    nc_write_dir = Path(nc_write_dir) if isinstance(nc_write_dir, str) else nc_write_dir
+    nc_write_dir = Path(nc_write_dir) if isinstance(
+        nc_write_dir, str) else nc_write_dir
 
     fields_file_name = fields_file_path.name
     nc_name = fields_file_name + ".nc"
@@ -148,7 +155,8 @@ def convert_fields_file_list(fields_file_path_list, nc_write_dir):
         except Exception as exc:
             # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
             if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
-                warnings.warn("Unable to convert file: " + fields_file_path.name)
+                warnings.warn("Unable to convert file: " +
+                              fields_file_path.name)
             else:
                 raise
 
@@ -164,7 +172,7 @@ def convert_esm1p5_output_dir(current_output_dir):
 
     current_atm_output_dir = current_output_dir / "atmosphere"
 
-    if not (current_atm_output_dir.exists()):
+    if not current_atm_output_dir.exists():
         raise FileNotFoundError(
             errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir
         )
