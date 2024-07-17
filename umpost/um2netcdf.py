@@ -404,20 +404,19 @@ def process(infile, outfile, args):
 
             fix_level_coord(c, z_rho, z_theta)
 
-            if not args.nomask and stashcode.section == 30 and \
-                    (201 <= stashcode.item <= 288 or 302 <= stashcode.item <= 303):
+            if do_mask:
                 # Pressure level data should be masked
-                if heaviside_uv:
-                    apply_mask(c, heaviside_uv, args.hcrit)  # noqa TODO: fix referencing warning
-                else:
-                    continue
+                if require_heaviside_uv(c.item_code):
+                    if heaviside_uv:
+                        apply_mask(c, heaviside_uv, args.hcrit)
+                    else:
+                        continue
 
-            if not args.nomask and stashcode.section == 30 and (293 <= stashcode.item <= 298):
-                # Pressure level data should be masked
-                if heaviside_t:
-                    apply_mask(c, heaviside_t, args.hcrit)  # noqa TODO: fix referencing warning
-                else:
-                    continue
+                if require_heaviside_t(c.item_code):
+                    if heaviside_t:
+                        apply_mask(c, heaviside_t, args.hcrit)
+                    else:
+                        continue
 
             if args.verbose:
                 print(c.name(), c.item_code)
