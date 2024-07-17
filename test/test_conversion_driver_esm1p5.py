@@ -17,11 +17,11 @@ def test_set_esm1p5_fields_file_pattern_wrong_id_length(run_id):
         esm1p5_convert.set_esm1p5_fields_file_pattern(run_id)
 
 
-def test_set_nc_write_path():
+def test_get_nc_write_path():
     fields_file_path = Path("/test/path/fields_123.file")
     nc_write_dir = Path("/test/path/NetCDF")
 
-    nc_write_path = esm1p5_convert.set_nc_write_path(fields_file_path, nc_write_dir)
+    nc_write_path = esm1p5_convert.get_nc_write_path(fields_file_path, nc_write_dir)
 
     assert nc_write_path == Path("/test/path/NetCDF/fields_123.file.nc")
 

@@ -69,9 +69,9 @@ def set_esm1p5_fields_file_pattern(run_id):
     return fields_file_name_pattern
 
 
-def set_nc_write_path(fields_file_path, nc_write_dir):
+def get_nc_write_path(fields_file_path, nc_write_dir):
     """
-    Set filepath for writing NetCDF to based on fields file name.
+    Get filepath for writing NetCDF to based on fields file name.
 
     Parameters
     ----------
@@ -113,23 +113,22 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     fields_file_paths : subset of dir_contents with names matching fields_file_name_pattern.
     """
 
-    fields_file_paths = []
-    for filepath in dir_contents:
-        filepath = Path(filepath)
-
-        if re.match(fields_file_name_pattern, filepath.name):
-            fields_file_paths.append(filepath)
+    dir_contents = [Path(filepath) for filepath in dir_contents]
+    fields_file_paths = [
+        filepath for filepath in dir_contents
+        if re.match(fields_file_name_pattern, filepath.name)
+    ]
 
     return fields_file_paths
 
 
-def convert_fields_file_list(fields_file_path_list, nc_write_dir):
+def convert_fields_file_list(fields_file_paths, nc_write_dir):
     """
     Convert group of fields files to NetCDF, writing output in nc_write_dir.
 
     Parameters
     ----------
-    fields_file_list : list of paths to fields files for conversion.
+    fields_file_paths : list of paths to fields files for conversion.
     nc_write_dir : directory to save NetCDF files into.
 
     Returns
@@ -137,7 +136,7 @@ def convert_fields_file_list(fields_file_path_list, nc_write_dir):
     None
     """
 
-    for fields_file_path in fields_file_path_list:
+    for fields_file_path in fields_file_paths:
 
         fields_file_path = (
             Path(fields_file_path)
@@ -145,7 +144,7 @@ def convert_fields_file_list(fields_file_path_list, nc_write_dir):
             else fields_file_path
         )
 
-        nc_write_path = set_nc_write_path(fields_file_path, nc_write_dir)
+        nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
 
         print("Converting file " + fields_file_path.name)
 
@@ -161,16 +160,27 @@ def convert_fields_file_list(fields_file_path_list, nc_write_dir):
                 raise
 
 
-def convert_esm1p5_output_dir(current_output_dir):
-    """Driver function for converting ESM1.5 atmospheric outputs during a simulation."""
+def convert_esm1p5_output_dir(esm1p5_output_dir):
+    """
+    Driver function for converting ESM1.5 atmospheric outputs during a simulation.
 
-    current_output_dir = (
-        Path(current_output_dir)
-        if isinstance(current_output_dir, str)
-        else current_output_dir
+    Parameters
+    ----------
+    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation. 
+        Fields files in the "atmosphere" subdirectory will be converted to NetCDF.
+
+    Returns
+    -------
+    None
+    """
+
+    esm1p5_output_dir = (
+        Path(esm1p5_output_dir)
+        if isinstance(esm1p5_output_dir, str)
+        else esm1p5_output_dir
     )
 
-    current_atm_output_dir = current_output_dir / "atmosphere"
+    current_atm_output_dir = esm1p5_output_dir / "atmosphere"
 
     if not current_atm_output_dir.exists():
         raise FileNotFoundError(
@@ -178,8 +188,8 @@ def convert_esm1p5_output_dir(current_output_dir):
         )
 
     # Create a directory for writing NetCDF files
-    current_run_nc_dir = current_atm_output_dir / "NetCDF"
-    current_run_nc_dir.mkdir(exist_ok=True)
+    nc_write_dir = current_atm_output_dir / "NetCDF"
+    nc_write_dir.mkdir(exist_ok=True)
 
     # Find fields file outputs to be converted
     xhist_nml = f90nml.read(current_atm_output_dir / "xhist")
@@ -188,14 +198,19 @@ def convert_esm1p5_output_dir(current_output_dir):
 
     atm_dir_contents = current_atm_output_dir.glob("*")
 
-    fields_file_path_list = find_matching_fields_files(
+    atm_dir_fields_files = find_matching_fields_files(
         atm_dir_contents, fields_file_name_pattern
     )
 
-    # TODO: What do we want to happen if no fields files are found?
+    if len(atm_dir_fields_files) == 0:
+        warnings.warn(
+            f"No files matching pattern '{fields_file_name_pattern}' "
+            f"found in {current_atm_output_dir.resolve()}. No files will be "
+            "converted to NetCDF."
+        )
 
     # Run the conversion
-    convert_fields_file_list(fields_file_path_list, current_run_nc_dir)
+    convert_fields_file_list(atm_dir_fields_files, nc_write_dir)
 
 
 if __name__ == "__main__":
