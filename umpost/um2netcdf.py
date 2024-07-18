@@ -315,12 +315,20 @@ def process(infile, outfile, args):
     (need_heaviside_uv, heaviside_uv,
      need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
 
-    do_mask = not args.nomask  # make warning logic more readable
+    cubes = filter_mask_cubes(cubes,
+                              can_mask_uv=need_heaviside_uv and heaviside_uv,
+                              can_mask_t=need_heaviside_t and heaviside_t)
+
+    # make warning logic more readable
+    do_mask = not args.nomask and ((need_heaviside_uv and heaviside_uv) or
+                                   need_heaviside_t and heaviside_t)
 
     if do_mask:
         # TODO: rename func to better name
         check_pressure_warnings(need_heaviside_uv, heaviside_uv,
                                 need_heaviside_t, heaviside_t)
+    else:
+        print("Skipping masking, some cubes may be excluded from NC output.")
 
     # TODO: can NC type be a single arg?
     #       defer to new process() API
@@ -406,17 +414,11 @@ def process(infile, outfile, args):
 
             if do_mask:
                 # Pressure level data should be masked
-                if require_heaviside_uv(c.item_code):
-                    if heaviside_uv:
-                        apply_mask(c, heaviside_uv, args.hcrit)
-                    else:
-                        continue
+                if require_heaviside_uv(c.item_code) and heaviside_uv:
+                    apply_mask(c, heaviside_uv, args.hcrit)
 
-                if require_heaviside_t(c.item_code):
-                    if heaviside_t:
-                        apply_mask(c, heaviside_t, args.hcrit)
-                    else:
-                        continue
+                elif require_heaviside_t(c.item_code) and heaviside_t:
+                    apply_mask(c, heaviside_t, args.hcrit)
 
             if args.verbose:
                 print(c.name(), c.item_code)
@@ -552,6 +554,19 @@ def check_pressure_level_masking(cubes):
             heaviside_t = cube
 
     return need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t
+
+
+def filter_mask_cubes(cubes, can_mask_uv, can_mask_t):
+    # return cubes requiring masking IF masking layer is present
+
+    for c in cubes:
+        if ((require_heaviside_uv(c.item_code) and not can_mask_uv) or
+                (require_heaviside_t(c.item_code) and not can_mask_t)):
+            # discard cubes requiring masking
+            print(f"Excluding cube {c.name()} as it cannot be masked")
+            continue
+
+        yield c
 
 
 def require_heaviside_uv(item_code):
