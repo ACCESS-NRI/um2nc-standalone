@@ -340,33 +340,7 @@ def process(infile, outfile, args):
             stashcode = c.attributes['STASH']
             umvar = stashvar.StashVar(c.item_code)
 
-            if args.simple:
-                c.var_name = 'fld_s%2.2di%3.3d' % (stashcode.section, stashcode.item)
-            elif umvar.uniquename:
-                c.var_name = umvar.uniquename
-
-            # Could there be cases with both max and min?
-            if c.var_name:
-                if any([m.method == 'maximum' for m in c.cell_methods]):
-                    c.var_name += "_max"
-                if any([m.method == 'minimum' for m in c.cell_methods]):
-                    c.var_name += "_min"
-
-            # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
-            if c.standard_name == 'x_wind':
-                c.standard_name = 'eastward_wind'
-            if c.standard_name == 'y_wind':
-                c.standard_name = 'northward_wind'
-
-            if c.standard_name and umvar.standard_name:
-                if c.standard_name != umvar.standard_name:
-                    if args.verbose:
-                        sys.stderr.write("Standard name mismatch %d %d %s %s\n" %
-                                         (stashcode.section,
-                                          stashcode.item,
-                                          c.standard_name,
-                                          umvar.standard_name))
-                    c.standard_name = umvar.standard_name
+            rename_cube_vars(c, stashcode, umvar, args.simple, args.verbose)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -632,6 +606,37 @@ def add_global_history(infile, iris_out):
 
     iris_out.update_global_attributes({'history': history})
     warnings.warn("um2nc version number not specified!")
+
+
+def rename_cube_vars(c, stashcode, umvar, simple: bool, verbose: bool):
+    if simple:
+        c.var_name = 'fld_s%2.2di%3.3d' % (stashcode.section, stashcode.item)
+    elif umvar.uniquename:
+        c.var_name = umvar.uniquename
+
+    # Could there be cases with both max and min?
+    if c.var_name:
+        if any([m.method == 'maximum' for m in c.cell_methods]):
+            c.var_name += "_max"
+        if any([m.method == 'minimum' for m in c.cell_methods]):
+            c.var_name += "_min"
+
+    # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
+    if c.standard_name == 'x_wind':
+        c.standard_name = 'eastward_wind'
+    if c.standard_name == 'y_wind':
+        c.standard_name = 'northward_wind'
+
+    if c.standard_name and umvar.standard_name:
+        if c.standard_name != umvar.standard_name:
+            if verbose:
+                sys.stderr.write("Standard name mismatch %d %d %s %s\n" %
+                                 (stashcode.section,
+                                  stashcode.item,
+                                  c.standard_name,
+                                  umvar.standard_name))
+
+            c.standard_name = umvar.standard_name
 
 
 if __name__ == '__main__':
