@@ -632,12 +632,12 @@ def rename_cube_vars(c, umvar, simple: bool, verbose: bool):
 
     if c.standard_name and umvar.standard_name:
         if c.standard_name != umvar.standard_name:
+            # TODO: remove verbose arg & always warn?
             if verbose:
-                sys.stderr.write("Standard name mismatch %d %d %s %s\n" %
-                                 (stash_code.section,
-                                  stash_code.item,
-                                  c.standard_name,
-                                  umvar.standard_name))
+                msg = (f"Standard name mismatch section={stash_code.section}"
+                       f" item={stash_code.item} standard_name={c.standard_name}"
+                       f" UM var name={umvar.standard_name}")
+                warnings.warn(msg)
 
             c.standard_name = umvar.standard_name
 
