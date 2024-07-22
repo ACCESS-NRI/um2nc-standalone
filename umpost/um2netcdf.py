@@ -340,7 +340,7 @@ def process(infile, outfile, args):
             stashcode = c.attributes['STASH']
             umvar = stashvar.StashVar(c.item_code)
 
-            rename_cube_vars(c, stashcode, umvar, args.simple, args.verbose)
+            rename_cube_vars(c, umvar, args.simple, args.verbose)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -608,9 +608,11 @@ def add_global_history(infile, iris_out):
     warnings.warn("um2nc version number not specified!")
 
 
-def rename_cube_vars(c, stashcode, umvar, simple: bool, verbose: bool):
+def rename_cube_vars(c, umvar, simple: bool, verbose: bool):
+    stash_code = c.attributes[STASH]
+
     if simple:
-        c.var_name = 'fld_s%2.2di%3.3d' % (stashcode.section, stashcode.item)
+        c.var_name = 'fld_s%2.2di%3.3d' % (stash_code.section, stash_code.item)
     elif umvar.uniquename:
         c.var_name = umvar.uniquename
 
@@ -631,8 +633,8 @@ def rename_cube_vars(c, stashcode, umvar, simple: bool, verbose: bool):
         if c.standard_name != umvar.standard_name:
             if verbose:
                 sys.stderr.write("Standard name mismatch %d %d %s %s\n" %
-                                 (stashcode.section,
-                                  stashcode.item,
+                                 (stash_code.section,
+                                  stash_code.item,
                                   c.standard_name,
                                   umvar.standard_name))
 
