@@ -82,14 +82,8 @@ def get_nc_write_path(fields_file_path, nc_write_dir):
     -------
     nc_write_path : path for writing converted fields_file_path file.
     """
-    fields_file_path = (
-        Path(fields_file_path)
-        if isinstance(fields_file_path, str)
-        else fields_file_path
-    )
-
-    nc_write_dir = Path(nc_write_dir) if isinstance(
-        nc_write_dir, str) else nc_write_dir
+    fields_file_path = Path(fields_file_path)
+    nc_write_dir = Path(nc_write_dir)
 
     fields_file_name = fields_file_path.name
     nc_file_name = fields_file_name + ".nc"
@@ -138,11 +132,7 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
     for fields_file_path in fields_file_paths:
 
-        fields_file_path = (
-            Path(fields_file_path)
-            if isinstance(fields_file_path, str)
-            else fields_file_path
-        )
+        fields_file_path = Path(fields_file_path)
 
         nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
 
@@ -174,11 +164,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     None
     """
 
-    esm1p5_output_dir = (
-        Path(esm1p5_output_dir)
-        if isinstance(esm1p5_output_dir, str)
-        else esm1p5_output_dir
-    )
+    esm1p5_output_dir = Path(esm1p5_output_dir)
 
     current_atm_output_dir = esm1p5_output_dir / "atmosphere"
 
