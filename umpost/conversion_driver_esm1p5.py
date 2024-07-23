@@ -188,15 +188,17 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
         atm_dir_contents, fields_file_name_pattern
     )
 
-    if len(atm_dir_fields_files) == 0:
+    if len(atm_dir_fields_files) > 0:
+         # Run the conversion
+        convert_fields_file_list(atm_dir_fields_files, nc_write_dir)
+    else:
         warnings.warn(
             f"No files matching pattern '{fields_file_name_pattern}' "
             f"found in {current_atm_output_dir.resolve()}. No files will be "
             "converted to NetCDF."
         )
 
-    # Run the conversion
-    convert_fields_file_list(atm_dir_fields_files, nc_write_dir)
+   
 
 
 if __name__ == "__main__":
