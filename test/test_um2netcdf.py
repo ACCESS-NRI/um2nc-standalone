@@ -298,3 +298,18 @@ def test_rename_cube_standard_name_y_wind(um_var_empty_std):
 
     um2nc.rename_cube_names(fake_cube, um_var_empty_std, verbose=False)
     assert fake_cube.standard_name == "northward_wind"
+
+
+def test_standard_name_umvar_name_mismatch(x_wind_cube):
+    um_var = UMStash("", "", "", "fake", "")
+    um2nc.rename_cube_names(x_wind_cube, um_var, verbose=False)
+    assert x_wind_cube.standard_name == um_var.standard_name
+
+
+def test_standard_name_umvar_name_mismatch_warn(x_wind_cube):
+    um_var = UMStash("", "", "", "fake", "")
+
+    with pytest.warns():
+        um2nc.rename_cube_names(x_wind_cube, um_var, verbose=True)
+
+    assert x_wind_cube.standard_name == um_var.standard_name
