@@ -341,7 +341,8 @@ def process(infile, outfile, args):
             stashcode = c.attributes['STASH']
             umvar = stashvar.StashVar(c.item_code)
 
-            rename_cube_vars(c, umvar, args.simple, args.verbose)
+            rename_cube_var_name(c, umvar, args.simple)
+            rename_cube_names(c, umvar, args.verbose)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -597,7 +598,7 @@ def add_global_history(infile, iris_out):
     warnings.warn("um2nc version number not specified!")
 
 
-def rename_cube_vars(c, umvar, simple: bool, verbose: bool):
+def rename_cube_var_name(c, umvar, simple: bool):
     stash_code = c.attributes[STASH]
 
     if simple:
@@ -612,6 +613,10 @@ def rename_cube_vars(c, umvar, simple: bool, verbose: bool):
             c.var_name += "_max"
         if any([m.method == 'minimum' for m in c.cell_methods]):
             c.var_name += "_min"
+
+
+def rename_cube_names(c, umvar, verbose: bool):
+    stash_code = c.attributes[STASH]
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
     if c.standard_name == 'x_wind':

@@ -1,5 +1,6 @@
 import unittest.mock as mock
 from dataclasses import dataclass
+from collections import namedtuple
 
 import umpost.um2netcdf as um2nc
 
@@ -223,28 +224,44 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
 
 # cube variable renaming tests
 @pytest.fixture
+def x_wind_cube():
+    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "x_wind")
+    fake_cube.cell_methods = []
+    return fake_cube
+
+
+UMStash = namedtuple("UMStash",
+                     "long_name, name, units, standard_name, uniquename")
+
+
+@pytest.fixture
 def um_var_empty_std():
-    "Return a um_var lookup with an emptry string standard name."
-    um_var = mock.Mock()
-    um_var.standard_name = ""
+    """Return an empty um_var lookup."""
+    um_var = UMStash("", "", "", "", "")
     return um_var
 
 
-def test_rename_cube_standard_name_x_wind(um_var_empty_std):
-    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "x_wind")
-    fake_cube.cell_methods = []
+def test_rename_cube_var_name_simple(x_wind_cube, um_var_empty_std):
+    assert x_wind_cube.var_name == "var_name"  # dummy initial value
+    um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
+    assert x_wind_cube.var_name == "fld_s00i002"
 
-    um2nc.rename_cube_vars(fake_cube, um_var_empty_std,
-                           simple=True, verbose=False)
 
-    assert fake_cube.standard_name == "eastward_wind"
+def test_rename_cube_var_name_unique(x_wind_cube):
+    unique = "unique_string_name"
+    um_unique = UMStash("", "", "", "", unique)
+    um2nc.rename_cube_var_name(x_wind_cube, um_unique, simple=False)
+    assert x_wind_cube.var_name == unique
+
+
+def test_rename_cube_standard_name_x_wind(x_wind_cube, um_var_empty_std):
+    um2nc.rename_cube_names(x_wind_cube, um_var_empty_std, verbose=False)
+    assert x_wind_cube.standard_name == "eastward_wind"
 
 
 def test_rename_cube_standard_name_y_wind(um_var_empty_std):
-    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "y_wind")
+    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 3)}, "y_wind")
     fake_cube.cell_methods = []
 
-    um2nc.rename_cube_vars(fake_cube, um_var_empty_std,
-                           simple=True, verbose=False)
-
+    um2nc.rename_cube_names(fake_cube, um_var_empty_std, verbose=False)
     assert fake_cube.standard_name == "northward_wind"
