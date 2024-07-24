@@ -328,3 +328,13 @@ def test_rename_cubes_long_name_over_limit(x_wind_cube, um_var_empty_std):
     assert len(x_wind_cube.long_name) > max_len
     um2nc.rename_cube_names(x_wind_cube, um_var_empty_std, verbose=False)
     assert len(x_wind_cube.long_name) == max_len
+
+
+def test_add_std_name_from_umvar_if_missing(x_wind_cube):
+    for std_name in ("", None):
+        x_wind_cube.standard_name = std_name
+        expected = "standard-name-slot"
+        um_var = UMStash("", "", "", expected, "")
+        assert um_var.standard_name == expected
+        um2nc.rename_cube_names(x_wind_cube, um_var, verbose=False)
+        assert x_wind_cube.standard_name == expected
