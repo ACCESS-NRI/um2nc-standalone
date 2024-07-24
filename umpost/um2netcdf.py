@@ -619,31 +619,30 @@ def rename_cube_names(c, umvar, verbose: bool):
     stash_code = c.attributes[STASH]
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
-    if c.standard_name == 'x_wind':
-        c.standard_name = 'eastward_wind'
-    if c.standard_name == 'y_wind':
-        c.standard_name = 'northward_wind'
+    if c.standard_name:
+        if c.standard_name == 'x_wind':
+            c.standard_name = 'eastward_wind'
+        if c.standard_name == 'y_wind':
+            c.standard_name = 'northward_wind'
 
-    if c.standard_name and umvar.standard_name:
-        if c.standard_name != umvar.standard_name:
-            # TODO: remove verbose arg & always warn?
-            if verbose:
-                msg = (f"Standard name mismatch section={stash_code.section}"
-                       f" item={stash_code.item} standard_name={c.standard_name}"
-                       f" UM var name={umvar.standard_name}")
-                warnings.warn(msg)
+        if c.standard_name and umvar.standard_name:
+            if c.standard_name != umvar.standard_name:
+                # TODO: remove verbose arg & always warn?
+                if verbose:
+                    msg = (f"Standard name mismatch section={stash_code.section}"
+                           f" item={stash_code.item} standard_name={c.standard_name}"
+                           f" UM var name={umvar.standard_name}")
+                    warnings.warn(msg)
 
-            c.standard_name = umvar.standard_name
+                c.standard_name = umvar.standard_name
+    elif umvar.standard_name:
+        # If there's no standard_name or long_name from iris, use one from STASH
+        c.standard_name = umvar.standard_name
 
     # TODO: what is 110?
     # Temporary work around for xconv
     if c.long_name and len(c.long_name) > 110:
         c.long_name = c.long_name[:110]
-
-    # If there's no standard_name or long_name from iris, use one from STASH
-    if not c.standard_name:
-        if umvar.standard_name:
-            c.standard_name = umvar.standard_name
 
     if not c.long_name:
         if umvar.long_name:
