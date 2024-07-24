@@ -641,12 +641,11 @@ def rename_cube_names(c, umvar, verbose: bool):
 
     # TODO: what is 110?
     # Temporary work around for xconv
-    if c.long_name and len(c.long_name) > 110:
-        c.long_name = c.long_name[:110]
-
-    if not c.long_name:
-        if umvar.long_name:
-            c.long_name = umvar.long_name
+    if c.long_name:
+        if len(c.long_name) > 110:
+            c.long_name = c.long_name[:110]
+    elif umvar.long_name:
+        c.long_name = umvar.long_name
 
 
 if __name__ == '__main__':
