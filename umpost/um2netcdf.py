@@ -132,6 +132,7 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
 
 
 # TODO: refactor to "rename level coord"
+# TODO: move this to func renaming section?
 def fix_level_coord(cube, z_rho, z_theta):
     # Rename model_level_number coordinates to better distinguish rho and theta levels
     try:
@@ -352,19 +353,6 @@ def process(infile, outfile, args):
                         sys.stderr.write("Units mismatch %d %d %s %s\n" %
                                          (stashcode.section, stashcode.item, c.units, umvar.units))
                     c.units = umvar.units
-
-            # Temporary work around for xconv
-            if c.long_name and len(c.long_name) > 110:
-                c.long_name = c.long_name[:110]
-
-            # If there's no standard_name or long_name from iris, use one from STASH
-            if not c.standard_name:
-                if umvar.standard_name:
-                    c.standard_name = umvar.standard_name
-
-            if not c.long_name:
-                if umvar.long_name:
-                    c.long_name = umvar.long_name
 
             # Interval in cell methods isn't reliable so better to remove it.
             c.cell_methods = fix_cell_methods(c.cell_methods)
@@ -612,6 +600,7 @@ def rename_cube_vars(c, umvar, simple: bool, verbose: bool):
     stash_code = c.attributes[STASH]
 
     if simple:
+        # TODO: update formatting with fstrings
         c.var_name = 'fld_s%2.2di%3.3d' % (stash_code.section, stash_code.item)
     elif umvar.uniquename:
         c.var_name = umvar.uniquename
@@ -639,6 +628,20 @@ def rename_cube_vars(c, umvar, simple: bool, verbose: bool):
                 warnings.warn(msg)
 
             c.standard_name = umvar.standard_name
+
+    # TODO: what is 110?
+    # Temporary work around for xconv
+    if c.long_name and len(c.long_name) > 110:
+        c.long_name = c.long_name[:110]
+
+    # If there's no standard_name or long_name from iris, use one from STASH
+    if not c.standard_name:
+        if umvar.standard_name:
+            c.standard_name = umvar.standard_name
+
+    if not c.long_name:
+        if umvar.long_name:
+            c.long_name = umvar.long_name
 
 
 if __name__ == '__main__':
