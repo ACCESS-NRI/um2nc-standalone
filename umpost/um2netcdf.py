@@ -37,6 +37,9 @@ ITEM_CODE = "item_code"
 GRID_END_GAME = 'EG'
 GRID_NEW_DYNAMICS = 'ND'
 
+# TODO: what is this limit & does it still exist?
+XCONV_LONG_NAME_LIMIT = 110
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -639,11 +642,10 @@ def rename_cube_names(c, umvar, verbose: bool):
         # If there's no standard_name or long_name from iris, use one from STASH
         c.standard_name = umvar.standard_name
 
-    # TODO: what is 110?
     # Temporary work around for xconv
     if c.long_name:
-        if len(c.long_name) > 110:
-            c.long_name = c.long_name[:110]
+        if len(c.long_name) > XCONV_LONG_NAME_LIMIT:
+            c.long_name = c.long_name[:XCONV_LONG_NAME_LIMIT]
     elif umvar.long_name:
         c.long_name = umvar.long_name
 
