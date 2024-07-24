@@ -241,13 +241,46 @@ def um_var_empty_std():
     return um_var
 
 
+CellMethod = namedtuple("CellMethod", "method")
+
+
+@pytest.fixture
+def max_cell_method():
+    return CellMethod("maximum")
+
+
+@pytest.fixture
+def min_cell_method():
+    return CellMethod("minimum")
+
+
 def test_rename_cube_var_name_simple(x_wind_cube, um_var_empty_std):
+    # NB: ignores cell methods functionality
     assert x_wind_cube.var_name == "var_name"  # dummy initial value
     um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
     assert x_wind_cube.var_name == "fld_s00i002"
 
 
+def test_rename_cube_var_rename_with_cell_methods_max(x_wind_cube,
+                                                      um_var_empty_std,
+                                                      max_cell_method):
+    x_wind_cube.cell_methods = [max_cell_method]
+
+    um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
+    assert x_wind_cube.var_name == "fld_s00i002_max"
+
+
+def test_rename_cube_var_rename_with_cell_methods_min(x_wind_cube,
+                                                      um_var_empty_std,
+                                                      min_cell_method):
+    x_wind_cube.cell_methods = [min_cell_method]
+
+    um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
+    assert x_wind_cube.var_name == "fld_s00i002_min"
+
+
 def test_rename_cube_var_name_unique(x_wind_cube):
+    # NB: ignores cell methods functionality
     unique = "unique_string_name"
     um_unique = UMStash("", "", "", "", unique)
     um2nc.rename_cube_var_name(x_wind_cube, um_unique, simple=False)
