@@ -97,6 +97,8 @@ class PartialCube:
     # work around mocks & DummyCube having item_code attr
     var_name: str
     attributes: dict
+    standard_name: str = None
+    long_name: str = None
 
 
 def test_set_item_codes():
@@ -217,3 +219,32 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
     cubes = [ua_plev_cube, heaviside_uv_cube]
     result = list(um2nc.filtered_cubes(cubes))
     assert result == cubes
+
+
+# cube variable renaming tests
+@pytest.fixture
+def um_var_empty_std():
+    "Return a um_var lookup with an emptry string standard name."
+    um_var = mock.Mock()
+    um_var.standard_name = ""
+    return um_var
+
+
+def test_rename_cube_standard_name_x_wind(um_var_empty_std):
+    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "x_wind")
+    fake_cube.cell_methods = []
+
+    um2nc.rename_cube_vars(fake_cube, um_var_empty_std,
+                           simple=True, verbose=False)
+
+    assert fake_cube.standard_name == "eastward_wind"
+
+
+def test_rename_cube_standard_name_y_wind(um_var_empty_std):
+    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "y_wind")
+    fake_cube.cell_methods = []
+
+    um2nc.rename_cube_vars(fake_cube, um_var_empty_std,
+                           simple=True, verbose=False)
+
+    assert fake_cube.standard_name == "northward_wind"
