@@ -353,6 +353,5 @@ def test_rename_cube_long_name_over_limit(x_wind_cube, empty_um_var):
     x_wind_cube.long_name = "0123456789" * 15  # break the 110 char limit
     assert len(x_wind_cube.long_name) > um2nc.XCONV_LONG_NAME_LIMIT
 
-    x_wind_cube.standard_name = ""
     um2nc.rename_cube_long_name(x_wind_cube, empty_um_var)
     assert len(x_wind_cube.long_name) == um2nc.XCONV_LONG_NAME_LIMIT
