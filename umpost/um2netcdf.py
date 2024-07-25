@@ -604,7 +604,7 @@ def add_global_history(infile, iris_out):
 # TODO: refactor func sig to take exclusive simple OR unique name field?
 def rename_cube_var_name(cube, um_var, simple: bool):
     """
-    Modify cube `var_name` to change naming in NetCDF output.
+    Modify cube `var_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
@@ -629,6 +629,15 @@ def rename_cube_var_name(cube, um_var, simple: bool):
 
 
 def rename_cube_standard_names(cube, um_var, verbose: bool):
+    """
+    Modify cube `standard_name` attr to change naming for NetCDF output.
+
+    Parameters
+    ----------
+    cube : iris cube to modify (changes the name in place)
+    um_var : the UM Stash code structure
+    verbose : True to turn warnings on
+    """
     stash_code = cube.attributes[STASH]
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
@@ -640,7 +649,7 @@ def rename_cube_standard_names(cube, um_var, verbose: bool):
 
         if cube.standard_name and um_var.standard_name:
             if cube.standard_name != um_var.standard_name:
-                # TODO: remove verbose arg & always warn?
+                # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
                 if verbose:
                     msg = (f"Standard name mismatch section={stash_code.section}"
                            f" item={stash_code.item} standard_name={cube.standard_name}"
