@@ -675,6 +675,7 @@ def rename_cube_long_name(cube, um_var):
         if len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
             cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
     elif um_var.long_name:
+        # If there's no long_name from iris, use one from STASH
         cube.long_name = um_var.long_name
 
 
