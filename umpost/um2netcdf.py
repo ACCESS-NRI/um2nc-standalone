@@ -657,7 +657,7 @@ def rename_cube_standard_name(cube, um_var, verbose: bool):
 
                 cube.standard_name = um_var.standard_name
     elif um_var.standard_name:
-        # If there's no standard_name or long_name from iris, use one from STASH
+        # If there's no standard_name from iris, use one from STASH
         cube.standard_name = um_var.standard_name
 
 
@@ -671,8 +671,9 @@ def rename_cube_long_name(cube, um_var):
     um_var : the UM Stash code structure
     """
     # Temporary work around for xconv
-    if cube.long_name and len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
-        cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
+    if cube.long_name:
+        if len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
+            cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
     elif um_var.long_name:
         cube.long_name = um_var.long_name
 
