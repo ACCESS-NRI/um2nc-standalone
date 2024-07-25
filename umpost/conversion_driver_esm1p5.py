@@ -17,6 +17,7 @@ import um2netcdf4
 import re
 import f90nml
 import warnings
+import traceback
 import argparse
 import errno
 from pathlib import Path
@@ -127,8 +128,12 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
     Returns
     -------
-    None
+    conversion_statuses: list of tuples of form (filepath, allowed_exception)
+    where allowed_exception is an exception which should not prevent the 
+    conversion of other files in fields_file_paths.
     """
+
+    conversion_statuses = []
 
     for fields_file_path in fields_file_paths:
 
@@ -136,18 +141,44 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
         nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
 
-        print("Converting file " + fields_file_path.name)
-
         try:
             um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
 
+            conversion_statuses.append((fields_file_path, None))
+
         except Exception as exc:
-            # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
+            # TODO: Refactor once um2nc has specific exceptions
             if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
-                warnings.warn("Unable to convert file: " +
-                              fields_file_path.name)
+                conversion_statuses.append(
+                    (fields_file_path, exc))
             else:
+                # raise any unexpected errors
                 raise
+
+    return conversion_statuses
+
+
+def report_results(conversion_statuses):
+    """
+    Report successful/failed conversions to the user
+
+    Parameters
+    ---------- 
+    conversion_statuses: list of tuples of form (fields_file_path, exception) 
+
+    Returns
+    -------
+    None
+    """
+    for filepath, exception in conversion_statuses:
+        if exception is None:
+            print(f"Successfully converted {filepath}")
+        else:
+            formatted_traceback = "".join(
+                traceback.format_exception(exception))
+            warnings.warn(
+                f"Failed to convert {filepath}, reported error: \n {formatted_traceback}"
+            )
 
 
 def convert_esm1p5_output_dir(esm1p5_output_dir):
@@ -188,17 +219,20 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
         atm_dir_contents, fields_file_name_pattern
     )
 
-    if len(atm_dir_fields_files) > 0:
-         # Run the conversion
-        convert_fields_file_list(atm_dir_fields_files, nc_write_dir)
-    else:
+    if len(atm_dir_fields_files) == 0:
         warnings.warn(
             f"No files matching pattern '{fields_file_name_pattern}' "
             f"found in {current_atm_output_dir.resolve()}. No files will be "
             "converted to NetCDF."
         )
 
-   
+        return  # Don't try to run the conversion
+
+    conversion_results = convert_fields_file_list(
+        atm_dir_fields_files,
+        nc_write_dir
+    )
+    report_results(conversion_results)
 
 
 if __name__ == "__main__":
