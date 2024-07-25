@@ -336,9 +336,12 @@ def test_add_missing_standard_name_from_um(x_wind_cube):
 
 
 def test_rename_cubes_long_name(x_wind_cube):
+    # ensure a cube without a long name is updated with the um long name
+    long_name = "long-name"
     x_wind_cube.long_name = ""
-    um_var = UMStash("long-name", "", "", "", "")
+    um_var = UMStash(long_name, "", "", "", "")
     um2nc.rename_cube_long_names(x_wind_cube, um_var)
+    assert x_wind_cube.long_name == long_name
 
 
 def test_rename_cubes_long_name_over_limit(x_wind_cube, empty_um_var):
