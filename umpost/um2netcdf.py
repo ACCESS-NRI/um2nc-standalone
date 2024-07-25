@@ -664,10 +664,17 @@ def rename_cube_standard_names(cube, um_var, verbose: bool):
 
 
 def rename_cube_long_names(cube, um_var):
+    """
+    Modify cube `long_name` attr to change naming for NetCDF output.
+
+    Parameters
+    ----------
+    cube : iris cube to modify (changes the name in place)
+    um_var : the UM Stash code structure
+    """
     # Temporary work around for xconv
-    if cube.long_name:
-        if len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
-            cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
+    if cube.long_name and len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
+        cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
     elif um_var.long_name:
         cube.long_name = um_var.long_name
 
