@@ -602,21 +602,31 @@ def add_global_history(infile, iris_out):
     warnings.warn("um2nc version number not specified!")
 
 
-def rename_cube_var_name(c, um_var, simple: bool):
-    stash_code = c.attributes[STASH]
+# TODO: refactor func sig to take exclusive simple OR unique name field?
+def rename_cube_var_name(cube, um_var, simple: bool):
+    """
+    Modify cube `var_name` to change naming in NetCDF output.
+
+    Parameters
+    ----------
+    cube : iris cube to modify (changes the name in place)
+    um_var : the UM Stash code structure
+    simple : True to replace var_name with "fld_s00i000" style name
+    """
+    stash_code = cube.attributes[STASH]
 
     if simple:
         # TODO: update formatting with fstrings
-        c.var_name = 'fld_s%2.2di%3.3d' % (stash_code.section, stash_code.item)
+        cube.var_name = 'fld_s%2.2di%3.3d' % (stash_code.section, stash_code.item)
     elif um_var.uniquename:
-        c.var_name = um_var.uniquename
+        cube.var_name = um_var.uniquename
 
     # Could there be cases with both max and min?
-    if c.var_name:
-        if any([m.method == 'maximum' for m in c.cell_methods]):
-            c.var_name += "_max"
-        if any([m.method == 'minimum' for m in c.cell_methods]):
-            c.var_name += "_min"
+    if cube.var_name:
+        if any([m.method == 'maximum' for m in cube.cell_methods]):
+            cube.var_name += "_max"
+        if any([m.method == 'minimum' for m in cube.cell_methods]):
+            cube.var_name += "_min"
 
 
 def rename_cube_standard_names(cube, um_var, verbose: bool):
