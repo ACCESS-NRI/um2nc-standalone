@@ -297,7 +297,7 @@ def test_rename_cube_var_name_unique(x_wind_cube):
 def test_rename_cube_standard_name_x_wind(x_wind_cube, empty_um_var):
     # test cube wind renaming block only
     # use empty um_var_empty_std to skip renaming logic
-    um2nc.rename_cube_standard_names(x_wind_cube, empty_um_var, verbose=False)
+    um2nc.rename_cube_standard_name(x_wind_cube, empty_um_var, verbose=False)
     assert x_wind_cube.standard_name == "eastward_wind"
 
 
@@ -307,14 +307,14 @@ def test_rename_cube_standard_name_y_wind(empty_um_var):
     m_cube = PartialCube("var_name", {'STASH': DummyStash(0, 3)}, "y_wind")
     m_cube.cell_methods = []
 
-    um2nc.rename_cube_standard_names(m_cube, empty_um_var, verbose=False)
+    um2nc.rename_cube_standard_name(m_cube, empty_um_var, verbose=False)
     assert m_cube.standard_name == "northward_wind"
 
 
 def test_cube_um_standard_name_mismatch(x_wind_cube):
     # ensure mismatching standard names between cube & um uses the um std name
     um_var = UMStash("", "", "", "fake", "")
-    um2nc.rename_cube_standard_names(x_wind_cube, um_var, verbose=False)
+    um2nc.rename_cube_standard_name(x_wind_cube, um_var, verbose=False)
     assert x_wind_cube.standard_name == um_var.standard_name
 
 
@@ -323,7 +323,7 @@ def test_test_cube_um_standard_name_mismatch_warn(x_wind_cube):
     um_var = UMStash("", "", "", "fake", "")
 
     with pytest.warns():
-        um2nc.rename_cube_standard_names(x_wind_cube, um_var, verbose=True)
+        um2nc.rename_cube_standard_name(x_wind_cube, um_var, verbose=True)
 
     assert x_wind_cube.standard_name == um_var.standard_name
 
@@ -335,7 +335,7 @@ def test_add_missing_standard_name_from_um(x_wind_cube):
         expected = "standard-name-slot"
         um_var = UMStash("", "", "", expected, "")
         assert um_var.standard_name == expected
-        um2nc.rename_cube_standard_names(x_wind_cube, um_var, verbose=False)
+        um2nc.rename_cube_standard_name(x_wind_cube, um_var, verbose=False)
         assert x_wind_cube.standard_name == expected
 
 
@@ -344,7 +344,7 @@ def test_rename_cubes_long_name(x_wind_cube):
     long_name = "long-name"
     x_wind_cube.long_name = ""
     um_var = UMStash(long_name, "", "", "", "")
-    um2nc.rename_cube_long_names(x_wind_cube, um_var)
+    um2nc.rename_cube_long_name(x_wind_cube, um_var)
     assert x_wind_cube.long_name == long_name
 
 
@@ -354,5 +354,5 @@ def test_rename_cubes_long_name_over_limit(x_wind_cube, empty_um_var):
     assert len(x_wind_cube.long_name) > um2nc.XCONV_LONG_NAME_LIMIT
 
     x_wind_cube.standard_name = ""
-    um2nc.rename_cube_long_names(x_wind_cube, empty_um_var)
+    um2nc.rename_cube_long_name(x_wind_cube, empty_um_var)
     assert len(x_wind_cube.long_name) == um2nc.XCONV_LONG_NAME_LIMIT
