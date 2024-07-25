@@ -612,11 +612,9 @@ def rename_cube_var_name(cube, um_var, simple: bool):
     um_var : the UM Stash code structure
     simple : True to replace var_name with "fld_s00i000" style name
     """
-    stash_code = cube.attributes[STASH]
-
     if simple:
-        # TODO: update formatting with fstrings
-        cube.var_name = 'fld_s%2.2di%3.3d' % (stash_code.section, stash_code.item)
+        stash_code = cube.attributes[STASH]
+        cube.var_name = f"fld_s{stash_code.section:02}i{stash_code.item:03}"
     elif um_var.uniquename:
         cube.var_name = um_var.uniquename
 
