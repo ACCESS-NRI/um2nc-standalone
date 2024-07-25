@@ -345,8 +345,8 @@ def process(infile, outfile, args):
             umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
             rename_cube_var_name(c, umvar, args.simple)
-            rename_cube_standard_names(c, umvar, args.verbose)
-            rename_cube_long_names(c, umvar)
+            rename_cube_standard_name(c, umvar, args.verbose)
+            rename_cube_long_name(c, umvar)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -627,7 +627,7 @@ def rename_cube_var_name(cube, um_var, simple: bool):
             cube.var_name += "_min"
 
 
-def rename_cube_standard_names(cube, um_var, verbose: bool):
+def rename_cube_standard_name(cube, um_var, verbose: bool):
     """
     Modify cube `standard_name` attr to change naming for NetCDF output.
 
@@ -661,7 +661,7 @@ def rename_cube_standard_names(cube, um_var, verbose: bool):
         cube.standard_name = um_var.standard_name
 
 
-def rename_cube_long_names(cube, um_var):
+def rename_cube_long_name(cube, um_var):
     """
     Modify cube `long_name` attr to change naming for NetCDF output.
 
