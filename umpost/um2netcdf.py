@@ -342,10 +342,11 @@ def process(infile, outfile, args):
 
         for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
             stashcode = c.attributes['STASH']
-            umvar = stashvar.StashVar(c.item_code)
+            umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
             rename_cube_var_name(c, umvar, args.simple)
-            rename_cube_names(c, umvar, args.verbose)
+            rename_cube_standard_names(c, umvar, args.verbose)
+            rename_cube_long_names(c, umvar)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -617,36 +618,38 @@ def rename_cube_var_name(c, um_var, simple: bool):
             c.var_name += "_min"
 
 
-def rename_cube_names(c, umvar, verbose: bool):
-    stash_code = c.attributes[STASH]
+def rename_cube_standard_names(cube, um_var, verbose: bool):
+    stash_code = cube.attributes[STASH]
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
-    if c.standard_name:
-        if c.standard_name == 'x_wind':
-            c.standard_name = 'eastward_wind'
-        if c.standard_name == 'y_wind':
-            c.standard_name = 'northward_wind'
+    if cube.standard_name:
+        if cube.standard_name == 'x_wind':
+            cube.standard_name = 'eastward_wind'
+        if cube.standard_name == 'y_wind':
+            cube.standard_name = 'northward_wind'
 
-        if c.standard_name and umvar.standard_name:
-            if c.standard_name != umvar.standard_name:
+        if cube.standard_name and um_var.standard_name:
+            if cube.standard_name != um_var.standard_name:
                 # TODO: remove verbose arg & always warn?
                 if verbose:
                     msg = (f"Standard name mismatch section={stash_code.section}"
-                           f" item={stash_code.item} standard_name={c.standard_name}"
-                           f" UM var name={umvar.standard_name}")
+                           f" item={stash_code.item} standard_name={cube.standard_name}"
+                           f" UM var name={um_var.standard_name}")
                     warnings.warn(msg)
 
-                c.standard_name = umvar.standard_name
-    elif umvar.standard_name:
+                cube.standard_name = um_var.standard_name
+    elif um_var.standard_name:
         # If there's no standard_name or long_name from iris, use one from STASH
-        c.standard_name = umvar.standard_name
+        cube.standard_name = um_var.standard_name
 
+
+def rename_cube_long_names(cube, um_var):
     # Temporary work around for xconv
-    if c.long_name:
-        if len(c.long_name) > XCONV_LONG_NAME_LIMIT:
-            c.long_name = c.long_name[:XCONV_LONG_NAME_LIMIT]
-    elif umvar.long_name:
-        c.long_name = umvar.long_name
+    if cube.long_name:
+        if len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
+            cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
+    elif um_var.long_name:
+        cube.long_name = um_var.long_name
 
 
 if __name__ == '__main__':
