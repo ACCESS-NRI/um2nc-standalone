@@ -266,6 +266,7 @@ def test_rename_cube_var_name_simple(x_wind_cube, empty_um_var):
 def test_rename_cube_var_rename_cell_methods_adds_max(x_wind_cube,
                                                       empty_um_var,
                                                       max_cell_method):
+    # ensure maximum cell methods add suffix to cube name
     x_wind_cube.cell_methods = [max_cell_method]
 
     for um_var in (None, empty_um_var):
@@ -276,6 +277,7 @@ def test_rename_cube_var_rename_cell_methods_adds_max(x_wind_cube,
 def test_rename_cube_var_rename_cell_methods_adds_min(x_wind_cube,
                                                       empty_um_var,
                                                       min_cell_method):
+    # ensure maximum cell methods add suffix to cube name
     x_wind_cube.cell_methods = [min_cell_method]
 
     for um_var in (None, empty_um_var):
@@ -284,6 +286,7 @@ def test_rename_cube_var_rename_cell_methods_adds_min(x_wind_cube,
 
 
 def test_rename_cube_var_name_unique(x_wind_cube):
+    # ensure um unique name given to cubes in non-simple mode
     # NB: ignores cell methods functionality
     unique = "unique_string_name"
     um_unique = UMStash("", "", "", "", unique)
@@ -316,6 +319,7 @@ def test_cube_um_standard_name_mismatch(x_wind_cube):
 
 
 def test_test_cube_um_standard_name_mismatch_warn(x_wind_cube):
+    # as per standard name mismatch, ensuring a warning is raised
     um_var = UMStash("", "", "", "fake", "")
 
     with pytest.warns():
@@ -345,6 +349,7 @@ def test_rename_cubes_long_name(x_wind_cube):
 
 
 def test_rename_cubes_long_name_over_limit(x_wind_cube, empty_um_var):
+    # ensure the 110 character limit is enforced
     x_wind_cube.long_name = "0123456789" * 15  # break the 110 char limit
     assert len(x_wind_cube.long_name) > um2nc.XCONV_LONG_NAME_LIMIT
 
