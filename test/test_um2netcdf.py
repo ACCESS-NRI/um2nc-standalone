@@ -257,8 +257,10 @@ def min_cell_method():
 def test_rename_cube_var_name_simple(x_wind_cube, empty_um_var):
     # NB: ignores cell methods functionality
     assert x_wind_cube.var_name == "var_name"  # dummy initial value
-    um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
-    assert x_wind_cube.var_name == "fld_s00i002"
+
+    for um_var in (None, empty_um_var):
+        um2nc.rename_cube_var_name(x_wind_cube, um_var, simple=True)
+        assert x_wind_cube.var_name == "fld_s00i002", f"Failed with um_var={um_var}"
 
 
 def test_rename_cube_var_rename_with_cell_methods_max(x_wind_cube,
@@ -266,8 +268,9 @@ def test_rename_cube_var_rename_with_cell_methods_max(x_wind_cube,
                                                       max_cell_method):
     x_wind_cube.cell_methods = [max_cell_method]
 
-    um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
-    assert x_wind_cube.var_name == "fld_s00i002_max"
+    for um_var in (None, empty_um_var):
+        um2nc.rename_cube_var_name(x_wind_cube, um_var, simple=True)
+        assert x_wind_cube.var_name == "fld_s00i002_max"
 
 
 def test_rename_cube_var_rename_with_cell_methods_min(x_wind_cube,
@@ -275,8 +278,9 @@ def test_rename_cube_var_rename_with_cell_methods_min(x_wind_cube,
                                                       min_cell_method):
     x_wind_cube.cell_methods = [min_cell_method]
 
-    um2nc.rename_cube_var_name(x_wind_cube, None, simple=True)
-    assert x_wind_cube.var_name == "fld_s00i002_min"
+    for um_var in (None, empty_um_var):
+        um2nc.rename_cube_var_name(x_wind_cube, um_var, simple=True)
+        assert x_wind_cube.var_name == "fld_s00i002_min"
 
 
 def test_rename_cube_var_name_unique(x_wind_cube):
