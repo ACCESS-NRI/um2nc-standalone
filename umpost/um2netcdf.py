@@ -645,16 +645,15 @@ def rename_cube_standard_name(cube, um_var, verbose: bool):
         if cube.standard_name == 'y_wind':
             cube.standard_name = 'northward_wind'
 
-        if cube.standard_name and um_var.standard_name:
-            if cube.standard_name != um_var.standard_name:
-                # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
-                if verbose:
-                    msg = (f"Standard name mismatch section={stash_code.section}"
-                           f" item={stash_code.item} standard_name={cube.standard_name}"
-                           f" UM var name={um_var.standard_name}")
-                    warnings.warn(msg)
+        if um_var.standard_name and cube.standard_name != um_var.standard_name:
+            # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
+            if verbose:
+                msg = (f"Standard name mismatch section={stash_code.section}"
+                       f" item={stash_code.item} standard_name={cube.standard_name}"
+                       f" UM var name={um_var.standard_name}")
+                warnings.warn(msg)
 
-                cube.standard_name = um_var.standard_name
+            cube.standard_name = um_var.standard_name
     elif um_var.standard_name:
         # If there's no standard_name from iris, use one from STASH
         cube.standard_name = um_var.standard_name
