@@ -263,7 +263,7 @@ def test_rename_cube_var_name_simple(x_wind_cube, empty_um_var):
         assert x_wind_cube.var_name == "fld_s00i002", f"Failed with um_var={um_var}"
 
 
-def test_rename_cube_var_rename_with_cell_methods_max(x_wind_cube,
+def test_rename_cube_var_rename_cell_methods_adds_max(x_wind_cube,
                                                       empty_um_var,
                                                       max_cell_method):
     x_wind_cube.cell_methods = [max_cell_method]
@@ -273,7 +273,7 @@ def test_rename_cube_var_rename_with_cell_methods_max(x_wind_cube,
         assert x_wind_cube.var_name == "fld_s00i002_max"
 
 
-def test_rename_cube_var_rename_with_cell_methods_min(x_wind_cube,
+def test_rename_cube_var_rename_cell_methods_adds_min(x_wind_cube,
                                                       empty_um_var,
                                                       min_cell_method):
     x_wind_cube.cell_methods = [min_cell_method]
