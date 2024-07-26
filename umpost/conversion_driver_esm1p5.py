@@ -128,57 +128,57 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
     Returns
     -------
-    conversion_statuses: list of tuples of form (filepath, allowed_exception)
-    where allowed_exception is an exception which should not prevent the 
-    conversion of other files in fields_file_paths.
+    succeeded: list of filepaths for successfully converted fields files
+    failed: list of tuples of form (filepath, exception) for files which failed 
+    to convert due to an allowed exception. 
     """
+    succeeded = []
+    failed = []
 
-    conversion_statuses = []
+    fields_file_paths = [Path(p) for p in fields_file_paths]
 
     for fields_file_path in fields_file_paths:
-
-        fields_file_path = Path(fields_file_path)
 
         nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
 
         try:
             um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
-
-            conversion_statuses.append((fields_file_path, None))
+            succeeded.append(fields_file_path)
 
         except Exception as exc:
             # TODO: Refactor once um2nc has specific exceptions
             if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
-                conversion_statuses.append(
-                    (fields_file_path, exc))
+                failed.append((fields_file_path, exc))
             else:
                 # raise any unexpected errors
                 raise
 
-    return conversion_statuses
+    return succeeded, failed
 
 
-def report_results(conversion_statuses):
+def report_results(succeeded, failed):
     """
     Report successful/failed conversions to the user
 
     Parameters
     ---------- 
-    conversion_statuses: list of tuples of form (fields_file_path, exception) 
-
+    succeeded: list of filepaths of successfully converted fields files
+    failed: list of tuples of form (filepath, exception) for files which failed 
+    to convert due to an allowed exception. 
     Returns
     -------
     None
     """
-    for filepath, exception in conversion_statuses:
-        if exception is None:
-            print(f"Successfully converted {filepath}")
-        else:
-            formatted_traceback = "".join(
-                traceback.format_exception(exception))
-            warnings.warn(
-                f"Failed to convert {filepath}, reported error: \n {formatted_traceback}"
-            )
+    for fields_file_path in succeeded:
+        print(f"Successfully converted {fields_file_path}")
+
+    for fields_file_path, exception in failed:
+        formatted_traceback = "".join(
+            traceback.format_exception(exception)
+        )
+        warnings.warn(
+            f"Failed to convert {fields_file_path}, reported error: \n {formatted_traceback}"
+        )
 
 
 def convert_esm1p5_output_dir(esm1p5_output_dir):
@@ -228,11 +228,11 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
         return  # Don't try to run the conversion
 
-    conversion_results = convert_fields_file_list(
+    succeeded, failed = convert_fields_file_list(
         atm_dir_fields_files,
         nc_write_dir
     )
-    report_results(conversion_results)
+    report_results(succeeded, failed)
 
 
 if __name__ == "__main__":
