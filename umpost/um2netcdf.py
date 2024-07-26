@@ -344,9 +344,9 @@ def process(infile, outfile, args):
             stashcode = c.attributes['STASH']
             umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
-            fix_var_name(c, umvar, args.simple)
-            fix_standard_name(c, umvar, args.verbose)
-            fix_long_name(c, umvar)
+            fix_var_name(c, umvar.uniquename, args.simple)
+            fix_standard_name(c, umvar.standard_name, args.verbose)
+            fix_long_name(c, umvar.long_name)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -602,21 +602,21 @@ def add_global_history(infile, iris_out):
 
 
 # TODO: refactor func sig to take exclusive simple OR unique name field?
-def fix_var_name(cube, um_var, simple: bool):
+def fix_var_name(cube, um_unique_name, simple: bool):
     """
     Modify cube `var_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
     cube : iris cube to modify (changes the name in place)
-    um_var : the UM Stash code structure
+    um_unique_name : the UM Stash unique name
     simple : True to replace var_name with "fld_s00i000" style name
     """
     if simple:
         stash_code = cube.attributes[STASH]
         cube.var_name = f"fld_s{stash_code.section:02}i{stash_code.item:03}"
-    elif um_var.uniquename:
-        cube.var_name = um_var.uniquename
+    elif um_unique_name:
+        cube.var_name = um_unique_name
 
     # Could there be cases with both max and min?
     if cube.var_name:
@@ -626,14 +626,14 @@ def fix_var_name(cube, um_var, simple: bool):
             cube.var_name += "_min"
 
 
-def fix_standard_name(cube, um_var, verbose: bool):
+def fix_standard_name(cube, um_standard_name, verbose: bool):
     """
     Modify cube `standard_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
     cube : iris cube to modify (changes the name in place)
-    um_var : the UM Stash code structure
+    um_standard_name : the UM Stash standard name
     verbose : True to turn warnings on
     """
     stash_code = cube.attributes[STASH]
@@ -645,36 +645,37 @@ def fix_standard_name(cube, um_var, verbose: bool):
         if cube.standard_name == 'y_wind':
             cube.standard_name = 'northward_wind'
 
-        if um_var.standard_name and cube.standard_name != um_var.standard_name:
+        if um_standard_name and cube.standard_name != um_standard_name:
             # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
             if verbose:
+                # TODO: show combined stash code instead?
                 msg = (f"Standard name mismatch section={stash_code.section}"
                        f" item={stash_code.item} standard_name={cube.standard_name}"
-                       f" UM var name={um_var.standard_name}")
+                       f" UM var name={um_standard_name}")
                 warnings.warn(msg)
 
-            cube.standard_name = um_var.standard_name
-    elif um_var.standard_name:
+            cube.standard_name = um_standard_name
+    elif um_standard_name:
         # If there's no standard_name from iris, use one from STASH
-        cube.standard_name = um_var.standard_name
+        cube.standard_name = um_standard_name
 
 
-def fix_long_name(cube, um_var):
+def fix_long_name(cube, um_long_name):
     """
     Modify cube `long_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
     cube : iris cube to modify (changes the name in place)
-    um_var : the UM Stash code structure
+    um_long_name : the UM Stash long name
     """
     # Temporary work around for xconv
     if cube.long_name:
         if len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
             cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
-    elif um_var.long_name:
+    elif um_long_name:
         # If there's no long_name from iris, use one from STASH
-        cube.long_name = um_var.long_name
+        cube.long_name = um_long_name
 
 
 if __name__ == '__main__':
