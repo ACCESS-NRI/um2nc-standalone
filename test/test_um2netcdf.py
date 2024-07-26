@@ -217,3 +217,40 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
     cubes = [ua_plev_cube, heaviside_uv_cube]
     result = list(um2nc.filtered_cubes(cubes))
     assert result == cubes
+
+
+@pytest.fixture
+def ua_plev_units(ua_plev_cube):
+    ua_plev_cube.units = "metres"  # fake some units
+    add_stash(ua_plev_cube, DummyStash(3, 4))
+    return ua_plev_cube
+
+
+def test_fix_units_update_units(ua_plev_units):
+    um_var_units = "Metres-fake"
+    um2nc.fix_units(ua_plev_units, um_var_units, verbose=False)
+    assert ua_plev_units.units == um_var_units
+
+
+def test_fix_units_update_units_with_warning(ua_plev_units):
+    um_var_units = "Metres-fake"
+
+    with pytest.warns():
+        um2nc.fix_units(ua_plev_units, um_var_units, verbose=True)
+
+    assert ua_plev_units.units == um_var_units
+
+
+def test_fix_units_do_nothing_no_cube_units(ua_plev_cube):
+    for unit in ("", None):
+        ua_plev_cube.units = unit
+        um2nc.fix_units(ua_plev_cube, "fake_units", verbose=False)
+        assert ua_plev_cube.units == unit  # nothing should happen as there's no cube.units
+
+
+def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
+    orig = "fake-metres"
+    ua_plev_cube.units = orig
+    for unit in ("", None):
+        um2nc.fix_units(ua_plev_cube, unit, verbose=False)
+        assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units

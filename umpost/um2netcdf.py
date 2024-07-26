@@ -368,16 +368,7 @@ def process(infile, outfile, args):
                                           umvar.standard_name))
                     c.standard_name = umvar.standard_name
 
-            if c.units and umvar.units:
-                # Simple testing c.units == umvar.units doesn't
-                # catch format differences because Unit type
-                # works around them. repr isn't reliable either
-                ustr = '%s' % c.units
-                if ustr != umvar.units:
-                    if args.verbose:
-                        sys.stderr.write("Units mismatch %d %d %s %s\n" %
-                                         (stashcode.section, stashcode.item, c.units, umvar.units))
-                    c.units = umvar.units
+            fix_units(c, umvar.units, args.verbose)
 
             # Temporary work around for xconv
             if c.long_name and len(c.long_name) > 110:
@@ -633,6 +624,19 @@ def add_global_history(infile, iris_out):
 
     iris_out.update_global_attributes({'history': history})
     warnings.warn("um2nc version number not specified!")
+
+
+def fix_units(cube, um_var_units, verbose: bool):
+    if cube.units and um_var_units:
+        # Simple testing c.units == um_var_units doesn't catch format differences because
+        # the Unit type works around them. repr is also unreliable
+        if f"{cube.units}" != um_var_units:
+            if verbose:
+                stash_code = cube.attributes[STASH]
+                msg = (f"Units mismatch {stash_code.section} {stash_code.item} "
+                       f"{cube.units} {um_var_units}\n")
+                warnings.warn(msg)
+            cube.units = um_var_units
 
 
 if __name__ == '__main__':
