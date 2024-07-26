@@ -344,9 +344,9 @@ def process(infile, outfile, args):
             stashcode = c.attributes['STASH']
             umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
-            rename_cube_var_name(c, umvar, args.simple)
-            rename_cube_standard_name(c, umvar, args.verbose)
-            rename_cube_long_name(c, umvar)
+            fix_var_name(c, umvar, args.simple)
+            fix_standard_name(c, umvar, args.verbose)
+            fix_long_name(c, umvar)
 
             if c.units and umvar.units:
                 # Simple testing c.units == umvar.units doesn't
@@ -603,7 +603,7 @@ def add_global_history(infile, iris_out):
 
 
 # TODO: refactor func sig to take exclusive simple OR unique name field?
-def rename_cube_var_name(cube, um_var, simple: bool):
+def fix_var_name(cube, um_var, simple: bool):
     """
     Modify cube `var_name` attr to change naming for NetCDF output.
 
@@ -627,7 +627,7 @@ def rename_cube_var_name(cube, um_var, simple: bool):
             cube.var_name += "_min"
 
 
-def rename_cube_standard_name(cube, um_var, verbose: bool):
+def fix_standard_name(cube, um_var, verbose: bool):
     """
     Modify cube `standard_name` attr to change naming for NetCDF output.
 
@@ -660,7 +660,7 @@ def rename_cube_standard_name(cube, um_var, verbose: bool):
         cube.standard_name = um_var.standard_name
 
 
-def rename_cube_long_name(cube, um_var):
+def fix_long_name(cube, um_var):
     """
     Modify cube `long_name` attr to change naming for NetCDF output.
 
