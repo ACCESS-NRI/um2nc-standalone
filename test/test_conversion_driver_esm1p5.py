@@ -110,13 +110,16 @@ def mock_process_with_exception(mock_process):
 @pytest.mark.parametrize(
     "input_list", [[], ["fake_file"], ["fake_file_1", "fake_file_2", "fake_file_3"]]
 )
-def test_convert_fields_file_list(mock_process, input_list):
-    esm1p5_convert.convert_fields_file_list(input_list, "fake_nc_write_dir")
-
+def test_convert_fields_file_list_success(mock_process, input_list):
+    input_list_paths = [Path(p) for p in input_list]
+    succeeded, _ = esm1p5_convert.convert_fields_file_list(input_list_paths, "fake_nc_write_dir")
+    
     assert mock_process.call_count == len(input_list)
+    assert succeeded == input_list_paths
 
 
-def test_convert_fields_file_list_excepted_error(mock_process_with_exception):
+
+def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
     # Hopefully this test will be unnecessary with um2nc standalone.
     # Test that the "Variable can not be processed" error arising from time
     # series inputs is excepted.
@@ -124,11 +127,18 @@ def test_convert_fields_file_list_excepted_error(mock_process_with_exception):
         "TIMESERIES_ERROR"
     ]
     mock_process_with_exception(allowed_error_message)
-    with pytest.warns(Warning, match="Unable to convert"):
-        esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
+    fake_file_path = Path("fake_file")
+
+    _, failed = esm1p5_convert.convert_fields_file_list([fake_file_path], "fake_nc_write_dir")
+
+    assert failed[0][0] == fake_file_path
+
+    # TODO: Testing the exception part of the reported failures will be easier
+    # once um2nc specific exceptions are added.
 
 
-def test_convert_fields_file_list_generic_error(mock_process_with_exception):
+
+def test_convert_fields_file_list_fail_generic(mock_process_with_exception):
     generic_error_message = "Test error"
     mock_process_with_exception(generic_error_message)
     with pytest.raises(Exception) as exc_info:
@@ -142,3 +152,32 @@ def test_convert_esm1p5_output_dir_error():
         esm1p5_convert.convert_esm1p5_output_dir(
             "/test_convert_esm1p5_output_dir_error/fake/path/"
         )
+
+def test_report_results_success():
+    succeeded_files = ["fake_file_1", "fake_file_2", "fake_file_3"]
+    # succeeded argument to report_results typically a list of Path objects
+    succeeded = [Path(p) for p in succeeded_files] 
+    failed = []
+
+    with mock.patch("builtins.print", return_value = None) as mock_print:
+        esm1p5_convert.report_results(succeeded, failed)
+
+    assert mock_print.call_count == len(succeeded)
+
+def test_report_results_failed():
+    succeeded = []
+    failed = [
+        (Path("fake_file_1"), Exception("Error 1")),
+        (Path("fake_file_2"), Exception("Error 2")),
+        (Path("fake_file_3"), Exception("Error 3"))
+    ]
+
+    with mock.patch("warnings.warn", return_value = None) as mock_warning:
+        esm1p5_convert.report_results(succeeded, failed)
+    
+    assert mock_warning.call_count == len(failed)
+
+
+
+
+
