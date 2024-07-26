@@ -254,118 +254,118 @@ def min_cell_method():
     return CellMethod("minimum")
 
 
-def test_rename_cube_var_name_simple(x_wind_cube, empty_um_var):
+def test_fix_var_name_simple(x_wind_cube, empty_um_var):
     # NB: ignores cell methods functionality
     assert x_wind_cube.var_name == "var_name"  # dummy initial value
 
     for um_var in (None, empty_um_var):
-        um2nc.rename_cube_var_name(x_wind_cube, um_var, simple=True)
+        um2nc.fix_var_name(x_wind_cube, um_var, simple=True)
         assert x_wind_cube.var_name == "fld_s00i002", f"Failed with um_var={um_var}"
 
 
-def test_rename_cube_var_name_cell_methods_adds_max(x_wind_cube,
+def test_fix_var_name_cell_methods_adds_max(x_wind_cube,
                                                     empty_um_var,
                                                     max_cell_method):
     # ensure maximum cell methods add suffix to cube name
     x_wind_cube.cell_methods = [max_cell_method]
 
     for um_var in (None, empty_um_var):
-        um2nc.rename_cube_var_name(x_wind_cube, um_var, simple=True)
+        um2nc.fix_var_name(x_wind_cube, um_var, simple=True)
         assert x_wind_cube.var_name == "fld_s00i002_max"
 
 
-def test_rename_cube_var_name_cell_methods_adds_min(x_wind_cube,
+def test_fix_var_name_cell_methods_adds_min(x_wind_cube,
                                                     empty_um_var,
                                                     min_cell_method):
     # ensure maximum cell methods add suffix to cube name
     x_wind_cube.cell_methods = [min_cell_method]
 
     for um_var in (None, empty_um_var):
-        um2nc.rename_cube_var_name(x_wind_cube, um_var, simple=True)
+        um2nc.fix_var_name(x_wind_cube, um_var, simple=True)
         assert x_wind_cube.var_name == "fld_s00i002_min"
 
 
-def test_rename_cube_var_name_unique(x_wind_cube):
+def test_fix_var_name_unique(x_wind_cube):
     # ensure um unique name given to cubes in non-simple mode
     # NB: ignores cell methods functionality
     unique = "unique_string_name"
     um_unique = UMStash("", "", "", "", unique)
-    um2nc.rename_cube_var_name(x_wind_cube, um_unique, simple=False)
+    um2nc.fix_var_name(x_wind_cube, um_unique, simple=False)
     assert x_wind_cube.var_name == unique
 
 
-def test_rename_cube_standard_name_update_x_wind(x_wind_cube, empty_um_var):
+def test_fix_standard_name_update_x_wind(x_wind_cube, empty_um_var):
     # test cube wind renaming block only
     # use empty um_var_empty_std to skip renaming logic
-    um2nc.rename_cube_standard_name(x_wind_cube, empty_um_var, verbose=False)
+    um2nc.fix_standard_name(x_wind_cube, empty_um_var, verbose=False)
     assert x_wind_cube.standard_name == "eastward_wind"
 
 
-def test_rename_cube_standard_name_update_wind(empty_um_var):
+def test_fix_standard_name_update_wind(empty_um_var):
     # test cube wind renaming block only
     # use empty um_var_empty_std to skip renaming logic
     m_cube = PartialCube("var_name", {'STASH': DummyStash(0, 3)}, "y_wind")
     m_cube.cell_methods = []
 
-    um2nc.rename_cube_standard_name(m_cube, empty_um_var, verbose=False)
+    um2nc.fix_standard_name(m_cube, empty_um_var, verbose=False)
     assert m_cube.standard_name == "northward_wind"
 
 
-def test_rename_cube_standard_name_with_mismatch(x_wind_cube):
+def test_fix_standard_name_with_mismatch(x_wind_cube):
     # ensure mismatching standard names between cube & um uses the um std name
     um_var = UMStash("", "", "", "fake", "")
-    um2nc.rename_cube_standard_name(x_wind_cube, um_var, verbose=False)
+    um2nc.fix_standard_name(x_wind_cube, um_var, verbose=False)
     assert x_wind_cube.standard_name == um_var.standard_name
 
 
-def test_rename_cube_standard_name_with_mismatch_warn(x_wind_cube):
+def test_fix_standard_name_with_mismatch_warn(x_wind_cube):
     # as per standard name mismatch, ensuring a warning is raised
     um_var = UMStash("", "", "", "fake", "")
 
     with pytest.warns():
-        um2nc.rename_cube_standard_name(x_wind_cube, um_var, verbose=True)
+        um2nc.fix_standard_name(x_wind_cube, um_var, verbose=True)
 
     assert x_wind_cube.standard_name == um_var.standard_name
 
 
-def test_rename_cube_standard_name_add_missing_name_from_um(x_wind_cube):
+def test_fix_standard_name_add_missing_name_from_um(x_wind_cube):
     # ensure cubes without std name are renamed with the um standard name
     for std_name in ("", None):
         x_wind_cube.standard_name = std_name
         expected = "standard-name-slot"
         um_var = UMStash("", "", "", expected, "")
         assert um_var.standard_name == expected
-        um2nc.rename_cube_standard_name(x_wind_cube, um_var, verbose=False)
+        um2nc.fix_standard_name(x_wind_cube, um_var, verbose=False)
         assert x_wind_cube.standard_name == expected
 
 
-def test_rename_cube_long_name(x_wind_cube):
+def test_fix_long_name(x_wind_cube):
     # ensure a cube without a long name is updated with the um long name
     long_name = "long-name"
     x_wind_cube.long_name = ""
     um_var = UMStash(long_name, "", "", "", "")
-    um2nc.rename_cube_long_name(x_wind_cube, um_var)
+    um2nc.fix_long_name(x_wind_cube, um_var)
     assert x_wind_cube.long_name == long_name
 
 
-def test_rename_cube_long_name_missing_names_do_nothing(x_wind_cube, empty_um_var):
+def test_fix_long_name_missing_names_do_nothing(x_wind_cube, empty_um_var):
     x_wind_cube.long_name = ""
-    um2nc.rename_cube_long_name(x_wind_cube, empty_um_var)
+    um2nc.fix_long_name(x_wind_cube, empty_um_var)
     assert x_wind_cube.long_name == ""
 
 
-def test_rename_cube_long_name_under_limit_do_nothing(x_wind_cube, empty_um_var):
+def test_fix_long_name_under_limit_do_nothing(x_wind_cube, empty_um_var):
     name = "long-name-under-limit"
     x_wind_cube.long_name = name
     assert len(x_wind_cube.long_name) < um2nc.XCONV_LONG_NAME_LIMIT
-    um2nc.rename_cube_long_name(x_wind_cube, empty_um_var)
+    um2nc.fix_long_name(x_wind_cube, empty_um_var)
     assert x_wind_cube.long_name == name  # nothing should be replaced
 
 
-def test_rename_cube_long_name_over_limit(x_wind_cube, empty_um_var):
+def test_fix_long_name_over_limit(x_wind_cube, empty_um_var):
     # ensure character limit is enforced
     x_wind_cube.long_name = "0123456789" * 15  # break the 110 char limit
     assert len(x_wind_cube.long_name) > um2nc.XCONV_LONG_NAME_LIMIT
 
-    um2nc.rename_cube_long_name(x_wind_cube, empty_um_var)
+    um2nc.fix_long_name(x_wind_cube, empty_um_var)
     assert len(x_wind_cube.long_name) == um2nc.XCONV_LONG_NAME_LIMIT
