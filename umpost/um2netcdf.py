@@ -64,8 +64,10 @@ PPField.calendar = pg_calendar
 # TODO: rename time to avoid clash with builtin time module
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
-    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
+    newunits = cf_units.Unit(
+        "days since 0001-01-01 00:00", calendar='proleptic_gregorian')
+    # Need a copy because can't assign to time.points[i]
+    tvals = np.array(time.points)
     tbnds = np.array(time.bounds) if time.bounds is not None else None
 
     for i in range(len(time.points)):
@@ -87,6 +89,103 @@ def convert_proleptic(time):
         time.bounds = tbnds
 
     time.units = newunits
+
+
+def fix_latlon_coord_names(cube, grid_type, dlat, dlon):
+    """
+    Rename cube's latitude/longitude coordinate variables based on 
+    the grid they lie on.
+
+    Parameters
+    ----------
+    cube: an Iris cube object to modify (changes names in place).
+    grid_type: (string) model horizontal grid type.
+    dlat: (float) meridional spacing between latitude grid points.
+    NB - Only applies to variables on the main horizontal grids, 
+    and not the river grid.
+    dlon: (float) zonal spacing between longitude grid points. 
+    NB - Only applies to variables on the main horizontal grids, 
+    and not the river grid.
+    """
+
+    lat = cube.coord('latitude')
+    if is_lat_river(lat.points):
+        lat.var_name = 'lat_river'
+    elif is_lat_v(lat.points, grid_type, dlat):
+        lat.var_name = 'lat_v'
+    else:
+        lat.var_name = 'lat'
+
+    lon = cube.coord('longitude')
+    if is_lon_river(lon.points):
+        lon.var_name = 'lon_river'
+    elif is_lon_u(lon.points, grid_type, dlon):
+        lon.var_name = 'lon_u'
+    else:
+        lon.var_name = 'lon'
+
+
+def is_lat_river(latitude_points):
+    """
+    Check whether latitude points are on the river routing grid.
+
+    Parameters
+    ----------
+    latitude_points: (array) 1D array of latitude grid points.
+    """
+    return len(latitude_points) == 180
+
+
+def is_lon_river(longitude_points):
+    """
+    Check whether longitude points are on the river routing grid.
+
+    Parameters
+    ----------
+    longitude_points: (array) 1D array of longitude grid points.
+    """
+
+    return len(longitude_points) == 360
+
+
+def is_lat_v(latitude_points, grid_type, dlat):
+    """
+    Check whether latitude points are on the lat_v grid.
+
+    Parameters
+    ----------
+    latitude_points: (array) 1D array of latitude grid points.
+    grid_type: (string) model horizontal grid type.
+    dlat: (float) meridional spacing between latitude grid points.
+    """
+
+    return (
+        (latitude_points[0] == -90 and grid_type == GRID_END_GAME) or
+        (
+            np.allclose(-90.+0.5*dlat, latitude_points[0]) and
+            grid_type == GRID_NEW_DYNAMICS
+        )
+    )
+
+
+def is_lon_u(longitude_points, grid_type, dlon):
+    """
+    Check whether longitude points are on the lon_u grid.
+
+    Parameters
+    ----------
+    longitude: (array) 1D array of longitude grid points.
+    grid_type: (string) model horizontal grid type.
+    dlon: (float) zonal spacing between longitude grid points. 
+    """
+
+    return (
+        (longitude_points[0] == 0 and grid_type == GRID_END_GAME) or
+        (
+            np.allclose(0.5*dlon, longitude_points[0]) and
+            grid_type == GRID_NEW_DYNAMICS
+        )
+    )
 
 
 def fix_latlon_coord(cube, grid_type, dlat, dlon):
@@ -111,24 +210,6 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
     lon = cube.coord('longitude')
     lon.points = lon.points.astype(np.float64)
     _add_coord_bounds(lon)
-
-    lat = cube.coord('latitude')
-    if len(lat.points) == 180:
-        lat.var_name = 'lat_river'
-    elif (lat.points[0] == -90 and grid_type == 'EG') or \
-         (np.allclose(-90.+0.5*dlat, lat.points[0]) and grid_type == 'ND'):
-        lat.var_name = 'lat_v'
-    else:
-        lat.var_name = 'lat'
-
-    lon = cube.coord('longitude')
-    if len(lon.points) == 360:
-        lon.var_name = 'lon_river'
-    elif (lon.points[0] == 0 and grid_type == 'EG') or \
-         (np.allclose(0.5*dlon, lon.points[0]) and grid_type == 'ND'):
-        lon.var_name = 'lon_u'
-    else:
-        lon.var_name = 'lon'
 
 
 # TODO: refactor to "rename level coord"
@@ -182,7 +263,8 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         fill_value = 1.e20
     else:
         # Use netCDF defaults
-        fill_value = default_fillvals['%s%1d' % (cube.data.dtype.kind, cube.data.dtype.itemsize)]
+        fill_value = default_fillvals['%s%1d' % (
+            cube.data.dtype.kind, cube.data.dtype.itemsize)]
 
     cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
 
@@ -202,7 +284,8 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
             else:
                 new_calendar = time.units.calendar
 
-            time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
+            time.units = cf_units.Unit(
+                "days since 1970-01-01 00:00", calendar=new_calendar)
             time.points = time.points/24.
 
             if time.bounds is not None:
@@ -251,7 +334,8 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 
     except iris.exceptions.CoordinateNotFoundError:
         # No time dimension (probably ancillary file)
-        sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
+        sman.write(cube, zlib=True, complevel=compression,
+                   fill_value=fill_value)
 
 
 def fix_cell_methods(mtuple):
@@ -276,7 +360,8 @@ def apply_mask(c, heaviside, hcrit):
         # Temporarily turn off warnings from 0/0
         # TODO: refactor to use np.where()
         with np.errstate(divide='ignore', invalid='ignore'):
-            c.data = np.ma.masked_array(c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
+            c.data = np.ma.masked_array(
+                c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
     else:
         # Are the levels of c a subset of the levels of the heaviside variable?
         c_p = c.coord('pressure')
@@ -288,11 +373,14 @@ def apply_mask(c, heaviside, hcrit):
             h_tmp = heaviside.extract(constraint)
             # Double check they're actually the same after extraction
             if not np.all(c_p.points == h_tmp.coord('pressure').points):
-                raise Exception('Unexpected mismatch in levels of extracted heaviside function')
+                raise Exception(
+                    'Unexpected mismatch in levels of extracted heaviside function')
             with np.errstate(divide='ignore', invalid='ignore'):
-                c.data = np.ma.masked_array(c.data/h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
+                c.data = np.ma.masked_array(
+                    c.data/h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
         else:
-            raise Exception('Unable to match levels of heaviside function to variable %s' % c.name())
+            raise Exception(
+                'Unable to match levels of heaviside function to variable %s' % c.name())
 
 
 def process(infile, outfile, args):
@@ -301,7 +389,8 @@ def process(infile, outfile, args):
     ff = mule.load_umfile(str(infile))
 
     if isinstance(ff, mule.ancil.AncilFile):
-        raise NotImplementedError('Ancillary files are currently not supported')
+        raise NotImplementedError(
+            'Ancillary files are currently not supported')
 
     # TODO: eventually move these calls closer to their usage
     grid_type = get_grid_type(ff)
@@ -341,7 +430,8 @@ def process(infile, outfile, args):
             umvar = stashvar.StashVar(c.item_code)
 
             if args.simple:
-                c.var_name = 'fld_s%2.2di%3.3d' % (stashcode.section, stashcode.item)
+                c.var_name = 'fld_s%2.2di%3.3d' % (
+                    stashcode.section, stashcode.item)
             elif umvar.uniquename:
                 c.var_name = umvar.uniquename
 
@@ -398,7 +488,8 @@ def process(infile, outfile, args):
             try:
                 fix_latlon_coord(c, grid_type, dlat, dlon)
             except iris.exceptions.CoordinateNotFoundError:
-                print('\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
+                print(
+                    '\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
                 print(c)
                 raise Exception("Variable can not be processed")
 
@@ -443,7 +534,8 @@ def get_grid_type(ff):
     elif staggering == 3:
         return GRID_NEW_DYNAMICS
     else:
-        raise PostProcessingError(f"Unable to determine grid staggering from header '{staggering}'")
+        raise PostProcessingError(
+            f"Unable to determine grid staggering from header '{staggering}'")
 
 
 def get_grid_spacing(ff):
@@ -635,7 +727,8 @@ def add_global_history(infile, iris_out):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
+    parser = argparse.ArgumentParser(
+        description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3,
                         help=('specify netCDF output format: 1 classic, 2 64-bit'
