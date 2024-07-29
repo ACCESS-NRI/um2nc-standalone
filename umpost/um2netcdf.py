@@ -465,8 +465,9 @@ def to_item_code(stash_code):
 def set_item_codes(cubes):
     for cube in cubes:
         if hasattr(cube, ITEM_CODE):
-            msg = f"Cube {cube.var_name} already has 'item_code' attribute"
-            raise NotImplementedError(msg)
+            msg = f"Cube {cube.var_name} already has 'item_code' attribute, skipping."
+            warnings.warn(msg)
+            continue
 
         # hack: manually store item_code in cubes
         item_code = to_item_code(cube.attributes[STASH])

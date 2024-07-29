@@ -129,10 +129,14 @@ class DummyCube:
         self.units = None or units
 
 
-def test_set_item_codes_fail_on_overwrite():
-    cubes = [DummyCube(1007, "fake_var")]
-    with pytest.raises(NotImplementedError):
-        um2nc.set_item_codes(cubes)
+def test_set_item_codes_avoid_overwrite():
+    item_code = 1007
+    item_code2 = 51006
+
+    cubes = [DummyCube(item_code, "fake_var"), DummyCube(item_code2, "fake_var2")]
+    um2nc.set_item_codes(cubes)
+    assert cubes[0].item_code == item_code
+    assert cubes[1].item_code == item_code2
 
 
 @pytest.fixture
