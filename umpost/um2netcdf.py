@@ -341,23 +341,12 @@ def process(infile, outfile, args):
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
         for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
-            stashcode = c.attributes['STASH']
             umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
             fix_var_name(c, umvar.uniquename, args.simple)
             fix_standard_name(c, umvar.standard_name, args.verbose)
             fix_long_name(c, umvar.long_name)
-
-            if c.units and umvar.units:
-                # Simple testing c.units == umvar.units doesn't
-                # catch format differences because Unit type
-                # works around them. repr isn't reliable either
-                ustr = '%s' % c.units
-                if ustr != umvar.units:
-                    if args.verbose:
-                        sys.stderr.write("Units mismatch %d %d %s %s\n" %
-                                         (stashcode.section, stashcode.item, c.units, umvar.units))
-                    c.units = umvar.units
+            fix_units(c, umvar.units, args.verbose)
 
             # Interval in cell methods isn't reliable so better to remove it.
             c.cell_methods = fix_cell_methods(c.cell_methods)
@@ -676,6 +665,19 @@ def fix_long_name(cube, um_long_name):
     elif um_long_name:
         # If there's no long_name from iris, use one from STASH
         cube.long_name = um_long_name
+
+
+def fix_units(cube, um_var_units, verbose: bool):
+    if cube.units and um_var_units:
+        # Simple testing c.units == um_var_units doesn't catch format differences because
+        # the Unit type works around them. repr is also unreliable
+        if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
+            if verbose:
+                stash_code = cube.attributes[STASH]
+                msg = (f"Units mismatch {stash_code.section} {stash_code.item} "
+                       f"{cube.units} {um_var_units}\n")
+                warnings.warn(msg)
+            cube.units = um_var_units
 
 
 if __name__ == '__main__':

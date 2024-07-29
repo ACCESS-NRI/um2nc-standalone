@@ -122,10 +122,11 @@ class DummyCube:
     Imitation iris Cube for unit testing.
     """
 
-    def __init__(self, item_code, var_name=None, attributes=None):
+    def __init__(self, item_code, var_name=None, attributes=None, units=None):
         self.item_code = item_code
         self.var_name = var_name or "unknown_var"
         self.attributes = attributes
+        self.units = None or units
 
 
 def test_set_item_codes_fail_on_overwrite():
@@ -366,3 +367,45 @@ def test_fix_long_name_over_limit(x_wind_cube):
     for um_long_name in ("", None):
         um2nc.fix_long_name(x_wind_cube, um_long_name)
         assert len(x_wind_cube.long_name) == um2nc.XCONV_LONG_NAME_LIMIT
+
+
+@pytest.fixture
+def ua_plev_alt(ua_plev_cube):
+    ua_plev_cube.units = "metres"  # fake some units
+    add_stash(ua_plev_cube, DummyStash(3, 4))
+    return ua_plev_cube
+
+
+def test_fix_units_update_units(ua_plev_alt):
+    # ensure UM Stash units override cube units
+    um_var_units = "Metres-fake"
+    um2nc.fix_units(ua_plev_alt, um_var_units, verbose=False)
+    assert ua_plev_alt.units == um_var_units
+
+
+def test_fix_units_update_units_with_warning(ua_plev_alt):
+    um_var_units = "Metres-fake"
+
+    with pytest.warns():
+        um2nc.fix_units(ua_plev_alt, um_var_units, verbose=True)
+
+    assert ua_plev_alt.units == um_var_units
+
+
+def test_fix_units_do_nothing_no_cube_units(ua_plev_cube):
+    # ensure nothing happens if cube lacks units
+    # verbose=True is skipped as it only issues a warning
+    for unit in ("", None):
+        ua_plev_cube.units = unit
+        um2nc.fix_units(ua_plev_cube, "fake_units", verbose=False)
+        assert ua_plev_cube.units == unit  # nothing should happen as there's no cube.units
+
+
+def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
+    # ensure nothing happens if the UM Stash lacks units
+    # verbose=True is skipped as it only issues a warning
+    orig = "fake-metres"
+    ua_plev_cube.units = orig
+    for unit in ("", None):
+        um2nc.fix_units(ua_plev_cube, unit, verbose=False)
+        assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
