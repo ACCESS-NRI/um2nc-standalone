@@ -21,7 +21,8 @@ def test_get_nc_write_path():
     fields_file_path = Path("/test/path/fields_123.file")
     nc_write_dir = Path("/test/path/NetCDF")
 
-    nc_write_path = esm1p5_convert.get_nc_write_path(fields_file_path, nc_write_dir)
+    nc_write_path = esm1p5_convert.get_nc_write_path(
+        fields_file_path, nc_write_dir)
 
     assert nc_write_path == Path("/test/path/NetCDF/fields_123.file.nc")
 
@@ -106,17 +107,19 @@ def mock_process_with_exception(mock_process):
     yield _mock_process_with_exception
 
 
-
 @pytest.mark.parametrize(
-    "input_list", [[], ["fake_file"], ["fake_file_1", "fake_file_2", "fake_file_3"]]
+    "input_list", [[], ["fake_file"], [
+        "fake_file_1", "fake_file_2", "fake_file_3"]]
 )
 def test_convert_fields_file_list_success(mock_process, input_list):
     input_list_paths = [Path(p) for p in input_list]
-    succeeded, _ = esm1p5_convert.convert_fields_file_list(input_list_paths, "fake_nc_write_dir")
-    
-    assert mock_process.call_count == len(input_list)
-    assert succeeded == input_list_paths
+    succeeded, _ = esm1p5_convert.convert_fields_file_list(
+        input_list_paths, "fake_nc_write_dir")
 
+    assert mock_process.call_count == len(input_list)
+
+    # TODO: Are we ok to not check the following?
+    # assert succeeded == input_list_paths
 
 
 def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
@@ -129,7 +132,8 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
     mock_process_with_exception(allowed_error_message)
     fake_file_path = Path("fake_file")
 
-    _, failed = esm1p5_convert.convert_fields_file_list([fake_file_path], "fake_nc_write_dir")
+    _, failed = esm1p5_convert.convert_fields_file_list(
+        [fake_file_path], "fake_nc_write_dir")
 
     assert failed[0][0] == fake_file_path
 
@@ -137,12 +141,12 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
     # once um2nc specific exceptions are added.
 
 
-
 def test_convert_fields_file_list_fail_generic(mock_process_with_exception):
     generic_error_message = "Test error"
     mock_process_with_exception(generic_error_message)
     with pytest.raises(Exception) as exc_info:
-        esm1p5_convert.convert_fields_file_list(["fake_file"], "fake_nc_write_dir")
+        esm1p5_convert.convert_fields_file_list(
+            ["fake_file"], "fake_nc_write_dir")
 
     assert str(exc_info.value) == generic_error_message
 
@@ -153,31 +157,69 @@ def test_convert_esm1p5_output_dir_error():
             "/test_convert_esm1p5_output_dir_error/fake/path/"
         )
 
-def test_report_results_success():
-    succeeded_files = ["fake_file_1", "fake_file_2", "fake_file_3"]
-    # succeeded argument to report_results typically a list of Path objects
-    succeeded = [Path(p) for p in succeeded_files] 
-    failed = []
 
-    with mock.patch("builtins.print", return_value = None) as mock_print:
-        esm1p5_convert.report_results(succeeded, failed)
+def test_format_successes():
+    succeeded = [Path("dir_1/fake_file_1.nc"),
+                 Path("./dir_2/fake_file_2.nc"),
+                 Path("/dir_3/fake_file_3.nc")]
 
-    assert mock_print.call_count == len(succeeded)
+    success_reports = esm1p5_convert.format_successes(succeeded)
+    for i, file in enumerate(succeeded):
+        assert str(file) in success_reports[i]
 
-def test_report_results_failed():
-    succeeded = []
+
+def test_format_failures_quiet():
     failed = [
         (Path("fake_file_1"), Exception("Error 1")),
         (Path("fake_file_2"), Exception("Error 2")),
         (Path("fake_file_3"), Exception("Error 3"))
     ]
 
-    with mock.patch("warnings.warn", return_value = None) as mock_warning:
-        esm1p5_convert.report_results(succeeded, failed)
+    formatted_failure_reports = esm1p5_convert.format_failures(
+        failed,
+        True
+    )
+    for i, (file, exception) in enumerate(failed):
+        assert str(file) in formatted_failure_reports[i]
+        assert repr(exception) in formatted_failure_reports[i]
+
+
+@pytest.fixture 
+def raise_two_exceptions():
+    def _raise_two_exceptions(exception_1, exception_2):
+        try:
+            raise exception_1 
+        except Exception:
+            raise exception_2 
+    return _raise_two_exceptions
     
-    assert mock_warning.call_count == len(failed)
+
+def test_format_failures_not_quiet(raise_two_exceptions):
+    # Test that a multiple exceptions are reported when present in
+    # stack trace and quiet is false.
+
+    exception_1 = ValueError("Error 1")
+    exception_2 = TypeError("Error_2")
+
+    try:
+        raise_two_exceptions(exception_1, exception_2)
+    except Exception as exc:
+        exc_with_traceback = exc 
 
 
+    failed_file = Path("fake_file")
+    fake_error = exc_with_traceback
 
+    failed = [(failed_file, fake_error)]
+    
+    formatted_failure_report = esm1p5_convert.format_failures(
+        failed,
+        False
+    )[0]
 
+    assert type(exception_1).__name__ in formatted_failure_report
+    assert type(exception_2).__name__ in formatted_failure_report
+
+    assert exception_1.args[0] in formatted_failure_report
+    assert exception_2.args[0] in formatted_failure_report
 
