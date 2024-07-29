@@ -156,29 +156,55 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
     return succeeded, failed
 
 
-def report_results(succeeded, failed):
+def format_successes(succeeded):
     """
-    Report successful/failed conversions to the user
+    Format reports of successful conversions to be shared with user.
 
     Parameters
     ---------- 
-    succeeded: list of filepaths of successfully converted fields files
-    failed: list of tuples of form (filepath, exception) for files which failed 
-    to convert due to an allowed exception. 
+    succeeded: list of filepaths of successfully converted fields files.
+
     Returns
     -------
-    None
+    success_reports: list of formatted reports of successful conversions.
     """
-    for fields_file_path in succeeded:
-        print(f"Successfully converted {fields_file_path}")
+    success_reports = [
+        f"Successfully converted {fields_file_path}"
+        for fields_file_path in succeeded
+    ]
 
+    return success_reports
+
+
+def format_failures(failed, quiet):
+    """
+    Format reports of conversions which failed with permitted exceptions.
+
+    Parameters
+    ----------
+    failed: list of tuples of form (filepath, exception) for files which failed 
+    to convert due to an allowed exception. 
+    quiet: boolean. Report only final exception type and message rather than 
+    full stack trace when true.
+
+    Returns
+    -------
+    failure_reports: list of formatted reports of failed conversions.
+    """
+    failure_reports = []
     for fields_file_path, exception in failed:
-        formatted_traceback = "".join(
-            traceback.format_exception(exception)
-        )
-        warnings.warn(
-            f"Failed to convert {fields_file_path}, reported error: \n {formatted_traceback}"
-        )
+        report_base = f"Failed to convert {fields_file_path}. "
+        if quiet:
+            report = report_base + "Final reported error: \n" + repr(exception)
+        else:
+            formatted_traceback = "".join(
+                traceback.format_exception(exception)
+            )
+            report = report_base + "Stack trace: \n" + formatted_traceback
+
+        failure_reports.append(report)
+
+    return failure_reports
 
 
 def convert_esm1p5_output_dir(esm1p5_output_dir):
@@ -192,7 +218,9 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     Returns
     -------
-    None
+    succeeded: list of filepaths for successfully converted fields files
+    failed: list of tuples of form (filepath, exception) for files which failed 
+    to convert due to an allowed exception. 
     """
 
     esm1p5_output_dir = Path(esm1p5_output_dir)
@@ -226,13 +254,15 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
             "converted to NetCDF."
         )
 
-        return  # Don't try to run the conversion
+        # TODO: Check a better way of doing this
+        return  [], [] # Don't try to run the conversion
 
     succeeded, failed = convert_fields_file_list(
         atm_dir_fields_files,
         nc_write_dir
     )
-    report_results(succeeded, failed)
+
+    return succeeded, failed
 
 
 if __name__ == "__main__":
@@ -240,7 +270,24 @@ if __name__ == "__main__":
     parser.add_argument(
         "current_output_dir", help="ESM1.5 output directory to be converted", type=str
     )
+    parser.add_argument("--quiet", "-q", action="store-true",
+                        help=(
+                            "Report only final exception type and message for allowed"
+                            "exceptions raised during conversion when flag is included."
+                            "Otherwise report full stack trace."
+                        )
+                        )
     args = parser.parse_args()
 
     current_output_dir = args.current_output_dir
-    convert_esm1p5_output_dir(current_output_dir)
+
+    succeeded, failed = convert_esm1p5_output_dir(current_output_dir)
+
+    # Report results to user
+    success_reports = format_successes(succeeded)
+    failure_reports = format_failures(failed, args.quiet)
+    for success_message in success_reports:
+        print(success_message)
+    for failure_message in failure_reports:
+        warnings.warn(failure_message)
+
