@@ -6,6 +6,57 @@ import umpost.um2netcdf as um2nc
 
 import pytest
 import mule
+import mule.ff
+
+
+def test_process(ua_plev_cube, heaviside_uv_cube, ta_plev_cube):
+    """TODO"""
+
+    # FIXME: this convoluted setup is a huge code stench
+    #        use this to gradually refactor process()
+    with (mock.patch("mule.load_umfile") as m_load_umfile):
+        m_fields_file = mock.MagicMock(spec=mule.ff.FieldsFile)
+        m_load_umfile.return_value = m_fields_file
+
+        with mock.patch("umpost.um2netcdf.get_grid_type") as m_grid_type:
+            m_grid_type.return_value = um2nc.GRID_NEW_DYNAMICS
+
+            with mock.patch("umpost.um2netcdf.get_grid_spacing") as m_spacing:
+                m_spacing.return_value = None, None  # TODO: use reasonable values
+                with mock.patch("umpost.um2netcdf.get_z_sea_constants") as m_sea:
+                    m_sea.return_value = None, None  # TODO: use reasonable values
+
+                    with mock.patch("iris.load") as m_iris_load:
+                        with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
+                            with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
+                                with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
+                                    with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
+                                        with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
+                                            cubes = [ua_plev_cube, heaviside_uv_cube, ta_plev_cube]
+
+                                            for c in cubes:
+                                                c.cell_methods = []
+                                                c.attributes = {um2nc.STASH: DummyStash(c.item_code // 1000,
+                                                                                        c.item_code % 1000)}
+                                                c.coord["latitude"] = 0.0  # FIXME
+                                                c.coord["longitude"] = 0.0  # FIXME
+
+                                            m_iris_load.return_value = cubes
+
+                                            infile = "/tmp/fake_input_fields_file"
+                                            outfile = "/tmp/fake_input_fields_file.nc"
+
+                                            # TODO: add args namedtuple?
+                                            args = mock.Mock()
+                                            args.nomask = False
+                                            args.nohist = True
+                                            args.nckind = 3
+                                            args.include_list = None
+                                            args.exclude_list = None
+                                            args.simple = False
+                                            args.verbose = False
+
+                                            um2nc.process(infile, outfile, args)
 
 
 def test_get_eg_grid_type():
@@ -127,6 +178,9 @@ class DummyCube:
         self.var_name = var_name or "unknown_var"
         self.attributes = attributes
         self.units = None or units
+        self.standard_name = None
+        self.long_name = None
+        self.coord = {}
 
 
 def test_set_item_codes_avoid_overwrite():
