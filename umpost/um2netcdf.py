@@ -37,6 +37,9 @@ ITEM_CODE = "item_code"
 GRID_END_GAME = 'EG'
 GRID_NEW_DYNAMICS = 'ND'
 
+# TODO: what is this limit & does it still exist?
+XCONV_LONG_NAME_LIMIT = 110
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -213,6 +216,7 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
 
 
 # TODO: refactor to "rename level coord"
+# TODO: move this to func renaming section?
 def fix_level_coord(cube, z_rho, z_theta):
     # Rename model_level_number coordinates to better distinguish rho and theta levels
     try:
@@ -426,61 +430,12 @@ def process(infile, outfile, args):
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
         for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
-            stashcode = c.attributes['STASH']
-            umvar = stashvar.StashVar(c.item_code)
+            umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
-            if args.simple:
-                c.var_name = 'fld_s%2.2di%3.3d' % (
-                    stashcode.section, stashcode.item)
-            elif umvar.uniquename:
-                c.var_name = umvar.uniquename
-
-            # Could there be cases with both max and min?
-            if c.var_name:
-                if any([m.method == 'maximum' for m in c.cell_methods]):
-                    c.var_name += "_max"
-                if any([m.method == 'minimum' for m in c.cell_methods]):
-                    c.var_name += "_min"
-
-            # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
-            if c.standard_name == 'x_wind':
-                c.standard_name = 'eastward_wind'
-            if c.standard_name == 'y_wind':
-                c.standard_name = 'northward_wind'
-
-            if c.standard_name and umvar.standard_name:
-                if c.standard_name != umvar.standard_name:
-                    if args.verbose:
-                        sys.stderr.write("Standard name mismatch %d %d %s %s\n" %
-                                         (stashcode.section,
-                                          stashcode.item,
-                                          c.standard_name,
-                                          umvar.standard_name))
-                    c.standard_name = umvar.standard_name
-
-            if c.units and umvar.units:
-                # Simple testing c.units == umvar.units doesn't
-                # catch format differences because Unit type
-                # works around them. repr isn't reliable either
-                ustr = '%s' % c.units
-                if ustr != umvar.units:
-                    if args.verbose:
-                        sys.stderr.write("Units mismatch %d %d %s %s\n" %
-                                         (stashcode.section, stashcode.item, c.units, umvar.units))
-                    c.units = umvar.units
-
-            # Temporary work around for xconv
-            if c.long_name and len(c.long_name) > 110:
-                c.long_name = c.long_name[:110]
-
-            # If there's no standard_name or long_name from iris, use one from STASH
-            if not c.standard_name:
-                if umvar.standard_name:
-                    c.standard_name = umvar.standard_name
-
-            if not c.long_name:
-                if umvar.long_name:
-                    c.long_name = umvar.long_name
+            fix_var_name(c, umvar.uniquename, args.simple)
+            fix_standard_name(c, umvar.standard_name, args.verbose)
+            fix_long_name(c, umvar.long_name)
+            fix_units(c, umvar.units, args.verbose)
 
             # Interval in cell methods isn't reliable so better to remove it.
             c.cell_methods = fix_cell_methods(c.cell_methods)
@@ -724,6 +679,94 @@ def add_global_history(infile, iris_out):
 
     iris_out.update_global_attributes({'history': history})
     warnings.warn("um2nc version number not specified!")
+
+
+# TODO: refactor func sig to take exclusive simple OR unique name field?
+def fix_var_name(cube, um_unique_name, simple: bool):
+    """
+    Modify cube `var_name` attr to change naming for NetCDF output.
+
+    Parameters
+    ----------
+    cube : iris cube to modify (changes the name in place)
+    um_unique_name : the UM Stash unique name
+    simple : True to replace var_name with "fld_s00i000" style name
+    """
+    if simple:
+        stash_code = cube.attributes[STASH]
+        cube.var_name = f"fld_s{stash_code.section:02}i{stash_code.item:03}"
+    elif um_unique_name:
+        cube.var_name = um_unique_name
+
+    # Could there be cases with both max and min?
+    if cube.var_name:
+        if any([m.method == 'maximum' for m in cube.cell_methods]):
+            cube.var_name += "_max"
+        if any([m.method == 'minimum' for m in cube.cell_methods]):
+            cube.var_name += "_min"
+
+
+def fix_standard_name(cube, um_standard_name, verbose: bool):
+    """
+    Modify cube `standard_name` attr to change naming for NetCDF output.
+
+    Parameters
+    ----------
+    cube : iris cube to modify (changes the name in place)
+    um_standard_name : the UM Stash standard name
+    verbose : True to turn warnings on
+    """
+    stash_code = cube.attributes[STASH]
+
+    # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
+    if cube.standard_name:
+        if cube.standard_name == 'x_wind':
+            cube.standard_name = 'eastward_wind'
+        if cube.standard_name == 'y_wind':
+            cube.standard_name = 'northward_wind'
+
+        if um_standard_name and cube.standard_name != um_standard_name:
+            # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
+            if verbose:
+                # TODO: show combined stash code instead?
+                msg = (f"Standard name mismatch section={stash_code.section}"
+                       f" item={stash_code.item} standard_name={cube.standard_name}"
+                       f" UM var name={um_standard_name}")
+                warnings.warn(msg)
+
+            cube.standard_name = um_standard_name
+    elif um_standard_name:
+        # If there's no standard_name from iris, use one from STASH
+        cube.standard_name = um_standard_name
+
+
+def fix_long_name(cube, um_long_name):
+    """
+    Modify cube `long_name` attr to change naming for NetCDF output.
+
+    Parameters
+    ----------
+    cube : iris cube to modify (changes the name in place)
+    um_long_name : the UM Stash long name
+    """
+    # Temporary work around for xconv
+    if cube.long_name:
+        if len(cube.long_name) > XCONV_LONG_NAME_LIMIT:
+            cube.long_name = cube.long_name[:XCONV_LONG_NAME_LIMIT]
+    elif um_long_name:
+        # If there's no long_name from iris, use one from STASH
+        cube.long_name = um_long_name
+
+
+def fix_units(cube, um_var_units, verbose: bool):
+    if cube.units and um_var_units:
+        # Simple testing c.units == um_var_units doesn't catch format differences because
+        # the Unit type works around them. repr is also unreliable
+        if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
+            if verbose:
+                msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
+                warnings.warn(msg)
+            cube.units = um_var_units
 
 
 if __name__ == '__main__':
