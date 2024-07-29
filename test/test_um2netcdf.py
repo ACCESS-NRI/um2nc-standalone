@@ -289,7 +289,7 @@ def test_fix_standard_name_update_x_wind(x_wind_cube):
     assert x_wind_cube.standard_name == "eastward_wind"
 
 
-def test_fix_standard_name_update_wind():
+def test_fix_standard_name_update_y_wind():
     # test cube wind renaming block only
     # use empty std name to bypass renaming logic
     m_cube = PartialCube("var_name", {'STASH': DummyStash(0, 3)}, "y_wind")
@@ -336,19 +336,24 @@ def test_fix_long_name(x_wind_cube):
 
 
 def test_fix_long_name_missing_names_do_nothing(x_wind_cube):
-    x_wind_cube.long_name = ""
+    # contrived test: this is a gap filler to ensure the cube is not updated if it lacks a long
+    # name & there is no long name to copy from the UM Stash codes. It's partially ensuring the
+    # process logic works with a range of "empty" values line None, zero len strs etc
+    empty_values = ("", None)
 
-    for um_long_name in ("", None):
+    for um_long_name in empty_values:
+        x_wind_cube.long_name = um_long_name
         um2nc.fix_long_name(x_wind_cube, um_long_name)
-        assert x_wind_cube.long_name == ""
+        assert x_wind_cube.long_name in empty_values
 
 
 def test_fix_long_name_under_limit_do_nothing(x_wind_cube):
+    # somewhat contrived test, ensure cube long name is retained if under the length limit
     long_name = "long-name-under-limit"
     x_wind_cube.long_name = long_name
     assert len(x_wind_cube.long_name) < um2nc.XCONV_LONG_NAME_LIMIT
 
-    for um_long_name in ("", None):
+    for um_long_name in ("", None, "fake"):
         um2nc.fix_long_name(x_wind_cube, um_long_name)
         assert x_wind_cube.long_name == long_name  # nothing should be replaced
 
