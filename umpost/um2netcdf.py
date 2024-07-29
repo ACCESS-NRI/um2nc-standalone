@@ -673,9 +673,7 @@ def fix_units(cube, um_var_units, verbose: bool):
         # the Unit type works around them. repr is also unreliable
         if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
             if verbose:
-                stash_code = cube.attributes[STASH]
-                msg = (f"Units mismatch {stash_code.section} {stash_code.item} "
-                       f"{cube.units} {um_var_units}\n")
+                msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
                 warnings.warn(msg)
             cube.units = um_var_units
 
