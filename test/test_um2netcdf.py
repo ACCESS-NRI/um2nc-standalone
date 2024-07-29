@@ -251,7 +251,7 @@ def test_fix_var_name_simple(x_wind_cube):
     # NB: ignores cell methods functionality
     assert x_wind_cube.var_name == "var_name"  # dummy initial value
 
-    for unique in (None, ""):
+    for unique in (None, "", "fake"):  # fake ensures `simple=True` is selected before unique name
         um2nc.fix_var_name(x_wind_cube, unique, simple=True)
         assert x_wind_cube.var_name == "fld_s00i002", f"Failed with um_var={unique}"
 
