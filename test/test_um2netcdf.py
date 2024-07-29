@@ -79,7 +79,7 @@ def test_stash_code_to_item_code_conversion():
     assert result == 30255
 
 
-@dataclass
+@dataclass(frozen=True)
 class DummyStash:
     """
     Partial Stash representation for testing.
