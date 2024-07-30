@@ -59,18 +59,30 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
-def test_process(ua_plev_cube, ta_plev_cube, mule_vars):
+@pytest.fixture
+def air_temp_cube():
+    # copied from aiihca.paa1jan.subset file
+    return DummyCube(30204, "air_temperature")
+
+
+@pytest.fixture
+def precipitation_flux_cube():
+    # copied from aiihca.paa1jan.subset file
+    return DummyCube(5216, "precipitation_flux")
+
+
+def test_process(air_temp_cube, precipitation_flux_cube, mule_vars):
     """Attempts end to end test of process()."""
 
     # FIXME: this convoluted setup is a big code stench
     #        use this to gradually refactor process()
     #        add naming vars to the dummy cubes
-    with mock.patch("mule.load_umfile") as m_load_umfile:
+    with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
         with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
             m_mule_vars.return_value = mule_vars
 
             with mock.patch("iris.load") as m_iris_load:
-                cubes = [ua_plev_cube, ta_plev_cube]
+                cubes = [air_temp_cube, precipitation_flux_cube]
 
                 for c in cubes:
                     attrs = {um2nc.STASH: DummyStash(c.item_code // 1000, c.item_code % 1000)}
@@ -82,8 +94,11 @@ def test_process(ua_plev_cube, ta_plev_cube, mule_vars):
                 m_iris_load.return_value = cubes
 
                 with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
-                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
-                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
+                    m_sman = mock.Mock()
+                    m_saver().__enter__.return_value = m_sman
+
+                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:  # TODO: requires c.coord attributes
+                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:  # TODO: requires c.coord attributes
                             with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
                                 with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
                                     infile = "/tmp/fake_input_fields_file"
@@ -100,6 +115,13 @@ def test_process(ua_plev_cube, ta_plev_cube, mule_vars):
                                     args.verbose = False
 
                                     um2nc.process(infile, outfile, args)
+
+                                    assert m_sman.update_global_attributes.called
+                                    assert m_saver.write.called is False  # write I/O prevented
+                                    assert m_coord.called
+                                    assert m_level.called
+                                    assert m_apply_mask.called is False
+                                    assert m_cubewrite.called  # real cubewrite() should be prevented
 
 
 def test_get_eg_grid_type():
@@ -224,6 +246,10 @@ class DummyCube:
         self.standard_name = None
         self.long_name = None
         self.coord = {}
+
+    def name(self):
+        # mimic iris API
+        return self.var_name
 
 
 def test_set_item_codes_avoid_overwrite():
