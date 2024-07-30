@@ -355,17 +355,11 @@ def process(infile, outfile, args):
 
             if do_mask:
                 # Pressure level data should be masked
-                if require_heaviside_uv(c.item_code):
-                    if heaviside_uv:
-                        apply_mask(c, heaviside_uv, args.hcrit)
-                    else:
-                        continue
+                if require_heaviside_uv(c.item_code) and heaviside_uv:
+                    apply_mask(c, heaviside_uv, args.hcrit)
 
-                if require_heaviside_t(c.item_code):
-                    if heaviside_t:
-                        apply_mask(c, heaviside_t, args.hcrit)
-                    else:
-                        continue
+                if require_heaviside_t(c.item_code) and heaviside_t:
+                    apply_mask(c, heaviside_t, args.hcrit)
 
             if args.verbose:
                 print(c.name(), c.item_code)

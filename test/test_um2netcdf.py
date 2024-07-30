@@ -76,7 +76,7 @@ def std_args():
     # TODO: make args namedtuple?
     args = mock.Mock()
     args.nomask = False
-    args.nohist = True
+    args.nohist = False
     args.nckind = 3
     args.include_list = None
     args.exclude_list = None
@@ -85,8 +85,8 @@ def std_args():
     return args
 
 
-def test_process(air_temp_cube, precipitation_flux_cube, mule_vars, std_args):
-    """Attempts end to end test of process()."""
+def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_vars, std_args):
+    """Attempts end-to-end test of process(), ignoring cubes requiring masking."""
 
     # FIXME: this convoluted setup is a big code stench
     #        use this to gradually refactor process()
@@ -111,13 +111,16 @@ def test_process(air_temp_cube, precipitation_flux_cube, mule_vars, std_args):
                     m_sman = mock.Mock()
                     m_saver().__enter__.return_value = m_sman
 
-                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:  # TODO: requires c.coord attributes
-                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:  # TODO: requires c.coord attributes
+                    # TODO: fix lat/lon & levels requires c.coord attributes
+                    #       use fixtures to add attrs & remove the patches?
+                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
+                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
                             with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
                                 with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
                                     infile = "/tmp/fake_input_fields_file"
                                     outfile = "/tmp/fake_input_fields_file.nc"
 
+                                    std_args.verbose = True  # test some warning branches
                                     um2nc.process(infile, outfile, std_args)
 
                                     assert m_sman.update_global_attributes.called
@@ -149,6 +152,51 @@ def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args):
 
                     assert m_sman.update_global_attributes.called is False
                     assert m_saver.write.called is False  # write I/O prevented
+
+
+def test_process_masking(air_temp_cube, precipitation_flux_cube,
+                         heaviside_uv_cube, heaviside_t_cube, mule_vars, std_args):
+    """Run process() with masking cubes."""
+    with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
+        with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
+            m_mule_vars.return_value = mule_vars
+
+            with mock.patch("iris.load") as m_iris_load:
+                # add cube requiring heaviside_t masking to enable uv & t branches
+                geo_potential_cube = DummyCube(30297, "geopotential_height")
+
+                cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
+                         heaviside_uv_cube, heaviside_t_cube]
+
+                for c in cubes:
+                    attrs = {um2nc.STASH: DummyStash(c.item_code // 1000, c.item_code % 1000)}
+                    c.attributes = attrs
+                    c.cell_methods = []
+
+                m_iris_load.return_value = cubes
+
+                with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
+                    m_sman = mock.Mock()
+                    m_saver().__enter__.return_value = m_sman
+
+                    # TODO: fix lat/lon & levels requires c.coord attributes
+                    #       use fixtures to add attrs & remove the patches?
+                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
+                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
+                            with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
+                                with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
+                                    infile = "/tmp/fake_input_fields_file"
+                                    outfile = "/tmp/fake_input_fields_file.nc"
+
+                                    um2nc.process(infile, outfile, std_args)
+
+                                    assert m_sman.update_global_attributes.called
+                                    assert m_sman.update_global_attributes.call_count == 2
+                                    assert m_saver.write.called is False  # write I/O prevented
+                                    assert m_coord.called
+                                    assert m_level.called
+                                    assert m_apply_mask.called
+                                    assert m_cubewrite.called  # real cubewrite() should be prevented
 
 
 def test_get_eg_grid_type():
@@ -304,6 +352,11 @@ def ta_plev_cube():
     return DummyCube(30294, "ta_plev")
 
 
+@pytest.fixture
+def heaviside_t_cube():
+    return DummyCube(30304, "heaviside_t")
+
+
 def test_check_pressure_level_masking_need_heaviside_uv(ua_plev_cube,
                                                         heaviside_uv_cube):
     cubes = [ua_plev_cube, heaviside_uv_cube]
@@ -325,8 +378,7 @@ def test_check_pressure_level_masking_missing_heaviside_uv(ua_plev_cube):
     assert heaviside_uv is None
 
 
-def test_check_pressure_level_masking_need_heaviside_t(ta_plev_cube):
-    heaviside_t_cube = DummyCube(30304)
+def test_check_pressure_level_masking_need_heaviside_t(ta_plev_cube, heaviside_t_cube):
     cubes = (ta_plev_cube, heaviside_t_cube)
 
     (need_heaviside_uv, heaviside_uv,
