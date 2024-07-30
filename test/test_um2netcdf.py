@@ -59,36 +59,33 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
-def test_process(ua_plev_cube, heaviside_uv_cube, ta_plev_cube, mule_vars):
+def test_process(ua_plev_cube, ta_plev_cube, mule_vars):
     """Attempts end to end test of process()."""
 
     # FIXME: this convoluted setup is a big code stench
     #        use this to gradually refactor process()
     #        add naming vars to the dummy cubes
     with mock.patch("mule.load_umfile") as m_load_umfile:
-        m_fields_file = mock.MagicMock(spec=mule.ff.FieldsFile)
-        m_load_umfile.return_value = m_fields_file
-
         with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
             m_mule_vars.return_value = mule_vars
 
             with mock.patch("iris.load") as m_iris_load:
+                cubes = [ua_plev_cube, ta_plev_cube]
+
+                for c in cubes:
+                    attrs = {um2nc.STASH: DummyStash(c.item_code // 1000, c.item_code % 1000)}
+                    c.attributes = attrs
+                    c.cell_methods = []
+                    c.coord["latitude"] = 0.0  # FIXME
+                    c.coord["longitude"] = 0.0  # FIXME
+
+                m_iris_load.return_value = cubes
+
                 with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
                     with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
                         with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
                             with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
                                 with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
-                                    cubes = [ua_plev_cube, heaviside_uv_cube, ta_plev_cube]
-
-                                    for c in cubes:
-                                        c.cell_methods = []
-                                        c.attributes = {um2nc.STASH: DummyStash(c.item_code // 1000,
-                                                                                c.item_code % 1000)}
-                                        c.coord["latitude"] = 0.0  # FIXME
-                                        c.coord["longitude"] = 0.0  # FIXME
-
-                                    m_iris_load.return_value = cubes
-
                                     infile = "/tmp/fake_input_fields_file"
                                     outfile = "/tmp/fake_input_fields_file.nc"
 
