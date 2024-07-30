@@ -5,58 +5,104 @@ from collections import namedtuple
 import umpost.um2netcdf as um2nc
 
 import pytest
+import numpy as np
+
 import mule
 import mule.ff
 
 
-def test_process(ua_plev_cube, heaviside_uv_cube, ta_plev_cube):
-    """TODO"""
+@pytest.fixture
+def z_sea_rho_data():
+    # data ripped from aiihca.paa1jan.subset: ff.level_dependent_constants.zsea_at_rho
+    # TODO: dtype is object, should it be float?
+    data = np.array([9.9982061118072, 49.998881525751194, 130.00023235363918,
+                     249.99833311211358, 410.00103476788956, 610.000486354252,
+                     850.0006133545584, 1130.0014157688088, 1449.9989681136456,
+                     1810.0011213557837, 2210.0000245285087, 2649.9996031151773,
+                     3129.9998571157903, 3650.000786530347, 4209.99846587549,
+                     4810.000746117935, 5449.999776290966, 6129.999481877941,
+                     6849.999862878861, 7610.000919293723, 8409.998725639172,
+                     9250.001132881924, 10130.00029005526, 11050.000122642545,
+                     12010.000630643768, 13010.001814058938, 14050.40014670717,
+                     15137.719781928794, 16284.973697054254, 17506.96881530842,
+                     18820.820244130424, 20246.59897992768, 21808.13663216417,
+                     23542.18357603375, 25520.960854349545, 27901.358260464756,
+                     31063.888598164976, 36081.76331548462, -1073741824.0], dtype=object)
+    return data
 
-    # FIXME: this convoluted setup is a huge code stench
+
+@pytest.fixture
+def z_sea_theta_data():
+    # data ripped from aiihca.paa1jan.subset: ff.level_dependent_constants.zsea_at_theta
+    # TODO: dtype is object, should it be float?
+    data = np.array([0.0, 20.000337706971997, 80.00135082788799, 179.9991138793904,
+                     320.00147782819437, 500.00059170758476, 720.0003810009191,
+                     980.0008457081975, 1279.9980603460624, 1619.9998758812287,
+                     1999.9984413469813, 2420.001607710036, 2880.0015240036764,
+                     3379.9981902279037, 3919.9994573494323, 4500.001399884905,
+                     5120.000092350965, 5779.999460230968, 6479.999503524915,
+                     7220.000222232806, 8000.001616354641, 8819.999760407061,
+                     9679.998579873429, 10579.998074753737, 11519.998245047991,
+                     12499.999090756188, 13520.000611878331, 14580.799681536007,
+                     15694.639882321579, 16875.311437270288, 18138.62619334655,
+                     19503.01036943094, 20990.18759042441, 22626.081748420565,
+                     24458.285403646936, 26583.640230535515, 29219.080215877355,
+                     32908.69305496925, 39254.833576], dtype=object)
+    return data
+
+
+@pytest.fixture
+def mule_vars(z_sea_rho_data, z_sea_theta_data):
+    """Simulate mule variables from aiihca.paa1jan.subset data."""
+    d_lat = 1.25  # spacing manually copied from aiihca.paa1jan.subset file
+    d_lon = 1.875
+    return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
+
+
+def test_process(ua_plev_cube, heaviside_uv_cube, ta_plev_cube, mule_vars):
+    """Attempts end to end test of process()."""
+
+    # FIXME: this convoluted setup is a big code stench
     #        use this to gradually refactor process()
-    with (mock.patch("mule.load_umfile") as m_load_umfile):
+    #        add naming vars to the dummy cubes
+    with mock.patch("mule.load_umfile") as m_load_umfile:
         m_fields_file = mock.MagicMock(spec=mule.ff.FieldsFile)
         m_load_umfile.return_value = m_fields_file
 
-        with mock.patch("umpost.um2netcdf.get_grid_type") as m_grid_type:
-            m_grid_type.return_value = um2nc.GRID_NEW_DYNAMICS
+        with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
+            m_mule_vars.return_value = mule_vars
 
-            with mock.patch("umpost.um2netcdf.get_grid_spacing") as m_spacing:
-                m_spacing.return_value = None, None  # TODO: use reasonable values
-                with mock.patch("umpost.um2netcdf.get_z_sea_constants") as m_sea:
-                    m_sea.return_value = None, None  # TODO: use reasonable values
+            with mock.patch("iris.load") as m_iris_load:
+                with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
+                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
+                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
+                            with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
+                                with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
+                                    cubes = [ua_plev_cube, heaviside_uv_cube, ta_plev_cube]
 
-                    with mock.patch("iris.load") as m_iris_load:
-                        with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
-                            with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
-                                with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
-                                    with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
-                                        with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
-                                            cubes = [ua_plev_cube, heaviside_uv_cube, ta_plev_cube]
+                                    for c in cubes:
+                                        c.cell_methods = []
+                                        c.attributes = {um2nc.STASH: DummyStash(c.item_code // 1000,
+                                                                                c.item_code % 1000)}
+                                        c.coord["latitude"] = 0.0  # FIXME
+                                        c.coord["longitude"] = 0.0  # FIXME
 
-                                            for c in cubes:
-                                                c.cell_methods = []
-                                                c.attributes = {um2nc.STASH: DummyStash(c.item_code // 1000,
-                                                                                        c.item_code % 1000)}
-                                                c.coord["latitude"] = 0.0  # FIXME
-                                                c.coord["longitude"] = 0.0  # FIXME
+                                    m_iris_load.return_value = cubes
 
-                                            m_iris_load.return_value = cubes
+                                    infile = "/tmp/fake_input_fields_file"
+                                    outfile = "/tmp/fake_input_fields_file.nc"
 
-                                            infile = "/tmp/fake_input_fields_file"
-                                            outfile = "/tmp/fake_input_fields_file.nc"
+                                    # TODO: add args namedtuple?
+                                    args = mock.Mock()
+                                    args.nomask = False
+                                    args.nohist = True
+                                    args.nckind = 3
+                                    args.include_list = None
+                                    args.exclude_list = None
+                                    args.simple = False
+                                    args.verbose = False
 
-                                            # TODO: add args namedtuple?
-                                            args = mock.Mock()
-                                            args.nomask = False
-                                            args.nohist = True
-                                            args.nckind = 3
-                                            args.include_list = None
-                                            args.exclude_list = None
-                                            args.simple = False
-                                            args.verbose = False
-
-                                            um2nc.process(infile, outfile, args)
+                                    um2nc.process(infile, outfile, args)
 
 
 def test_get_eg_grid_type():
