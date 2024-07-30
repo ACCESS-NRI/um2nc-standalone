@@ -40,6 +40,9 @@ GRID_NEW_DYNAMICS = 'ND'
 # TODO: what is this limit & does it still exist?
 XCONV_LONG_NAME_LIMIT = 110
 
+NC_FORMATS = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
+              3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -317,12 +320,7 @@ def process(infile, outfile, args):
         check_pressure_warnings(need_heaviside_uv, heaviside_uv,
                                 need_heaviside_t, heaviside_t)
 
-    # TODO: can NC type be a single arg?
-    #       defer to new process() API
-    nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
-                  3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
-
-    with iris.fileformats.netcdf.Saver(outfile, nc_formats[args.nckind]) as sman:
+    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
         #       do when sman ops refactored into a write function
         # Add global attributes
