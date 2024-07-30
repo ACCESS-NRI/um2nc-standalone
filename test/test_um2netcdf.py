@@ -71,7 +71,21 @@ def precipitation_flux_cube():
     return DummyCube(5216, "precipitation_flux")
 
 
-def test_process(air_temp_cube, precipitation_flux_cube, mule_vars):
+@pytest.fixture
+def std_args():
+    # TODO: make args namedtuple?
+    args = mock.Mock()
+    args.nomask = False
+    args.nohist = True
+    args.nckind = 3
+    args.include_list = None
+    args.exclude_list = None
+    args.simple = False
+    args.verbose = False
+    return args
+
+
+def test_process(air_temp_cube, precipitation_flux_cube, mule_vars, std_args):
     """Attempts end to end test of process()."""
 
     # FIXME: this convoluted setup is a big code stench
@@ -104,17 +118,7 @@ def test_process(air_temp_cube, precipitation_flux_cube, mule_vars):
                                     infile = "/tmp/fake_input_fields_file"
                                     outfile = "/tmp/fake_input_fields_file.nc"
 
-                                    # TODO: add args namedtuple?
-                                    args = mock.Mock()
-                                    args.nomask = False
-                                    args.nohist = True
-                                    args.nckind = 3
-                                    args.include_list = None
-                                    args.exclude_list = None
-                                    args.simple = False
-                                    args.verbose = False
-
-                                    um2nc.process(infile, outfile, args)
+                                    um2nc.process(infile, outfile, std_args)
 
                                     assert m_sman.update_global_attributes.called
                                     assert m_saver.write.called is False  # write I/O prevented
@@ -122,6 +126,29 @@ def test_process(air_temp_cube, precipitation_flux_cube, mule_vars):
                                     assert m_level.called
                                     assert m_apply_mask.called is False
                                     assert m_cubewrite.called  # real cubewrite() should be prevented
+
+
+def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args):
+    """Ensure process() exists early if all cubes are removed in filtering."""
+    with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
+        with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
+            m_mule_vars.return_value = mule_vars
+
+            with mock.patch("iris.load") as m_iris_load:
+                section, item = air_temp_cube.item_code // 1000, air_temp_cube.item_code % 1000
+                air_temp_cube.attributes = {um2nc.STASH: DummyStash(section, item)}
+                m_iris_load.return_value = [air_temp_cube]
+
+                with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
+                    m_sman = mock.Mock()
+                    m_saver().__enter__.return_value = m_sman
+
+                    infile = "/tmp/fake_input_fields_file"
+                    outfile = "/tmp/fake_input_fields_file.nc"
+                    um2nc.process(infile, outfile, std_args)
+
+                    assert m_sman.update_global_attributes.called is False
+                    assert m_saver.write.called is False  # write I/O prevented
 
 
 def test_get_eg_grid_type():
