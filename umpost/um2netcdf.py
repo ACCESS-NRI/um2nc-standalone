@@ -11,10 +11,10 @@ Note that um2netcdf depends on the following data access libraries:
 """
 
 import os
-import sys
 import argparse
 import datetime
 import warnings
+import collections
 
 from umpost import stashvar_cmip6 as stashvar
 
@@ -300,17 +300,8 @@ def apply_mask(c, heaviside, hcrit):
 
 
 def process(infile, outfile, args):
-    # Use mule to get the model levels to help with dimension naming
-    # mule 2020.01.1 doesn't handle pathlib Paths properly
     ff = mule.load_umfile(str(infile))
-
-    if isinstance(ff, mule.ancil.AncilFile):
-        raise NotImplementedError('Ancillary files are currently not supported')
-
-    # TODO: eventually move these calls closer to their usage
-    grid_type = get_grid_type(ff)
-    dlat, dlon = get_grid_spacing(ff)
-    z_rho, z_theta = get_z_sea_constants(ff)
+    mv = process_mule_vars(ff)
 
     cubes = iris.load(infile)
     set_item_codes(cubes)
@@ -352,13 +343,13 @@ def process(infile, outfile, args):
             c.cell_methods = fix_cell_methods(c.cell_methods)
 
             try:
-                fix_latlon_coord(c, grid_type, dlat, dlon)
+                fix_latlon_coord(c, mv.grid_type, mv.d_lat, mv.d_lon)
             except iris.exceptions.CoordinateNotFoundError:
                 print('\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
                 print(c)
                 raise Exception("Variable can not be processed")
 
-            fix_level_coord(c, z_rho, z_theta)
+            fix_level_coord(c, mv.z_rho, mv.z_theta)
 
             if do_mask:
                 # Pressure level data should be masked
@@ -378,6 +369,38 @@ def process(infile, outfile, args):
                 print(c.name(), c.item_code)
 
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
+
+
+MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z_theta")
+
+
+def process_mule_vars(fields_file: mule.ff.FieldsFile):
+    """
+    Extract model levels with mule.
+
+    The model levels help with workflow dimension naming.
+
+    Parameters
+    ----------
+    fields_file : an open mule fields file.
+
+    Returns
+    -------
+    A MuleVars data structure.
+    """
+    if isinstance(fields_file, mule.ancil.AncilFile):
+        raise NotImplementedError('Ancillary files are currently not supported')
+
+    if mule.__version__ == "2020.01.1":
+        msg = "mule 2020.01.1 doesn't handle pathlib Paths properly"
+        raise NotImplementedError(msg)  # fail fast
+
+    # TODO: eventually move these calls closer to their usage
+    grid_type = get_grid_type(fields_file)
+    d_lat, d_lon = get_grid_spacing(fields_file)
+    z_rho, z_theta = get_z_sea_constants(fields_file)
+
+    return MuleVars(grid_type, d_lat, d_lon, z_rho, z_theta)
 
 
 def get_grid_type(ff):
