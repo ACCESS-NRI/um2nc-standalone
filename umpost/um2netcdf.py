@@ -314,12 +314,15 @@ def process(infile, outfile, args):
     (need_heaviside_uv, heaviside_uv,
      need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
 
-    do_mask = not args.nomask  # make warning logic more readable
+    do_mask = not args.nomask and ((need_heaviside_uv and heaviside_uv is not None) or
+                                   need_heaviside_t and heaviside_t is not None)
 
-    if do_mask:
-        # TODO: rename func to better name
-        check_pressure_warnings(need_heaviside_uv, heaviside_uv,
-                                need_heaviside_t, heaviside_t)
+    if do_mask is False:
+        cubes = list(no_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+
+        if not cubes:
+            print("No cubes left to process after filtering")
+            return
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
@@ -511,9 +514,8 @@ def check_pressure_level_masking(cubes):
             need_heaviside_t [bool], heaviside_t [iris cube or None])
 
     """
-    # Check whether there are any pressure level fields that should be masked.
-    # Can use temperature to mask instantaneous fields, so really should check
-    # whether these are time means
+    # Check whether there are any pressure level fields that should be masked. Can use temperature
+    # to mask instantaneous fields, so really should check whether these are time means
     need_heaviside_uv = need_heaviside_t = False
     heaviside_uv = None
     heaviside_t = None
@@ -554,24 +556,33 @@ def is_heaviside_t(item_code):
     return item_code == 30304
 
 
-def check_pressure_warnings(need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t):
+def no_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     """
-    Prints warnings if either of heaviside uv/t are required and not present.
+    Generator removes cubes that cannot be masked due to missing heaviside uv/t data.
 
     Parameters
     ----------
-    need_heaviside_uv : (bool)
-    heaviside_uv : iris Cube or None
-    need_heaviside_t : (bool)
-    heaviside_t : iris Cube or None
+    cubes : sequence of iris cubes for filtering
+    heaviside_uv : heaviside_uv cube or None
+    heaviside_t : heaviside_t cube or None
+    verbose : True to emit warnings to indicate a cube has been removed
     """
-    if need_heaviside_uv and heaviside_uv is None:
-        print("Warning: heaviside_uv field needed for masking pressure level data is not present. "
-              "These fields will be skipped")
+    for c in cubes:
+        if require_heaviside_uv(c.item_code) and heaviside_uv is None:
+            if verbose:
+                msg = (f"heaviside_uv field needed for masking pressure level data is missing. "
+                       f"Excluding cube '{c.name()}' as it cannot be masked")
+                warnings.warn(msg)
+            continue
 
-    if need_heaviside_t and heaviside_t is None:
-        print("Warning: heaviside_t field needed for masking pressure level data is not present. "
-              "These fields will be skipped")
+        elif require_heaviside_t(c.item_code) and heaviside_t is None:
+            if verbose:
+                msg = (f"heaviside_t field needed for masking pressure level data is missing. "
+                       f"Excluding cube '{c.name()}' as it cannot be masked")
+                warnings.warn(msg)
+            continue
+
+        yield c
 
 
 def filtered_cubes(cubes, include=None, exclude=None):
