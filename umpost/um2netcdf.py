@@ -164,6 +164,7 @@ def fix_level_coord(cube, z_rho, z_theta):
                 c_sigma.var_name = 'sigma_theta'
 
 
+# TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
     try:
         plevs = cube.coord('pressure')
@@ -366,6 +367,8 @@ def process(infile, outfile, args):
             if args.verbose:
                 print(c.name(), c.item_code)
 
+            # TODO: split cube ops into functions, splitting will increase process() workflow
+            #       unless the steps are pushed out to sub workflow functions
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
 
 
@@ -393,7 +396,6 @@ def process_mule_vars(fields_file: mule.ff.FieldsFile):
         msg = "mule 2020.01.1 doesn't handle pathlib Paths properly"
         raise NotImplementedError(msg)  # fail fast
 
-    # TODO: eventually move these calls closer to their usage
     grid_type = get_grid_type(fields_file)
     d_lat, d_lon = get_grid_spacing(fields_file)
     z_rho, z_theta = get_z_sea_constants(fields_file)
