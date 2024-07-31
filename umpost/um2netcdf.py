@@ -364,8 +364,8 @@ def process(infile, outfile, args):
             if args.verbose:
                 print(c.name(), c.item_code)
 
-            # TODO: split cube ops into functions, splitting will increase process() workflow
-            #       unless the steps are pushed out to sub workflow functions
+            # TODO: split cubewrite ops into funcs & bring those steps into process() workflow
+            #       or a sub process workflow function (like process_mule_vars())
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
 
 
