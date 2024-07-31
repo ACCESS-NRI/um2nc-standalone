@@ -99,8 +99,7 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
                 cubes = [air_temp_cube, precipitation_flux_cube]
 
                 for c in cubes:
-                    attrs = {um2nc.STASH: DummyStash(c.item_code // 1000, c.item_code % 1000)}
-                    c.attributes = attrs
+                    c.attributes = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
                     c.cell_methods = []
                     c.coord["latitude"] = 0.0  # FIXME
                     c.coord["longitude"] = 0.0  # FIXME
@@ -138,7 +137,7 @@ def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args):
             m_mule_vars.return_value = mule_vars
 
             with mock.patch("iris.load") as m_iris_load:
-                section, item = air_temp_cube.item_code // 1000, air_temp_cube.item_code % 1000
+                section, item = split_item_code(air_temp_cube.item_code)
                 air_temp_cube.attributes = {um2nc.STASH: DummyStash(section, item)}
                 m_iris_load.return_value = [air_temp_cube]
 
@@ -169,7 +168,7 @@ def test_process_masking(air_temp_cube, precipitation_flux_cube,
                          heaviside_uv_cube, heaviside_t_cube]
 
                 for c in cubes:
-                    attrs = {um2nc.STASH: DummyStash(c.item_code // 1000, c.item_code % 1000)}
+                    attrs = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
                     c.attributes = attrs
                     c.cell_methods = []
 
@@ -197,6 +196,12 @@ def test_process_masking(air_temp_cube, precipitation_flux_cube,
                                     assert m_level.called
                                     assert m_apply_mask.called
                                     assert m_cubewrite.called  # real cubewrite() should be prevented
+                                    assert m_cubewrite.call_count == len(cubes)
+
+
+def split_item_code(item_code: int):
+    """Helper func: convert item code back to older section & item components."""
+    return item_code // 1000, item_code % 1000
 
 
 def test_get_eg_grid_type():
