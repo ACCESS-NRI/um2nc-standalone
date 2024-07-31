@@ -1,6 +1,7 @@
 import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
+import numpy as np
 
 import umpost.um2netcdf as um2nc
 
@@ -409,3 +410,193 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
     for unit in ("", None):
         um2nc.fix_units(ua_plev_cube, unit, verbose=False)
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
+
+
+def test_is_lat_river():
+    lat_river_points = np.arange(-90., 90) + 0.5
+    assert len(lat_river_points) == 180
+    assert um2nc.is_lat_river(lat_river_points)
+
+    # latitude points on ESM1.5 N96
+    not_lat_river_points = np.arange(-88.75, 89., 1.25)
+    not_lat_river_points = np.concatenate(([-90],
+                                           not_lat_river_points,
+                                           [90.]
+                                        ))
+    assert len(not_lat_river_points) != 180
+    assert not um2nc.is_lat_river(not_lat_river_points)
+
+
+def test_is_lon_river():
+    lon_river_points = np.arange(0., 360.) + 0.5
+    assert len(lon_river_points) == 360
+    assert um2nc.is_lon_river(lon_river_points)
+
+    # longitude points on normal ESM1.5 N96 grid
+    not_lon_river_points = np.arange(0., 360., 1.875)
+    assert len(not_lon_river_points) != 360
+    assert not um2nc.is_lon_river(not_lon_river_points)
+
+
+def test_is_lat_v_EG():
+    dlat = 1.25 
+    lat_v_points = np.arange(-90., 90, dlat)
+    assert lat_v_points[0] == -90
+    assert um2nc.is_lat_v(lat_v_points, um2nc.GRID_END_GAME, dlat)
+
+    not_lat_v_points = np.arange(-88.5, 90, dlat)
+    assert not_lat_v_points[0] != -90 
+    assert not um2nc.is_lat_v(not_lat_v_points, um2nc.GRID_END_GAME, dlat)
+
+
+def test_is_lat_v_NG():
+    dlat = 1.25
+    lat_v_points = np.arange(-90.+0.5*dlat, 90, dlat)
+    assert lat_v_points[0] == -90.+0.5*dlat
+    assert um2nc.is_lat_v(lat_v_points, um2nc.GRID_NEW_DYNAMICS, dlat)
+
+    not_lat_v_points = np.arange(-90., 90, dlat)
+    assert not um2nc.is_lat_v(not_lat_v_points, um2nc.GRID_NEW_DYNAMICS, dlat)
+
+
+def test_is_lon_u_EG():
+    dlon = 1.875
+    lon_u_points = np.arange(0, 360, dlon)
+    assert lon_u_points[0] == 0
+    assert um2nc.is_lon_u(lon_u_points, um2nc.GRID_END_GAME, dlon)
+
+    not_lon_u_points = np.arange(0.5, 360, dlon)
+    assert not_lon_u_points[0] != 0
+    assert not um2nc.is_lon_u(not_lon_u_points, um2nc.GRID_END_GAME, dlon)
+
+
+def test_is_lon_u_ND():
+    dlon = 1.875
+    lon_u_points = np.arange(0.5*dlon, 360, dlon)
+    assert lon_u_points[0] == 0.5*dlon
+    assert um2nc.is_lon_u(lon_u_points, um2nc.GRID_NEW_DYNAMICS, dlon)
+
+    not_lon_u_points = np.arange(0, 360, dlon)
+    assert not_lon_u_points[0] != 0.5*dlon
+    assert not um2nc.is_lon_u(not_lon_u_points, um2nc.GRID_NEW_DYNAMICS, dlon)
+
+
+@dataclass
+class DummyCoordinate:
+    """
+    Imitation cube coordinate for unit testing.
+    """
+    coordname: str
+    points: np.ndarray
+    bounds: np.ndarray = None
+    
+    def name(self):
+        return self.coordname
+    def has_bounds(self):
+        return self.bounds is not None
+
+
+def test_add_latlon_coord_bounds_has_bounds():
+    # Test that bounds are not modified if they already exist
+    lon_points = np.array([1., 2., 3.])
+    lon_bounds =  np.array([[0.5, 1.5],
+                  [1.5, 2.5],
+                  [2.5, 3.5]])
+    lon_coord_with_bounds = DummyCoordinate(
+        um2nc.LON_COORD_NAME,
+        lon_points,
+        lon_bounds
+    )
+    assert lon_coord_with_bounds.has_bounds()
+    
+    um2nc.add_latlon_coord_bounds(lon_coord_with_bounds)
+    assert np.array_equal(lon_coord_with_bounds.bounds, lon_bounds)
+
+
+def test_add_latlon_coord_guess_bounds():
+    # Test that guess_bounds method is called when 
+    # coordinate has no bounds and length > 1.
+    lon_points = np.array([0., 1.])
+    lon_coord_nobounds = DummyCoordinate(
+        um2nc.LON_COORD_NAME,
+        lon_points
+    )
+
+    # Mock Iris' guess_bounds method to check whether it is called
+    lon_coord_nobounds.guess_bounds = mock.Mock(return_value=None)
+    
+    assert len(lon_coord_nobounds.points) > 1
+    assert not lon_coord_nobounds.has_bounds()
+
+    um2nc.add_latlon_coord_bounds(lon_coord_nobounds)
+
+    lon_coord_nobounds.guess_bounds.assert_called()
+
+
+def test_add_latlon_coord_single():
+    for coord_name in [um2nc.LON_COORD_NAME, um2nc.LAT_COORD_NAME]:
+        points = np.array([0.])
+        coord_single_point = DummyCoordinate(
+            coord_name,
+            points
+        )
+
+        assert len(coord_single_point.points) == 1
+        assert not coord_single_point.has_bounds()
+
+        um2nc.add_latlon_coord_bounds(coord_single_point)
+
+        expected_bounds = um2nc.GLOBAL_COORD_BOUNDS[coord_name]
+        assert np.array_equal(coord_single_point.bounds, expected_bounds)
+
+
+def test_add_latlon_coord_error():
+    fake_coord_name = "fake coordinate"
+    fake_points = np.array([1., 2., 3.])
+
+    fake_coord = DummyCoordinate(
+        fake_coord_name,
+        fake_points
+    )
+
+    with pytest.raises(ValueError):
+        um2nc.add_latlon_coord_bounds(fake_coord)
+
+
+class DummyCubeWithCoords(DummyCube):
+     # Dummy cube with coordinates, which can be filled with 
+     # DummyCoordinate objects for testing.
+     def __init__(self, item_code, var_name=None, attributes=None, units=None, coords = {}):
+        super().__init__(item_code, var_name, attributes, units)
+        self.coordinate_dict = coords 
+
+     def coord(self, coordinate_name):
+        return self.coordinate_dict[coordinate_name]
+     
+
+        
+@pytest.fixture
+def cube_with_latlon_coords(): 
+    lat_points = np.array([-90., -88.75, -87.5 ], dtype = "float32")
+    lon_points = np.array([ 0., 1.875, 3.75 ], dtype = "float32")
+
+    lat_coord_object = DummyCoordinate(
+        um2nc.LAT_COORD_NAME,
+        lat_points
+    )
+    lon_coord_object = DummyCoordinate(
+        um2nc.LON_COORD_NAME,
+        lon_points
+    )
+
+    coords_dict = {
+        [um2nc.LAT_COORD_NAME]: lat_coord_object,
+        [um2nc.LON_COORD_NAME]: lon_coord_object
+    }
+
+
+
+
+# TODO test_fix_latlon_coord_names():
+
+# TODO test_fix_latlon_coords():

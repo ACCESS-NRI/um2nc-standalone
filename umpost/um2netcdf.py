@@ -40,6 +40,16 @@ GRID_NEW_DYNAMICS = 'ND'
 # TODO: what is this limit & does it still exist?
 XCONV_LONG_NAME_LIMIT = 110
 
+LON_COORD_NAME = "longitude"
+LAT_COORD_NAME = "latitude"
+
+# Bounds for global single cells
+GLOBAL_COORD_BOUNDS = {
+    LON_COORD_NAME: np.array([[0., 360.]]),
+    LAT_COORD_NAME: np.array([[-90., 90.]])
+}
+ 
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -161,11 +171,12 @@ def is_lat_v(latitude_points, grid_type, dlat):
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
     """
-
+    
+    first_latitude = latitude_points[0]
     return (
-        (latitude_points[0] == -90 and grid_type == GRID_END_GAME) or
+        (first_latitude == -90 and grid_type == GRID_END_GAME) or
         (
-            np.allclose(-90.+0.5*dlat, latitude_points[0]) and
+            np.allclose(-90.+0.5*dlat, first_latitude) and
             grid_type == GRID_NEW_DYNAMICS
         )
     )
@@ -181,38 +192,109 @@ def is_lon_u(longitude_points, grid_type, dlon):
     grid_type: (string) model horizontal grid type.
     dlon: (float) zonal spacing between longitude grid points. 
     """
+    first_longitude = longitude_points[0]
+
+    ND_first_lon_u = 0.5*dlon
 
     return (
-        (longitude_points[0] == 0 and grid_type == GRID_END_GAME) or
+        (first_longitude == 0 and grid_type == GRID_END_GAME) or
         (
-            np.allclose(0.5*dlon, longitude_points[0]) and
+            np.allclose(ND_first_lon_u, first_longitude) and
             grid_type == GRID_NEW_DYNAMICS
         )
     )
 
 
-def fix_latlon_coord(cube, grid_type, dlat, dlon):
-    def _add_coord_bounds(coord):
-        if len(coord.points) > 1:
-            if not coord.has_bounds():
-                coord.guess_bounds()
-        else:
-            # For length 1, assume it's global. guess_bounds doesn't work in this case
-            if coord.name() == 'latitude':
-                if not coord.has_bounds():
-                    coord.bounds = np.array([[-90., 90.]])
-            elif coord.name() == 'longitude':
-                if not coord.has_bounds():
-                    coord.bounds = np.array([[0., 360.]])
 
-    lat = cube.coord('latitude')
+def add_latlon_coord_bounds(cube_coordinate):
+    """
+    Add bounds to horizontal coordinate (longitude or latitude) if
+    they don't already exist. Edits coordinate in place.
 
-    # Force to double for consistency with CMOR
-    lat.points = lat.points.astype(np.float64)
-    _add_coord_bounds(lat)
-    lon = cube.coord('longitude')
-    lon.points = lon.points.astype(np.float64)
-    _add_coord_bounds(lon)
+    Parameters
+    ----------
+    cube_coordinate: coordinate object from iris cube.
+    """
+    coordinate_name = cube_coordinate.name()
+    if coordinate_name not in [LON_COORD_NAME, LAT_COORD_NAME]:
+        raise ValueError(
+                f"Wrong coordinate {coordinate_name} supplied. "
+                f"Expected one of {LON_COORD_NAME}, {LAT_COORD_NAME}."
+            )
+
+    if cube_coordinate.has_bounds(): 
+        # Don't change bounds if already exist
+        return
+    
+    if len(cube_coordinate.points) > 1:
+        cube_coordinate.guess_bounds()
+    else:
+        # For length 1, assume it's global. guess_bounds doesn't work in this case
+        cube_coordinate.bounds = GLOBAL_COORD_BOUNDS[coordinate_name]
+
+
+
+def fix_latlon_coords(cube, grid_type, dlat, dlon):
+    """
+    Wrapper function to modify cube's horizontal coordinates 
+    (latitude and longitude). Converts to float64, adds grid bounds,
+    and renames coordinates. Modifies cube in place.
+
+    Parameters
+    ----------
+    cube: Iris cube object (modified in place).
+    grid_type: (string) model horizontal grid type.
+    dlat: (float) meridional spacing between latitude grid points.
+    NB - Only applies to variables on the main horizontal grids, 
+    and not the river grid.
+    dlon: (float) zonal spacing between longitude grid points. 
+    NB - Only applies to variables on the main horizontal grids, 
+    and not the river grid.
+    """
+
+    # TODO: Check that we don't need the double coordinate lookup.
+    try:
+        latitude_coordinate = cube.coord(LAT_COORD_NAME)
+        longitude_coordinate = cube.coord(LON_COORD_NAME)
+        # Force to double for consistency with CMOR
+        latitude_coordinate.points = latitude_coordinate.points.astype(np.float64)
+        longitude_coordinate.points = longitude_coordinate.points.astype(np.float64)
+        
+        add_latlon_coord_bounds(latitude_coordinate)
+        add_latlon_coord_bounds(longitude_coordinate)
+
+        # Coordinate names should only be changed after the bounds are added.
+        fix_latlon_coord_names(cube, grid_type, dlat, dlon)
+        
+    except iris.exceptions.CoordinateNotFoundError:
+        print(
+            '\nMissing lat/lon coordinates for variable (possible timeseries?)\n'
+            )
+        print(cube)
+        raise Exception("Variable can not be processed")
+
+# def fix_latlon_coord(cube, grid_type, dlat, dlon):
+#     def _add_coord_bounds(coord):
+#         if len(coord.points) > 1:
+#             if not coord.has_bounds():
+#                 coord.guess_bounds()
+#         else:
+#             # For length 1, assume it's global. guess_bounds doesn't work in this case
+#             if coord.name() == 'latitude':
+#                 if not coord.has_bounds():
+#                     coord.bounds = np.array([[-90., 90.]])
+#             elif coord.name() == 'longitude':
+#                 if not coord.has_bounds():
+#                     coord.bounds = np.array([[0., 360.]])
+
+#     lat = cube.coord('latitude')
+
+#     # Force to double for consistency with CMOR
+#     lat.points = lat.points.astype(np.float64)
+#     _add_coord_bounds(lat)
+#     lon = cube.coord('longitude')
+#     lon.points = lon.points.astype(np.float64)
+#     _add_coord_bounds(lon)
 
 
 # TODO: refactor to "rename level coord"
@@ -440,13 +522,7 @@ def process(infile, outfile, args):
             # Interval in cell methods isn't reliable so better to remove it.
             c.cell_methods = fix_cell_methods(c.cell_methods)
 
-            try:
-                fix_latlon_coord(c, grid_type, dlat, dlon)
-            except iris.exceptions.CoordinateNotFoundError:
-                print(
-                    '\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
-                print(c)
-                raise Exception("Variable can not be processed")
+            fix_latlon_coords(c, grid_type, dlat, dlon)
 
             fix_level_coord(c, z_rho, z_theta)
 
