@@ -101,16 +101,20 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
                 for c in cubes:
                     c.attributes = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
                     c.cell_methods = []
+
+                    # TODO: replace with DummyCubeWithCoords ()?
+                    #       or add coord fixtures?
                     c.coord["latitude"] = 0.0  # FIXME
                     c.coord["longitude"] = 0.0  # FIXME
 
                 m_iris_load.return_value = cubes
 
                 with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
+                    # mock `sman` var to prevent I/O
                     m_sman = mock.Mock()
                     m_saver().__enter__.return_value = m_sman
 
-                    # TODO: fix lat/lon & levels requires c.coord attributes
+                    # TODO: fix lat/lon & levels requires c.coord attribute
                     #       use fixtures to add attrs & remove the patches?
                     with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
                         with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
@@ -128,6 +132,8 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
                                     assert m_level.called
                                     assert m_apply_mask.called is False
                                     assert m_cubewrite.called  # real cubewrite() should be prevented
+                                    assert m_cubewrite.call_count == 1
+                                    assert m_cubewrite.call_args_list[0].args[0] == precipitation_flux_cube
 
 
 def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args):
@@ -161,7 +167,7 @@ def test_process_masking(air_temp_cube, precipitation_flux_cube,
             m_mule_vars.return_value = mule_vars
 
             with mock.patch("iris.load") as m_iris_load:
-                # add cube requiring heaviside_t masking to enable uv & t branches
+                # add cube requiring heaviside_t masking to enable both uv & t code branches
                 geo_potential_cube = DummyCube(30297, "geopotential_height")
 
                 cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
