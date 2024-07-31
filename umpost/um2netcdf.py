@@ -104,41 +104,62 @@ def convert_proleptic(time):
     time.units = newunits
 
 
-def fix_latlon_coord_names(cube, grid_type, dlat, dlon):
+def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     """
-    Rename cube's latitude/longitude coordinate variables based on 
-    the grid they lie on.
+    Add a 'var_name' attribute to a latitude coordinate object
+    based on the grid it lies on.
 
     Parameters
     ----------
-    cube: an Iris cube object to modify (changes names in place).
+    lat_coordinate: coordinate object from iris cube (edits in place).
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
     NB - Only applies to variables on the main horizontal grids, 
     and not the river grid.
+    """
+
+    if lat_coordinate.name() != LAT_COORD_NAME:
+        raise ValueError(
+                f"Wrong coordinate {lat_coordinate.name()} supplied. "
+                f"Expected {LAT_COORD_NAME}."
+            )
+
+    if is_lat_river_grid(lat_coordinate.points):
+        lat_coordinate.var_name = 'lat_river'
+    elif is_lat_v_grid(lat_coordinate.points, grid_type, dlat):
+        lat_coordinate.var_name = 'lat_v'
+    else:
+        lat_coordinate.var_name = 'lat'
+
+def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
+    """
+    Add a 'var_name' attribute to a longitude coordinate object
+    based on the grid it lies on.
+
+    Parameters
+    ----------
+    lon_coordinate: coordinate object from iris cube (edits in place).
+    grid_type: (string) model horizontal grid type.
     dlon: (float) zonal spacing between longitude grid points. 
     NB - Only applies to variables on the main horizontal grids, 
     and not the river grid.
     """
 
-    lat = cube.coord('latitude')
-    if is_lat_river(lat.points):
-        lat.var_name = 'lat_river'
-    elif is_lat_v(lat.points, grid_type, dlat):
-        lat.var_name = 'lat_v'
+    if lon_coordinate.name() != LON_COORD_NAME:
+        raise ValueError(
+                f"Wrong coordinate {lon_coordinate.name()} supplied. "
+                f"Expected {LAT_COORD_NAME}."
+            )
+    
+    if is_lon_river_grid(lon_coordinate.points):
+        lon_coordinate.var_name = 'lon_river'
+    elif is_lon_u_grid(lon_coordinate.points, grid_type, dlon):
+        lon_coordinate.var_name = 'lon_u'
     else:
-        lat.var_name = 'lat'
-
-    lon = cube.coord('longitude')
-    if is_lon_river(lon.points):
-        lon.var_name = 'lon_river'
-    elif is_lon_u(lon.points, grid_type, dlon):
-        lon.var_name = 'lon_u'
-    else:
-        lon.var_name = 'lon'
+        lon_coordinate.var_name = 'lon'
 
 
-def is_lat_river(latitude_points):
+def is_lat_river_grid(latitude_points):
     """
     Check whether latitude points are on the river routing grid.
 
@@ -149,7 +170,7 @@ def is_lat_river(latitude_points):
     return len(latitude_points) == 180
 
 
-def is_lon_river(longitude_points):
+def is_lon_river_grid(longitude_points):
     """
     Check whether longitude points are on the river routing grid.
 
@@ -161,7 +182,7 @@ def is_lon_river(longitude_points):
     return len(longitude_points) == 360
 
 
-def is_lat_v(latitude_points, grid_type, dlat):
+def is_lat_v_grid(latitude_points, grid_type, dlat):
     """
     Check whether latitude points are on the lat_v grid.
 
@@ -172,17 +193,18 @@ def is_lat_v(latitude_points, grid_type, dlat):
     dlat: (float) meridional spacing between latitude grid points.
     """
     
-    first_latitude = latitude_points[0]
+    min_latitude = latitude_points[0]
+    min_latitude_v_ND = -90.+0.5*dlat
     return (
-        (first_latitude == -90 and grid_type == GRID_END_GAME) or
+        (min_latitude == -90 and grid_type == GRID_END_GAME) or
         (
-            np.allclose(-90.+0.5*dlat, first_latitude) and
+            np.allclose(min_latitude_v_ND, min_latitude) and
             grid_type == GRID_NEW_DYNAMICS
         )
     )
 
 
-def is_lon_u(longitude_points, grid_type, dlon):
+def is_lon_u_grid(longitude_points, grid_type, dlon):
     """
     Check whether longitude points are on the lon_u grid.
 
@@ -192,18 +214,16 @@ def is_lon_u(longitude_points, grid_type, dlon):
     grid_type: (string) model horizontal grid type.
     dlon: (float) zonal spacing between longitude grid points. 
     """
-    first_longitude = longitude_points[0]
-
-    ND_first_lon_u = 0.5*dlon
+    min_longitude = longitude_points[0]
+    min_longitude_u_ND = 0.5*dlon
 
     return (
-        (first_longitude == 0 and grid_type == GRID_END_GAME) or
+        (min_longitude == 0 and grid_type == GRID_END_GAME) or
         (
-            np.allclose(ND_first_lon_u, first_longitude) and
+            np.allclose(min_longitude_u_ND, min_longitude) and
             grid_type == GRID_NEW_DYNAMICS
         )
     )
-
 
 
 def add_latlon_coord_bounds(cube_coordinate):
@@ -262,9 +282,9 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
         
         add_latlon_coord_bounds(latitude_coordinate)
         add_latlon_coord_bounds(longitude_coordinate)
-
-        # Coordinate names should only be changed after the bounds are added.
-        fix_latlon_coord_names(cube, grid_type, dlat, dlon)
+        
+        fix_lat_coord_name(latitude_coordinate, grid_type, dlat)
+        fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
         
     except iris.exceptions.CoordinateNotFoundError:
         print(
