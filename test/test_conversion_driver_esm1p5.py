@@ -118,8 +118,10 @@ def test_convert_fields_file_list_success(mock_process, input_list):
 
     assert mock_process.call_count == len(input_list)
 
-    # TODO: Are we ok to not check the following?
-    # assert succeeded == input_list_paths
+    successful_input_paths  = [successful_path_pair[0] for 
+                                successful_path_pair in succeeded]
+    
+    assert input_list_paths == successful_input_paths
 
 
 def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
@@ -184,15 +186,6 @@ def test_format_failures_quiet():
         assert repr(exception) in formatted_failure_reports[i]
 
 
-@pytest.fixture 
-def raise_two_exceptions():
-    def _raise_two_exceptions(exception_1, exception_2):
-        try:
-            raise exception_1 
-        except Exception:
-            raise exception_2 
-    return _raise_two_exceptions
-    
 
 def test_format_failures_not_quiet(raise_two_exceptions):
     # Test that a multiple exceptions are reported when present in
@@ -200,22 +193,19 @@ def test_format_failures_not_quiet(raise_two_exceptions):
 
     exception_1 = ValueError("Error 1")
     exception_2 = TypeError("Error_2")
-
     try:
-        raise_two_exceptions(exception_1, exception_2)
+        raise exception_2 from exception_1
     except Exception as exc:
         exc_with_traceback = exc 
 
-
     failed_file = Path("fake_file")
-    fake_error = exc_with_traceback
-
-    failed = [(failed_file, fake_error)]
+    failed_conversion = [(failed_file, exc_with_traceback)]
     
-    formatted_failure_report = esm1p5_convert.format_failures(
-        failed,
-        False
-    )[0]
+    formatted_failure_report_list = esm1p5_convert.format_failures(
+        failed_conversion,
+        quiet = False
+    )
+    formatted_failure_report = formatted_failure_report_list[0]
 
     assert type(exception_1).__name__ in formatted_failure_report
     assert type(exception_2).__name__ in formatted_failure_report
