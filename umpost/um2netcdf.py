@@ -40,8 +40,12 @@ GRID_NEW_DYNAMICS = 'ND'
 # TODO: what is this limit & does it still exist?
 XCONV_LONG_NAME_LIMIT = 110
 
-NC_FORMATS = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
-              3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
+NC_FORMATS = {
+    1: 'NETCDF3_CLASSIC',
+    2: 'NETCDF3_64BIT',
+    3: 'NETCDF4',
+    4: 'NETCDF4_CLASSIC'
+}
 
 
 class PostProcessingError(Exception):
