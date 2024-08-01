@@ -128,8 +128,9 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
     Returns
     -------
-    succeeded: list of filepaths for successfully written NetCDFs.
-    failed: list of tuples of form (filepath, exception) for files which failed 
+    succeeded: list of tuples of (input, output) filepaths for successful
+    conversions.
+    failed: list of tuples of form (input path, exception) for files which failed 
     to convert due to an allowed exception. 
     """
     succeeded = []
@@ -143,7 +144,7 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
         try:
             um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
-            succeeded.append(nc_write_path)
+            succeeded.append((fields_file_path, nc_write_path))
 
         except Exception as exc:
             # TODO: Refactor once um2nc has specific exceptions
@@ -168,10 +169,12 @@ def format_successes(succeeded):
     -------
     success_reports: list of formatted reports of successful conversions.
     """
-    success_reports = [
-        f"Successfully converted {nc_path}"
-        for nc_path in succeeded
-    ]
+    success_reports = []
+    
+    for input_path, output_path in succeeded:
+        success_reports.append(
+            f"Successfully converted {output_path}"
+        )
 
     return success_reports
 
@@ -218,7 +221,8 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     Returns
     -------
-    succeeded: list of filepaths for successfully written NetCDF files.
+    succeeded: list of tuples of (input, output) filepaths for successful
+    conversions.
     failed: list of tuples of form (filepath, exception) for files which failed 
     to convert due to an allowed exception. 
     """
