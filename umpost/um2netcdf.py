@@ -287,34 +287,11 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
         fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
         
     except iris.exceptions.CoordinateNotFoundError:
-        print(
-            '\nMissing lat/lon coordinates for variable (possible timeseries?)\n'
-            )
-        print(cube)
-        raise Exception("Variable can not be processed")
-
-# def fix_latlon_coord(cube, grid_type, dlat, dlon):
-#     def _add_coord_bounds(coord):
-#         if len(coord.points) > 1:
-#             if not coord.has_bounds():
-#                 coord.guess_bounds()
-#         else:
-#             # For length 1, assume it's global. guess_bounds doesn't work in this case
-#             if coord.name() == 'latitude':
-#                 if not coord.has_bounds():
-#                     coord.bounds = np.array([[-90., 90.]])
-#             elif coord.name() == 'longitude':
-#                 if not coord.has_bounds():
-#                     coord.bounds = np.array([[0., 360.]])
-
-#     lat = cube.coord('latitude')
-
-#     # Force to double for consistency with CMOR
-#     lat.points = lat.points.astype(np.float64)
-#     _add_coord_bounds(lat)
-#     lon = cube.coord('longitude')
-#     lon.points = lon.points.astype(np.float64)
-#     _add_coord_bounds(lon)
+        warnings.warn(
+            "Missing latitude or longitude coordinate for variable (possible timeseries?): \n"
+            f"{cube}\n"
+        )
+        raise 
 
 
 # TODO: refactor to "rename level coord"

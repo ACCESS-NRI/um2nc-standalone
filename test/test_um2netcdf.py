@@ -2,6 +2,7 @@ import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
 import numpy as np
+from iris.exceptions import CoordinateNotFoundError
 
 import umpost.um2netcdf as um2nc
 
@@ -768,4 +769,37 @@ def ua_plev_cube_with_latlon_coords():
     cube_with_coords = DummyCubeWithCoords()
 
 
-# TODO test_fix_latlon_coords():
+def test_fix_latlon_coords_type_change(ua_plev_cube_with_latlon_coords):
+    # Test that coordinate arrays are converted to float64
+    
+    # Following values don't matter for test. Just needed as arguments
+    grid_type = um2nc.GRID_NEW_DYNAMICS
+    dlat = 1.25
+    dlon = 1.875
+
+    lat_coord = ua_plev_cube_with_latlon_coords.coord(um2nc.LAT_COORD_NAME)
+    lon_coord = ua_plev_cube_with_latlon_coords.coord(um2nc.LON_COORD_NAME)
+
+    assert lat_coord.points.dtype == np.dtype("float32")
+    assert lon_coord.points.dtype == np.dtype("float32")
+
+    um2nc.fix_latlon_coords(ua_plev_cube_with_latlon_coords, grid_type, dlat, dlon)
+
+    assert lat_coord.points.dtype == np.dtype("float64")
+    assert lon_coord.points.dtype == np.dtype("float64")
+
+# TODO: actually test this.
+def test_fix_latlon_coords_error(ua_plev_cube_with_latlon_coords):
+    # Test that fix_latlon_coords raises the right type of error when a cube
+    # is missing coordinates
+    def _raise_CoordinateNotFoundError(coord_name):
+        raise CoordinateNotFoundError()
+    
+    # Replace coord method to raise CoordinateNotFoundError
+    ua_plev_cube_with_latlon_coords.coord = _raise_CoordinateNotFoundError
+    
+    with (
+        pytest.warns(),
+        pytest.raises(CoordinateNotFoundError)
+    ):
+        um2nc.fix_lat_lon_coords(ua_plev_cube_with_latlon_coords)
