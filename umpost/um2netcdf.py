@@ -77,10 +77,8 @@ PPField.calendar = pg_calendar
 # TODO: rename time to avoid clash with builtin time module
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit(
-        "days since 0001-01-01 00:00", calendar='proleptic_gregorian')
-    # Need a copy because can't assign to time.points[i]
-    tvals = np.array(time.points)
+    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
+    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
     tbnds = np.array(time.bounds) if time.bounds is not None else None
 
     for i in range(len(time.points)):
