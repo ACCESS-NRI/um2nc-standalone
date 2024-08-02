@@ -163,7 +163,8 @@ def format_successes(succeeded):
 
     Parameters
     ---------- 
-    succeeded: list of filepaths of successfully written NetCDF files.
+    succeeded: list of tuples of (input, output) filepaths for successful
+    conversions.
 
     Returns
     -------

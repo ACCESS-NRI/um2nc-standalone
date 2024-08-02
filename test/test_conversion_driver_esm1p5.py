@@ -161,13 +161,26 @@ def test_convert_esm1p5_output_dir_error():
 
 
 def test_format_successes():
-    succeeded = [Path("dir_1/fake_file_1.nc"),
-                 Path("./dir_2/fake_file_2.nc"),
-                 Path("/dir_3/fake_file_3.nc")]
+    succeeded_inputs = [
+        Path("dir_1/fake_file_1"),
+        Path("./dir_2/fake_file_2"),
+        Path("/dir_3/fake_file_3")
+    ]
+    succeeded_outputs = [
+        Path("./fake_output_dir/file1.nc"),
+        Path("fake_dir_2/output_file.nc"),
+        Path("/dir_500/ncfile.nc")
+    ]
 
-    success_reports = esm1p5_convert.format_successes(succeeded)
-    for i, file in enumerate(succeeded):
-        assert str(file) in success_reports[i]
+    succeeded_pairs = list(zip(succeeded_inputs, succeeded_outputs))
+    # Perhaps don't need to convert to list as format_successes just needs 
+    # an iterable as input?
+
+    success_reports = esm1p5_convert.format_successes(succeeded_pairs)
+
+    # Check that the successful outputs make it into the report
+    for i, successful_output in enumerate(succeeded_outputs):
+        assert str(successful_output) in success_reports[i]
 
 
 def test_format_failures_quiet():
@@ -187,7 +200,7 @@ def test_format_failures_quiet():
 
 
 
-def test_format_failures_not_quiet(raise_two_exceptions):
+def test_format_failures_not_quiet():
     # Test that a multiple exceptions are reported when present in
     # stack trace and quiet is false.
 
