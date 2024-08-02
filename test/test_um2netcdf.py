@@ -431,9 +431,6 @@ def lon_river_points():
 def lat_v_points_dlat_ND():
     # Array of latitude points and corresponding spacing imitating the real
     # lat_v grid from ESM1.5 (which uses the New Dynamics grid).
-    
-    # TODO: When gadi is back online, check that these match real lat_v
-    # points from ESM1.5
 
     dlat = 1.25
     lat_v_points = np.arange(-90.+0.5*dlat, 90, dlat)
@@ -445,7 +442,6 @@ def lon_u_points_dlon_ND():
     # Array of latitude points and corresponding spacing imitating the real
     # lon_u grid from ESM1.5 (which uses the New Dynamics grid).
 
-    # TODO: Find some CM2 output and use its values instead.
     dlon = 1.875
     lon_u_points = np.arange(0.5*dlon, 360, dlon)
 
@@ -455,34 +451,29 @@ def lon_u_points_dlon_ND():
 @pytest.fixture
 def lat_v_points_dlat_EG():
     # Array of latitude points and corresponding spacing imitating 
-    # lat_v grid with grid type EG.
-    
-    # TODO: Find some CM2 output and use its values instead.
+    # the real lat_v grid from CM2 which uses grid type EG.
 
     dlat = 1.25 
-    lat_v_points = np.arange(-90., 90, dlat)
+    lat_v_points = np.arange(-90., 91, dlat)
     return (lat_v_points, um2nc.GRID_END_GAME, dlat)
 
 
 @pytest.fixture
 def lon_u_points_dlon_EG():
-     # Array of longitude points and corresponding spacing imitating 
-    # a lon_u grid with grid type EG.
+    # Array of longitude points and corresponding spacing imitating 
+    # the real lon_u grid from CM2 which uses grid type EG.
 
-    # TODO: When gadi is back online, check that these match real lon_u 
-    # points from ESM1.5
     dlon = 1.875
     lon_u_points = np.arange(0, 360, dlon)
-
     return (lon_u_points, um2nc.GRID_END_GAME, dlon)
 
 
 @pytest.fixture
 def lat_points_standard_dlat_ND():
-    # Array of latitude points and corresponding spacing and grid type
-    # on a standard (not river or v) grid. Copied from ESM1.5.
+    # Array of latitude points and corresponding spacing imitating the 
+    # standard (not river or v) lat grid for ESM1.5 which uses 
+    # grid type ND.
 
-    # TODO: Once gadi back, confirm these values are correct.
     dlat = 1.25
     lat_points_middle =  np.arange(-88.75, 89., 1.25)
     lat_points = np.concatenate(([-90],
@@ -494,14 +485,35 @@ def lat_points_standard_dlat_ND():
 
 @pytest.fixture
 def lon_points_standard_dlon_ND():
-    # Array of longitude points and corresponding spacing and grid type
-    # on a standard (not river or u) grid. Copied from ESM1.5.
+    # Array of longitude points and corresponding spacing imitating the 
+    # standard (not river or u) lon grid for ESM1.5 which uses grid 
+    # type ND.
 
-    # TODO: Once gadi back, confirm these values are correct.
     dlon = 1.875
     lon_points =  np.arange(0, 360, dlon)
-
     return (lon_points, um2nc.GRID_NEW_DYNAMICS, dlon)
+
+
+@pytest.fixture
+def lat_points_standard_dlat_EG():
+    # Array of latitude points and corresponding spacing imitating the 
+    # standard (not river or v) lat grid for CM2 which uses 
+    # grid type EG.
+
+    dlat = 1.25
+    lat_points =  np.arange(-90 + 0.5*dlat, 90., dlat)
+    return (lat_points, um2nc.GRID_END_GAME, dlat)
+
+
+@pytest.fixture
+def lon_points_standard_dlon_EG():
+    # Array of longitude points and corresponding spacing imitating the 
+    # standard (not river or u) lon grid for CM2 which uses grid 
+    # type EG.
+
+    dlon = 1.875
+    lon_points =  np.arange(0.5*dlon, 360, dlon)
+    return (lon_points, um2nc.GRID_END_GAME, dlon)
 
 
 def test_is_lat_river_grid(lat_river_points, lat_points_standard_dlat_ND):
@@ -527,7 +539,8 @@ def test_is_lon_river_grid(lon_river_points, lon_points_standard_dlon_ND):
 
 def test_is_lat_v_grid(lat_v_points_dlat_EG, 
                        lat_v_points_dlat_ND,
-                       lat_points_standard_dlat_ND
+                       lat_points_standard_dlat_ND,
+                       lat_points_standard_dlat_EG
                     ):
     lat_v_points, grid_code, dlat  = lat_v_points_dlat_EG
     assert um2nc.is_lat_v_grid(lat_v_points, grid_code, dlat)
@@ -535,19 +548,26 @@ def test_is_lat_v_grid(lat_v_points_dlat_EG,
     lat_v_points, grid_code, dlat  = lat_v_points_dlat_ND
     assert um2nc.is_lat_v_grid(lat_v_points, grid_code, dlat)
 
+    not_lat_v_points, grid_code, dlat = lat_points_standard_dlat_EG
+    assert not um2nc.is_lat_v_grid(not_lat_v_points, grid_code, dlat)
+
     not_lat_v_points, grid_code, dlat = lat_points_standard_dlat_ND
     assert not um2nc.is_lat_v_grid(not_lat_v_points, grid_code, dlat)
 
 
 def test_is_lon_u_grid(lon_u_points_dlon_EG, 
                        lon_u_points_dlon_ND,
-                       lon_points_standard_dlon_ND 
+                       lon_points_standard_dlon_ND,
+                       lon_points_standard_dlon_EG 
                     ):
     lon_u_points, grid_code, dlon  = lon_u_points_dlon_EG
     assert um2nc.is_lon_u_grid(lon_u_points, grid_code, dlon)
 
     lon_u_points, grid_code, dlon  = lon_u_points_dlon_ND
     assert um2nc.is_lon_u_grid(lon_u_points, grid_code, dlon)
+
+    not_lon_u_points, grid_code, dlon = lon_points_standard_dlon_EG
+    assert not um2nc.is_lon_u_grid(not_lon_u_points, grid_code, dlon)
 
     not_lon_u_points, grid_code, dlon = lon_points_standard_dlon_ND
     assert not um2nc.is_lon_u_grid(not_lon_u_points, grid_code, dlon)
@@ -799,7 +819,7 @@ def test_fix_latlon_coords_type_change(ua_plev_cube_with_latlon_coords):
     with (
         mock.patch("umpost.um2netcdf.add_latlon_coord_bounds", return_value = None),
         mock.patch("umpost.um2netcdf.fix_lat_coord_name", return_value = None),
-        mock.patch("umpost.um2netcdf.fix_lon_coord_name", return_value = None),
+        mock.patch("umpost.um2netcdf.fix_lon_coord_name", return_value = None)
     ):
         um2nc.fix_latlon_coords(ua_plev_cube_with_latlon_coords, grid_type, dlat, dlon)
 
