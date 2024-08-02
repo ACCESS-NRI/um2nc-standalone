@@ -85,7 +85,14 @@ def test_find_matching_fields_files():
 @pytest.fixture
 def base_mock_process():
     # Create a patch of um2netcdf4.process
-    patcher = mock.patch("um2netcdf4.process")
+
+    # FIXME: use temp guard block while working between gadi/local environments
+    #        replace when full umpost.um2netcdf is ready
+    if esm1p5_convert.hostname.startswith("gadi"):
+        patcher = mock.patch("um2netcdf4.process")
+    else:
+        patcher = mock.patch("umpost.um2netcdf.process")
+
     yield patcher.start()
     patcher.stop()
 
