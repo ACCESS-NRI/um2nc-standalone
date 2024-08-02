@@ -102,8 +102,9 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
     """Attempts end-to-end test of process(), ignoring cubes requiring masking."""
 
     # FIXME: this convoluted setup is a big code stench
-    #        use this to gradually refactor process()
-    #        add naming vars to the dummy cubes
+    #        use these tests to gradually refactor process()
+    # TODO: move towards a design where input & output I/O is extracted from process()
+    #       process()'s core should operate with *data only* args
     with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
         with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
             m_mule_vars.return_value = mule_vars
