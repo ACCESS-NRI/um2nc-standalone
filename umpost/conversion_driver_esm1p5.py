@@ -13,7 +13,6 @@ https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 
 import os
 import collections
-import um2netcdf4
 import re
 import f90nml
 import warnings
@@ -21,6 +20,16 @@ import traceback
 import argparse
 import errno
 from pathlib import Path
+
+# FIXME: use temp guard block while working between gadi/local envs, local umpost.um2netcdf &
+#        gadi's um2netcdf4. Replace when full umpost.um2netcdf is ready
+import socket
+hostname = socket.gethostname()
+
+if hostname.startswith("gadi"):
+    import um2netcdf4
+else:
+    import umpost.um2netcdf as um2netcdf4
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
