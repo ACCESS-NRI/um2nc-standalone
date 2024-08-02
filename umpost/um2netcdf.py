@@ -344,8 +344,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         fill_value = 1.e20
     else:
         # Use netCDF defaults
-        fill_value = default_fillvals['%s%1d' % (
-            cube.data.dtype.kind, cube.data.dtype.itemsize)]
+        fill_value = default_fillvals['%s%1d' % (cube.data.dtype.kind, cube.data.dtype.itemsize)]
 
     cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
 
@@ -365,8 +364,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
             else:
                 new_calendar = time.units.calendar
 
-            time.units = cf_units.Unit(
-                "days since 1970-01-01 00:00", calendar=new_calendar)
+            time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
             time.points = time.points/24.
 
             if time.bounds is not None:
@@ -415,8 +413,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 
     except iris.exceptions.CoordinateNotFoundError:
         # No time dimension (probably ancillary file)
-        sman.write(cube, zlib=True, complevel=compression,
-                   fill_value=fill_value)
+        sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
 
 
 def fix_cell_methods(mtuple):
@@ -441,8 +438,7 @@ def apply_mask(c, heaviside, hcrit):
         # Temporarily turn off warnings from 0/0
         # TODO: refactor to use np.where()
         with np.errstate(divide='ignore', invalid='ignore'):
-            c.data = np.ma.masked_array(
-                c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
+            c.data = np.ma.masked_array(c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
     else:
         # Are the levels of c a subset of the levels of the heaviside variable?
         c_p = c.coord('pressure')
@@ -454,14 +450,11 @@ def apply_mask(c, heaviside, hcrit):
             h_tmp = heaviside.extract(constraint)
             # Double check they're actually the same after extraction
             if not np.all(c_p.points == h_tmp.coord('pressure').points):
-                raise Exception(
-                    'Unexpected mismatch in levels of extracted heaviside function')
+                raise Exception('Unexpected mismatch in levels of extracted heaviside function')
             with np.errstate(divide='ignore', invalid='ignore'):
-                c.data = np.ma.masked_array(
-                    c.data/h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
+                c.data = np.ma.masked_array(c.data/h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
         else:
-            raise Exception(
-                'Unable to match levels of heaviside function to variable %s' % c.name())
+            raise Exception('Unable to match levels of heaviside function to variable %s' % c.name())
 
 
 def process(infile, outfile, args):
@@ -470,8 +463,7 @@ def process(infile, outfile, args):
     ff = mule.load_umfile(str(infile))
 
     if isinstance(ff, mule.ancil.AncilFile):
-        raise NotImplementedError(
-            'Ancillary files are currently not supported')
+        raise NotImplementedError('Ancillary files are currently not supported')
 
     # TODO: eventually move these calls closer to their usage
     grid_type = get_grid_type(ff)
@@ -560,8 +552,7 @@ def get_grid_type(ff):
     elif staggering == 3:
         return GRID_NEW_DYNAMICS
     else:
-        raise PostProcessingError(
-            f"Unable to determine grid staggering from header '{staggering}'")
+        raise PostProcessingError(f"Unable to determine grid staggering from header '{staggering}'")
 
 
 def get_grid_spacing(ff):
@@ -841,8 +832,7 @@ def fix_units(cube, um_var_units, verbose: bool):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description="Convert UM fieldsfile to netcdf")
+    parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3,
                         help=('specify netCDF output format: 1 classic, 2 64-bit'
