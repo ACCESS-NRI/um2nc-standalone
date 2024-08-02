@@ -85,7 +85,20 @@ def std_args():
     return args
 
 
-def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_vars, std_args):
+@pytest.fixture
+def fake_in_path():
+    # use junk paths to protect against accidentally touching filesystems
+    return "/tmp-does-not-exist/fake_input_fields_file"
+
+
+@pytest.fixture
+def fake_out_path():
+    # use junk paths to protect against accidentally touching filesystems
+    return "/tmp-does-not-exist/fake_input_fields_file.nc"
+
+
+def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_vars,
+                                 std_args, fake_in_path, fake_out_path):
     """Attempts end-to-end test of process(), ignoring cubes requiring masking."""
 
     # FIXME: this convoluted setup is a big code stench
@@ -120,23 +133,21 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
                         with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
                             with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
                                 with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
-                                    infile = "/tmp/fake_input_fields_file"
-                                    outfile = "/tmp/fake_input_fields_file.nc"
-
                                     std_args.verbose = True  # test some warning branches
-                                    um2nc.process(infile, outfile, std_args)
+                                    um2nc.process(fake_in_path, fake_out_path, std_args)
 
                                     assert m_sman.update_global_attributes.called
                                     assert m_saver.write.called is False  # write I/O prevented
                                     assert m_coord.called
                                     assert m_level.called
                                     assert m_apply_mask.called is False
-                                    assert m_cubewrite.called  # real cubewrite() should be prevented
+                                    assert m_cubewrite.called  # real cubewrite() prevented
                                     assert m_cubewrite.call_count == 1
                                     assert m_cubewrite.call_args_list[0].args[0] == precipitation_flux_cube
 
 
-def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args):
+def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,
+                                    fake_in_path, fake_out_path):
     """Ensure process() exists early if all cubes are removed in filtering."""
     with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
         with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
@@ -151,16 +162,15 @@ def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args):
                     m_sman = mock.Mock()
                     m_saver().__enter__.return_value = m_sman
 
-                    infile = "/tmp/fake_input_fields_file"
-                    outfile = "/tmp/fake_input_fields_file.nc"
-                    um2nc.process(infile, outfile, std_args)
+                    um2nc.process(fake_in_path, fake_out_path, std_args)
 
                     assert m_sman.update_global_attributes.called is False
                     assert m_saver.write.called is False  # write I/O prevented
 
 
 def test_process_masking(air_temp_cube, precipitation_flux_cube,
-                         heaviside_uv_cube, heaviside_t_cube, mule_vars, std_args):
+                         heaviside_uv_cube, heaviside_t_cube,
+                         mule_vars, std_args, fake_in_path, fake_out_path):
     """Run process() with masking cubes."""
     with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
         with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
@@ -190,10 +200,7 @@ def test_process_masking(air_temp_cube, precipitation_flux_cube,
                         with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
                             with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
                                 with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
-                                    infile = "/tmp/fake_input_fields_file"
-                                    outfile = "/tmp/fake_input_fields_file.nc"
-
-                                    um2nc.process(infile, outfile, std_args)
+                                    um2nc.process(fake_in_path, fake_out_path, std_args)
 
                                     assert m_sman.update_global_attributes.called
                                     assert m_sman.update_global_attributes.call_count == 2
