@@ -182,14 +182,14 @@ def test_format_successes():
     ]
 
     succeeded_pairs = list(zip(succeeded_inputs, succeeded_outputs))
-    # Perhaps don't need to convert to list as format_successes just needs 
-    # an iterable as input?
 
-    success_reports = esm1p5_convert.format_successes(succeeded_pairs)
+    success_reports = list(esm1p5_convert.format_successes(succeeded_pairs))
 
-    # Check that the successful outputs make it into the report
-    for i, successful_output in enumerate(succeeded_outputs):
-        assert str(successful_output) in success_reports[i]
+    assert len(success_reports) == len(succeeded_pairs)
+    # Check that the successful inputs and outputs make it into the report
+    for i, successful_io_pair in enumerate(succeeded_pairs):
+        assert str(successful_io_pair[0]) in success_reports[i]
+        assert str(successful_io_pair[1]) in success_reports[i]
 
 
 def test_format_failures_quiet_mode():
@@ -199,10 +199,11 @@ def test_format_failures_quiet_mode():
         (Path("fake_file_3"), Exception("Error 3"))
     ]
 
-    formatted_failure_reports = esm1p5_convert.format_failures(
-        failed,
-        True
+    formatted_failure_reports = list(
+        esm1p5_convert.format_failures(failed, True)
     )
+
+    assert len(failed) == len(formatted_failure_reports)
     for i, (file, exception) in enumerate(failed):
         assert str(file) in formatted_failure_reports[i]
         assert repr(exception) in formatted_failure_reports[i]
@@ -214,6 +215,7 @@ def test_format_failures_standard_mode():
     # stack trace and standard error reporting is requested
     # (i.e. quiet is false).
 
+    # Set up chained exceptions
     exception_1 = ValueError("Error 1")
     exception_2 = TypeError("Error_2")
     try:
@@ -224,9 +226,8 @@ def test_format_failures_standard_mode():
     failed_file = Path("fake_file")
     failed_conversion = [(failed_file, exc_with_traceback)]
     
-    formatted_failure_report_list = esm1p5_convert.format_failures(
-        failed_conversion,
-        quiet = False
+    formatted_failure_report_list = list(
+        esm1p5_convert.format_failures(failed_conversion, quiet = False)
     )
     formatted_failure_report = formatted_failure_report_list[0]
 
