@@ -175,18 +175,14 @@ def format_successes(succeeded):
     succeeded: list of tuples of (input, output) filepaths for successful
     conversions.
 
-    Returns
+    Yields
     -------
-    success_reports: list of formatted reports of successful conversions.
+    success_report: formatted report of successful conversion.
     """
-    success_reports = []
     
     for input_path, output_path in succeeded:
-        success_reports.append(
-            f"Successfully converted {output_path}"
-        )
-
-    return success_reports
+        success_report = f"Successfully converted {input_path} to {output_path}"
+        yield success_report
 
 
 def format_failures(failed, quiet):
@@ -200,24 +196,30 @@ def format_failures(failed, quiet):
     quiet: boolean. Report only final exception type and message rather than 
     full stack trace when true.
 
-    Returns
+    Yields
     -------
-    failure_reports: list of formatted reports of failed conversions.
+    failure_report: Formatted reports of failed conversion.
     """
-    failure_reports = []
-    for fields_file_path, exception in failed:
-        report_base = f"Failed to convert {fields_file_path}. "
-        if quiet:
-            report = report_base + "Final reported error: \n" + repr(exception)
-        else:
+
+    if quiet:
+
+        for fields_file_path, exception in failed:
+            failure_report = (
+                f"Failed to convert {fields_file_path}. Final reported error: \n"
+                f"{repr(exception)}"
+            )
+            yield failure_report
+    else:
+        
+        for fields_file_path, exception in failed:
             formatted_traceback = "".join(
                 traceback.format_exception(exception)
             )
-            report = report_base + "Stack trace: \n" + formatted_traceback
-
-        failure_reports.append(report)
-
-    return failure_reports
+            failure_report = (
+                f"Failed to convert {fields_file_path}. Final reported error: \n"
+                f"{formatted_traceback}"
+            )
+            yield failure_report
 
 
 def convert_esm1p5_output_dir(esm1p5_output_dir):
@@ -297,10 +299,8 @@ if __name__ == "__main__":
     succeeded, failed = convert_esm1p5_output_dir(current_output_dir)
 
     # Report results to user
-    success_reports = format_successes(succeeded)
-    failure_reports = format_failures(failed, args.quiet)
-    for success_message in success_reports:
+    for success_message in format_successes(succeeded):
         print(success_message)
-    for failure_message in failure_reports:
+    for failure_message in format_failures(failed, args.quiet):
         warnings.warn(failure_message)
 
