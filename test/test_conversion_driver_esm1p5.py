@@ -150,7 +150,9 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
     # once um2nc specific exceptions are added.
 
 
-def test_convert_fields_file_list_fail_generic(mock_process_with_exception):
+def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
+    # Test that critical exceptions which are not allowed by ALLOWED_UM2NC_EXCEPTION_MESSAGES
+    # are raised, and hence lead to the conversion crashing.
     generic_error_message = "Test error"
     mock_process_with_exception(generic_error_message)
     with pytest.raises(Exception) as exc_info:
@@ -190,7 +192,7 @@ def test_format_successes():
         assert str(successful_output) in success_reports[i]
 
 
-def test_format_failures_quiet():
+def test_format_failures_quiet_mode():
     failed = [
         (Path("fake_file_1"), Exception("Error 1")),
         (Path("fake_file_2"), Exception("Error 2")),
@@ -207,9 +209,10 @@ def test_format_failures_quiet():
 
 
 
-def test_format_failures_not_quiet():
+def test_format_failures_standard_mode():
     # Test that a multiple exceptions are reported when present in
-    # stack trace and quiet is false.
+    # stack trace and standard error reporting is requested
+    # (i.e. quiet is false).
 
     exception_1 = ValueError("Error 1")
     exception_2 = TypeError("Error_2")

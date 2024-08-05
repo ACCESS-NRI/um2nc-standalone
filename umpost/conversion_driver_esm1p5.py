@@ -268,7 +268,6 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
             "converted to NetCDF."
         )
 
-        # TODO: Check a better way of doing this
         return  [], [] # Don't try to run the conversion
 
     succeeded, failed = convert_fields_file_list(
@@ -284,7 +283,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "current_output_dir", help="ESM1.5 output directory to be converted", type=str
     )
-    parser.add_argument("--quiet", "-q", action="store-true",
+    parser.add_argument("--quiet", "-q", action="store_true",
                         help=(
                             "Report only final exception type and message for allowed"
                             "exceptions raised during conversion when flag is included."
