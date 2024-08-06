@@ -52,7 +52,7 @@ ALLOWED_UM2NC_EXCEPTION_MESSAGES = {
 }
 
 
-def get_esm1p5_fields_file_pattern(run_id):
+def get_esm1p5_fields_file_pattern(run_id: str):
     """
     Generate regex pattern for finding current experiment's UM outputs.
 
@@ -71,7 +71,7 @@ def get_esm1p5_fields_file_pattern(run_id):
 
     if len(run_id) != 5:
         raise ValueError(
-            f"Recieved run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
+            f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
         )
 
     fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
@@ -138,9 +138,9 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
     Returns
     -------
     succeeded: list of tuples of (input, output) filepaths for successful
-    conversions.
-    failed: list of tuples of form (input path, exception) for files which failed 
-    to convert due to an allowed exception. 
+               conversions.
+    failed: list of tuples of form (input path, exception) for files which
+            failed to convert due to an allowed exception.
     """
     succeeded = []
     failed = []
@@ -172,8 +172,8 @@ def format_successes(succeeded):
 
     Parameters
     ---------- 
-    succeeded: list of tuples of (input, output) filepaths for successful
-    conversions.
+    succeeded: list of (input, output) tuples of filepaths for successful
+               conversions.
 
     Yields
     -------
@@ -192,9 +192,9 @@ def format_failures(failed, quiet):
     Parameters
     ----------
     failed: list of tuples of form (filepath, exception) for files which failed 
-    to convert due to an allowed exception. 
+            to convert due to an allowable exception.
     quiet: boolean. Report only final exception type and message rather than 
-    full stack trace when true.
+           full stack trace when true.
 
     Yields
     -------
@@ -234,9 +234,9 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     Returns
     -------
     succeeded: list of tuples of (input, output) filepaths for successful
-    conversions.
-    failed: list of tuples of form (filepath, exception) for files which failed 
-    to convert due to an allowed exception. 
+               conversions.
+    failed: list of tuples of form (filepath, exception) for files which failed
+            to convert due to an allowed exception.
     """
 
     esm1p5_output_dir = Path(esm1p5_output_dir)
@@ -270,7 +270,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
             "converted to NetCDF."
         )
 
-        return  [], [] # Don't try to run the conversion
+        return [], []  # Don't try to run the conversion
 
     succeeded, failed = convert_fields_file_list(
         atm_dir_fields_files,
