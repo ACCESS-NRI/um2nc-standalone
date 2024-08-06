@@ -320,10 +320,6 @@ def process(infile, outfile, args):
     if do_mask is False:
         cubes = list(no_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
-        if not cubes:
-            print("No cubes left to process after filtering")
-            return
-
     for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
         umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
@@ -354,6 +350,10 @@ def process(infile, outfile, args):
 
         if args.verbose:
             print(c.name(), c.item_code)
+
+    if not cubes:
+        print("No cubes left to process after filtering & excluding")
+        return
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
