@@ -125,8 +125,8 @@ def test_convert_fields_file_list_success(mock_process, input_list):
 
     assert mock_process.call_count == len(input_list)
 
-    successful_input_paths  = [successful_path_pair[0] for 
-                                successful_path_pair in succeeded]
+    successful_input_paths = [successful_path_pair[0] for
+                              successful_path_pair in succeeded]
     
     assert input_list_paths == successful_input_paths
 
@@ -209,7 +209,6 @@ def test_format_failures_quiet_mode():
         assert repr(exception) in formatted_failure_reports[i]
 
 
-
 def test_format_failures_standard_mode():
     # Test that a multiple exceptions are reported when present in
     # stack trace and standard error reporting is requested
@@ -227,7 +226,7 @@ def test_format_failures_standard_mode():
     failed_conversion = [(failed_file, exc_with_traceback)]
     
     formatted_failure_report_list = list(
-        esm1p5_convert.format_failures(failed_conversion, quiet = False)
+        esm1p5_convert.format_failures(failed_conversion, quiet=False)
     )
     formatted_failure_report = formatted_failure_report_list[0]
 
@@ -236,4 +235,3 @@ def test_format_failures_standard_mode():
 
     assert exception_1.args[0] in formatted_failure_report
     assert exception_2.args[0] in formatted_failure_report
-
