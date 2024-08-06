@@ -152,23 +152,24 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
 def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,
                                     fake_in_path, fake_out_path):
     """Ensure process() exists early if all cubes are removed in filtering."""
-    with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
-        with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
-            m_mule_vars.return_value = mule_vars
+    with (
+        mock.patch("mule.load_umfile"),  # ignore m_load_umfile as process_mule_vars is mocked
+        mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
+        mock.patch("iris.load") as m_iris_load,
+        mock.patch("iris.fileformats.netcdf.Saver") as m_saver, # prevent I/O
+    ):
+        m_mule_vars.return_value = mule_vars
+        section, item = split_item_code(air_temp_cube.item_code)
+        air_temp_cube.attributes = {um2nc.STASH: DummyStash(section, item)}
+        m_iris_load.return_value = [air_temp_cube]
 
-            with mock.patch("iris.load") as m_iris_load:
-                section, item = split_item_code(air_temp_cube.item_code)
-                air_temp_cube.attributes = {um2nc.STASH: DummyStash(section, item)}
-                m_iris_load.return_value = [air_temp_cube]
+        m_sman = mock.Mock()
+        m_saver().__enter__.return_value = m_sman
 
-                with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
-                    m_sman = mock.Mock()
-                    m_saver().__enter__.return_value = m_sman
+        um2nc.process(fake_in_path, fake_out_path, std_args)
 
-                    um2nc.process(fake_in_path, fake_out_path, std_args)
-
-                    assert m_sman.update_global_attributes.called is False
-                    assert m_saver.write.called is False  # write I/O prevented
+        assert m_sman.update_global_attributes.called is False
+        assert m_saver.write.called is False  # write I/O prevented
 
 
 def test_process_masking(air_temp_cube, precipitation_flux_cube,
