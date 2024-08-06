@@ -105,46 +105,48 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
     #        use these tests to gradually refactor process()
     # TODO: move towards a design where input & output I/O is extracted from process()
     #       process()'s core should operate with *data only* args
-    with mock.patch("mule.load_umfile"):  # ignore m_load_umfile as process_mule_vars is mocked
-        with mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars:
-            m_mule_vars.return_value = mule_vars
+    with (
+        mock.patch("mule.load_umfile"),  # ignore m_load_umfile as process_mule_vars is mocked
+        mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
+        mock.patch("iris.load") as m_iris_load,
+        mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
 
-            with mock.patch("iris.load") as m_iris_load:
-                cubes = [air_temp_cube, precipitation_flux_cube]
+        # TODO: fix lat/lon & levels requires c.coord attribute
+        #       use fixtures to add attrs & remove the patches?
+        mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord,
+        mock.patch("umpost.um2netcdf.fix_level_coord") as m_level,
+        mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask,
+        mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite,
+    ):
+        m_mule_vars.return_value = mule_vars
+        cubes = [air_temp_cube, precipitation_flux_cube]
 
-                for c in cubes:
-                    c.attributes = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
-                    c.cell_methods = []
+        for c in cubes:
+            c.attributes = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
+            c.cell_methods = []
 
-                    # TODO: replace with DummyCubeWithCoords ()?
-                    #       or add coord fixtures?
-                    c.coord["latitude"] = 0.0  # FIXME
-                    c.coord["longitude"] = 0.0  # FIXME
+            # TODO: replace with DummyCubeWithCoords ()?
+            #       or add coord fixtures?
+            c.coord["latitude"] = 0.0  # FIXME
+            c.coord["longitude"] = 0.0  # FIXME
 
-                m_iris_load.return_value = cubes
+        m_iris_load.return_value = cubes
 
-                with mock.patch("iris.fileformats.netcdf.Saver") as m_saver:  # prevent I/O
-                    # mock `sman` var to prevent I/O
-                    m_sman = mock.Mock()
-                    m_saver().__enter__.return_value = m_sman
+        # mock `sman` var to prevent I/O
+        m_sman = mock.Mock()
+        m_saver().__enter__.return_value = m_sman
+        std_args.verbose = True  # test some warning branches
 
-                    # TODO: fix lat/lon & levels requires c.coord attribute
-                    #       use fixtures to add attrs & remove the patches?
-                    with mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord:
-                        with mock.patch("umpost.um2netcdf.fix_level_coord") as m_level:
-                            with mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask:
-                                with mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite:
-                                    std_args.verbose = True  # test some warning branches
-                                    um2nc.process(fake_in_path, fake_out_path, std_args)
+        um2nc.process(fake_in_path, fake_out_path, std_args)
 
-                                    assert m_sman.update_global_attributes.called
-                                    assert m_saver.write.called is False  # write I/O prevented
-                                    assert m_coord.called
-                                    assert m_level.called
-                                    assert m_apply_mask.called is False
-                                    assert m_cubewrite.called  # real cubewrite() prevented
-                                    assert m_cubewrite.call_count == 1
-                                    assert m_cubewrite.call_args_list[0].args[0] == precipitation_flux_cube
+        assert m_sman.update_global_attributes.called
+        assert m_saver.write.called is False  # write I/O prevented
+        assert m_coord.called
+        assert m_level.called
+        assert m_apply_mask.called is False
+        assert m_cubewrite.called  # real cubewrite() prevented
+        assert m_cubewrite.call_count == 1
+        assert m_cubewrite.call_args_list[0].args[0] == precipitation_flux_cube
 
 
 def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,
