@@ -318,15 +318,20 @@ def process(infile, outfile, args):
     (need_heaviside_uv, heaviside_uv,
      need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
 
-    do_mask = not args.nomask and ((need_heaviside_uv and heaviside_uv is not None) or
-                                   need_heaviside_t and heaviside_t is not None)
+    do_mask = not args.nomask
+    cannot_mask = not ((need_heaviside_uv and heaviside_uv is not None) or
+                       need_heaviside_t and heaviside_t is not None)
 
-    if do_mask is False:
-        cubes = list(no_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+    if do_mask:
+        if cannot_mask:
+            cubes = list(no_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
-        if not cubes:
-            print("No cubes left to process after filtering")
-            return
+            if not cubes:
+                print("No cubes left to process after filtering")
+                return
+    else:
+        # ignore masking & do not filter
+        pass
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
