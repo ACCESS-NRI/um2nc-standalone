@@ -140,7 +140,7 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
         um2nc.process(fake_in_path, fake_out_path, std_args)
 
         assert m_sman.update_global_attributes.called
-        assert m_saver.write.called is False  # write I/O prevented
+        assert m_sman.write.called is False  # write I/O prevented
         assert m_coord.called
         assert m_level.called
         assert m_apply_mask.called is False
@@ -169,7 +169,7 @@ def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,
         um2nc.process(fake_in_path, fake_out_path, std_args)
 
         assert m_sman.update_global_attributes.called is False
-        assert m_saver.write.called is False  # write I/O prevented
+        assert m_sman.write.called is False  # write I/O prevented
 
 
 def test_process_masking(air_temp_cube, precipitation_flux_cube,
@@ -210,7 +210,7 @@ def test_process_masking(air_temp_cube, precipitation_flux_cube,
 
         assert m_sman.update_global_attributes.called
         assert m_sman.update_global_attributes.call_count == 2
-        assert m_saver.write.called is False  # write I/O prevented
+        assert m_sman.write.called is False  # write I/O prevented
         assert m_coord.called
         assert m_level.called
         assert m_apply_mask.called
