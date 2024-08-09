@@ -314,7 +314,9 @@ def process(infile, outfile, args):
     cubes = iris.load(infile)
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
-    cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
+
+    if args.include_list or args.exclude_list:
+        cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
 
     do_masking = not args.nomask
     heaviside_uv, heaviside_t = get_pressure_levels(cubes)
