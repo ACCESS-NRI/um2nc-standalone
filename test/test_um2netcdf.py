@@ -138,13 +138,17 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
     # TODO: move towards a design where input & output I/O is extracted from process()
     #       process() should eventually operate on *data only* args
     with (
-        mock.patch("mule.load_umfile"),  # ignore m_load_umfile as process_mule_vars is mocked
+        # use mocks to prevent mule data extraction file I/O
+        mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
+
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
+
+        # TODO: lat/long & level coord fixes require more internal data attrs
+        #       skip temporarily to manage test complexity
         mock.patch("umpost.um2netcdf.fix_latlon_coord"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
-        mock.patch("umpost.um2netcdf.apply_mask"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
@@ -179,6 +183,7 @@ def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,
         m_sman = mock.Mock()
         m_saver().__enter__.return_value = m_sman
 
+        # all cubes should be dropped
         assert um2nc.process(fake_in_path, fake_out_path, std_args) == []
 
 
@@ -214,6 +219,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         m_sman = mock.Mock()
         m_saver().__enter__.return_value = m_sman
 
+        # all cubes should be processed & not dropped
         processed = um2nc.process(fake_in_path, fake_out_path, std_args)
         assert len(processed) == len(cubes)
 
