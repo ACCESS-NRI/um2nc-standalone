@@ -326,7 +326,7 @@ def process(infile, outfile, args):
 
         if not cubes:
             print("No cubes left to process after filtering")
-            return
+            return []
 
     cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
 
