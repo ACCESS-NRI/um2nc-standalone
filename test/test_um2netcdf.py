@@ -9,6 +9,7 @@ import numpy as np
 
 import mule
 import mule.ff
+import iris.cube
 
 
 @pytest.fixture
@@ -59,16 +60,45 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
+def set_default_attrs(cube, item_code: int, var_name: str):
+    """Add subset of default attributes to flesh out cube like objects."""
+    cube.__dict__.update({"item_code": item_code,
+                          "var_name": var_name,
+                          "long_name": "",
+                          "coord": {"latitude": 0.0,  # TODO: real val = ?
+                                    "longitude": 0.0},  # TODO: real val
+                          "cell_methods": [],
+                          })
+
+    section, item = split_item_code(item_code)
+    cube.attributes = {um2nc.STASH: DummyStash(section, item)}
+
+
 @pytest.fixture
 def air_temp_cube():
-    # copied from aiihca.paa1jan.subset file
-    return DummyCube(30204, "air_temperature")
+    # data copied from aiihca.paa1jan.subset file
+    name = "air_temperature"
+    m_air_temp = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
+    set_default_attrs(m_air_temp, 30204, name)
+    return m_air_temp
 
 
 @pytest.fixture
 def precipitation_flux_cube():
     # copied from aiihca.paa1jan.subset file
-    return DummyCube(5216, "precipitation_flux")
+    name = "precipitation_flux"
+    m_flux = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
+    set_default_attrs(m_flux, 5216, name)
+    return m_flux
+
+
+# create cube requiring heaviside_t masking
+@pytest.fixture
+def geo_potential_cube():
+    name = "geopotential_height"
+    m_geo_potential = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
+    set_default_attrs(m_geo_potential, 30297, name)
+    return m_geo_potential
 
 
 @pytest.fixture
@@ -97,8 +127,9 @@ def fake_out_path():
     return "/tmp-does-not-exist/fake_input_fields_file.nc"
 
 
-def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_vars,
-                                 std_args, fake_in_path, fake_out_path):
+def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
+                                         mule_vars, std_args,
+                                         fake_in_path, fake_out_path):
     """Attempts end-to-end test of process(), ignoring cubes requiring masking."""
 
     # FIXME: this convoluted setup is a big code stench
@@ -121,15 +152,6 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
         m_mule_vars.return_value = mule_vars
         cubes = [air_temp_cube, precipitation_flux_cube]
 
-        for c in cubes:
-            c.attributes = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
-            c.cell_methods = []
-
-            # TODO: replace with DummyCubeWithCoords ()?
-            #       or add coord fixtures?
-            c.coord["latitude"] = 0.0  # FIXME
-            c.coord["longitude"] = 0.0  # FIXME
-
         m_iris_load.return_value = cubes
 
         # mock `sman` var to prevent I/O
@@ -137,8 +159,11 @@ def test_process_without_masking(air_temp_cube, precipitation_flux_cube, mule_va
         m_saver().__enter__.return_value = m_sman
         std_args.verbose = True  # test some warning branches
 
+        # air temp should be excluded in this setup
+        # TODO: how to test precip layer is the only modified cube?
         um2nc.process(fake_in_path, fake_out_path, std_args)
 
+        # TODO: focus asserts on the cube
         assert m_sman.update_global_attributes.called
         assert m_sman.write.called is False  # write I/O prevented
         assert m_coord.called
@@ -172,9 +197,10 @@ def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,
         assert m_sman.write.called is False  # write I/O prevented
 
 
-def test_process_masking(air_temp_cube, precipitation_flux_cube,
-                         heaviside_uv_cube, heaviside_t_cube,
-                         mule_vars, std_args, fake_in_path, fake_out_path):
+def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
+                                     heaviside_uv_cube, heaviside_t_cube,
+                                     geo_potential_cube, mule_vars,
+                                     std_args, fake_in_path, fake_out_path):
     """Run process() with pressure level masking cubes present."""
     with (
         mock.patch("mule.load_umfile"),  # ignore m_load_umfile as process_mule_vars is mocked
@@ -191,13 +217,12 @@ def test_process_masking(air_temp_cube, precipitation_flux_cube,
     ):
         m_mule_vars.return_value = mule_vars
 
-        # add cube requiring heaviside_t masking to enable both uv & t code branches
-        geo_potential_cube = DummyCube(30297, "geopotential_height")
-
         cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
                  heaviside_uv_cube, heaviside_t_cube]
 
-        for c in cubes:
+        # TODO: convert heaviside cubes to NonCallableMagicMock as per other fixtures?
+        for c in [heaviside_uv_cube, heaviside_t_cube]:
+            # add attrs to mimic real cubes
             attrs = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
             c.attributes = attrs
             c.cell_methods = []
