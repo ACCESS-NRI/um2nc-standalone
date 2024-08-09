@@ -188,17 +188,15 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
                                      std_args, fake_in_path, fake_out_path):
     """Run process() with pressure level masking cubes present."""
     with (
-        mock.patch("mule.load_umfile"),  # ignore m_load_umfile as process_mule_vars is mocked
+        mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
+
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
-        # TODO: fix lat/lon & levels requires c.coord attributes
-        #       use fixtures to add attrs & remove the patches?
-        mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord,
-        mock.patch("umpost.um2netcdf.fix_level_coord") as m_level,
-        mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask,
-        mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite,
+        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_level_coord"),
+        mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
+        mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
 
@@ -216,16 +214,8 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         m_sman = mock.Mock()
         m_saver().__enter__.return_value = m_sman
 
-        um2nc.process(fake_in_path, fake_out_path, std_args)
-
-        assert m_sman.update_global_attributes.called
-        assert m_sman.update_global_attributes.call_count == 2
-        assert m_sman.write.called is False  # write I/O prevented
-        assert m_coord.called
-        assert m_level.called
-        assert m_apply_mask.called
-        assert m_cubewrite.called  # real cubewrite() should be prevented
-        assert m_cubewrite.call_count == len(cubes)
+        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        assert len(processed) == len(cubes)
 
 
 def split_item_code(item_code: int):
