@@ -68,6 +68,7 @@ def set_default_attrs(cube, item_code: int, var_name: str):
                           "coord": {"latitude": 0.0,  # TODO: real val = ?
                                     "longitude": 0.0},  # TODO: real val
                           "cell_methods": [],
+                          "data": None,
                           })
 
     section, item = split_item_code(item_code)
@@ -105,7 +106,7 @@ def geo_potential_cube():
 def std_args():
     # TODO: make args namedtuple?
     args = mock.Mock()
-    args.nomask = False
+    args.nomask = False  # perform masking if possible
     args.nohist = False
     args.nckind = 3
     args.include_list = None
@@ -130,48 +131,37 @@ def fake_out_path():
 def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
                                          mule_vars, std_args,
                                          fake_in_path, fake_out_path):
-    """Attempts end-to-end test of process(), ignoring cubes requiring masking."""
+    """Attempt end-to-end process() test, dropping cubes requiring masking."""
 
-    # FIXME: this convoluted setup is a big code stench
+    # FIXME: this convoluted setup is a code smell
     #        use these tests to gradually refactor process()
     # TODO: move towards a design where input & output I/O is extracted from process()
-    #       process()'s core should operate with *data only* args
+    #       process() should eventually operate on *data only* args
     with (
         mock.patch("mule.load_umfile"),  # ignore m_load_umfile as process_mule_vars is mocked
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
-        # TODO: fix lat/lon & levels requires c.coord attribute
-        #       use fixtures to add attrs & remove the patches?
-        mock.patch("umpost.um2netcdf.fix_latlon_coord") as m_coord,
-        mock.patch("umpost.um2netcdf.fix_level_coord") as m_level,
-        mock.patch("umpost.um2netcdf.apply_mask") as m_apply_mask,
-        mock.patch("umpost.um2netcdf.cubewrite") as m_cubewrite,
+        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_level_coord"),
+        mock.patch("umpost.um2netcdf.apply_mask"),
+        mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
         cubes = [air_temp_cube, precipitation_flux_cube]
 
         m_iris_load.return_value = cubes
-
-        # mock `sman` var to prevent I/O
-        m_sman = mock.Mock()
+        m_sman = mock.Mock()  # mock `sman` var to prevent I/O
         m_saver().__enter__.return_value = m_sman
         std_args.verbose = True  # test some warning branches
 
-        # air temp should be excluded in this setup
-        # TODO: how to test precip layer is the only modified cube?
-        um2nc.process(fake_in_path, fake_out_path, std_args)
+        # air temp should be dropped in process()
+        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        assert len(processed) == 1
+        cube = processed[0]
 
-        # TODO: focus asserts on the cube
-        assert m_sman.update_global_attributes.called
-        assert m_sman.write.called is False  # write I/O prevented
-        assert m_coord.called
-        assert m_level.called
-        assert m_apply_mask.called is False
-        assert m_cubewrite.called  # real cubewrite() prevented
-        assert m_cubewrite.call_count == 1
-        assert m_cubewrite.call_args_list[0].args[0] == precipitation_flux_cube
+        assert cube is precipitation_flux_cube
+        assert cube.data is None  # masking wasn't applied
 
 
 def test_process_all_cubes_filtered(air_temp_cube, mule_vars, std_args,

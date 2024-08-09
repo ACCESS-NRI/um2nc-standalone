@@ -328,6 +328,8 @@ def process(infile, outfile, args):
             print("No cubes left to process after filtering")
             return
 
+    cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
+
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
         #       do when sman ops refactored into a write function
@@ -337,7 +339,7 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
+        for c in cubes:
             umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
             fix_var_name(c, umvar.uniquename, args.simple)
@@ -371,6 +373,8 @@ def process(infile, outfile, args):
             # TODO: split cubewrite ops into funcs & bring those steps into process() workflow
             #       or a sub process workflow function (like process_mule_vars())
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
+
+    return cubes
 
 
 MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z_theta")
