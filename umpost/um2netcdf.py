@@ -314,21 +314,19 @@ def process(infile, outfile, args):
     cubes = iris.load(infile)
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
+    cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
 
-    (need_heaviside_uv, heaviside_uv,
-     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
+    do_masking = not args.nomask
+    heaviside_uv, heaviside_t = get_pressure_levels(cubes)
 
-    do_mask = not args.nomask and ((need_heaviside_uv and heaviside_uv is not None) or
-                                   need_heaviside_t and heaviside_t is not None)
-
-    if do_mask is False:
+    if do_masking:
+        # drop cubes which cannot be pressure masked if heaviside uv or t is missing
+        # otherwise keep all cubes when masking is off
         cubes = list(no_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
-        if not cubes:
-            print("No cubes left to process after filtering")
-            return []
-
-    cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
+    if not cubes:
+        print("No cubes left to process after filtering")
+        return cubes
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
@@ -359,7 +357,7 @@ def process(infile, outfile, args):
 
             fix_level_coord(c, mv.z_rho, mv.z_theta)
 
-            if do_mask:
+            if do_masking:
                 # Pressure level data should be masked
                 if require_heaviside_uv(c.item_code) and heaviside_uv:
                     apply_mask(c, heaviside_uv, args.hcrit)
@@ -502,40 +500,22 @@ def set_item_codes(cubes):
         setattr(cube, ITEM_CODE, item_code)
 
 
-def check_pressure_level_masking(cubes):
+def get_pressure_levels(cubes):
     """
-    Examines cubes for heaviside uv/t pressure level masking components.
-
-    Parameters
-    ----------
-    cubes : sequence iris Cube objects.
-
-    Returns
-    -------
-    Tuple: (need_heaviside_uv [bool], heaviside_uv [iris cube or None],
-            need_heaviside_t [bool], heaviside_t [iris cube or None])
-
+    TODO docs
     """
     # Check whether there are any pressure level fields that should be masked. Can use temperature
     # to mask instantaneous fields, so really should check whether these are time means
-    need_heaviside_uv = need_heaviside_t = False
     heaviside_uv = None
     heaviside_t = None
 
     for cube in cubes:
-        if require_heaviside_uv(cube.item_code):
-            need_heaviside_uv = True
-
         if is_heaviside_uv(cube.item_code):
             heaviside_uv = cube
-
-        if require_heaviside_t(cube.item_code):
-            need_heaviside_t = True
-
-        if is_heaviside_t(cube.item_code):
+        elif is_heaviside_t(cube.item_code):
             heaviside_t = cube
 
-    return need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t
+    return heaviside_uv, heaviside_t
 
 
 def require_heaviside_uv(item_code):
