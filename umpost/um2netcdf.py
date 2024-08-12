@@ -324,7 +324,7 @@ def process(infile, outfile, args):
     if do_masking:
         # drop cubes which cannot be pressure masked if heaviside uv or t is missing
         # otherwise keep all cubes when masking is off
-        cubes = list(no_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
     if not cubes:
         print("No cubes left to process after filtering")
@@ -540,30 +540,29 @@ def is_heaviside_t(item_code):
     return item_code == 30304
 
 
-def no_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
+def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     """
-    Generator removes cubes that cannot be masked due to missing heaviside uv/t data.
+    Yields cubes that do not require pressure level masking.
 
     Parameters
     ----------
     cubes : sequence of iris cubes for filtering
-    heaviside_uv : heaviside_uv cube or None
-    heaviside_t : heaviside_t cube or None
+    heaviside_uv : heaviside_uv cube or None if it's missing
+    heaviside_t : heaviside_t cube or None if it's missing
     verbose : True to emit warnings to indicate a cube has been removed
     """
+    msg = ("{} field needed for masking pressure level data is missing. "
+           "Excluding cube '{}' as it cannot be masked")
+
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
             if verbose:
-                msg = (f"heaviside_uv field needed for masking pressure level data is missing. "
-                       f"Excluding cube '{c.name()}' as it cannot be masked")
-                warnings.warn(msg)
+                warnings.warn(msg.format("heaviside_uv", c.name()))
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
             if verbose:
-                msg = (f"heaviside_t field needed for masking pressure level data is missing. "
-                       f"Excluding cube '{c.name()}' as it cannot be masked")
-                warnings.warn(msg)
+                warnings.warn(msg.format("heaviside_t", c.name()))
             continue
 
         yield c
