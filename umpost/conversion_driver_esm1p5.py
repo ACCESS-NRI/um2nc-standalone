@@ -296,11 +296,10 @@ if __name__ == "__main__":
 
     current_output_dir = args.current_output_dir
 
-    succeeded, failed = convert_esm1p5_output_dir(current_output_dir)
+    successes, failures = convert_esm1p5_output_dir(current_output_dir)
 
     # Report results to user
-    for success_message in format_successes(succeeded):
+    for success_message in format_successes(successes):
         print(success_message)
-    for failure_message in format_failures(failed, args.quiet):
+    for failure_message in format_failures(failures, args.quiet):
         warnings.warn(failure_message)
-
