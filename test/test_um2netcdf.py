@@ -517,23 +517,23 @@ def lon_points_standard_dlon_EG():
 
 
 def test_is_lat_river_grid(lat_river_points, lat_points_standard_dlat_ND):
-    assert len(lat_river_points) == 180
+    assert len(lat_river_points) == um2nc.NUM_LAT_RIVER_GRID
     assert um2nc.is_lat_river_grid(lat_river_points)
 
     # latitude points on ESM1.5 N96
     not_lat_river_points = lat_points_standard_dlat_ND[0]
     
-    assert len(not_lat_river_points) != 180
+    assert len(not_lat_river_points) != um2nc.NUM_LAT_RIVER_GRID
     assert not um2nc.is_lat_river_grid(not_lat_river_points)
 
 
 def test_is_lon_river_grid(lon_river_points, lon_points_standard_dlon_ND):
-    assert len(lon_river_points) == 360
+    assert len(lon_river_points) == um2nc.NUM_LON_RIVER_GRID
     assert um2nc.is_lon_river_grid(lon_river_points)
 
     # longitude points on normal ESM1.5 N96 grid
     not_lon_river_points = lon_points_standard_dlon_ND[0]
-    assert len(not_lon_river_points) != 360
+    assert len(not_lon_river_points) != um2nc.NUM_LON_RIVER_GRID
     assert not um2nc.is_lon_river_grid(not_lon_river_points)
 
 

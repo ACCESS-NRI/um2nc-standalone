@@ -48,6 +48,9 @@ GLOBAL_COORD_BOUNDS = {
     LON_COORD_NAME: np.array([[0., 360.]]),
     LAT_COORD_NAME: np.array([[-90., 90.]])
 }
+
+NUM_LAT_RIVER_GRID = 180
+NUM_LON_RIVER_GRID = 360
  
 
 
@@ -165,7 +168,7 @@ def is_lat_river_grid(latitude_points):
     ----------
     latitude_points: (array) 1D array of latitude grid points.
     """
-    return len(latitude_points) == 180
+    return len(latitude_points) == NUM_LAT_RIVER_GRID
 
 
 def is_lon_river_grid(longitude_points):
@@ -177,7 +180,7 @@ def is_lon_river_grid(longitude_points):
     longitude_points: (array) 1D array of longitude grid points.
     """
 
-    return len(longitude_points) == 360
+    return len(longitude_points) == NUM_LON_RIVER_GRID
 
 
 def is_lat_v_grid(latitude_points, grid_type, dlat):
@@ -192,11 +195,12 @@ def is_lat_v_grid(latitude_points, grid_type, dlat):
     """
     
     min_latitude = latitude_points[0]
-    min_latitude_v_ND = -90.+0.5*dlat
+    min_lat_v_nd_grid = -90.+0.5*dlat
+    min_lat_v_eg_grid = -90
     return (
-        (min_latitude == -90 and grid_type == GRID_END_GAME) or
+        (min_latitude == min_lat_v_eg_grid and grid_type == GRID_END_GAME) or
         (
-            np.allclose(min_latitude_v_ND, min_latitude) and
+            np.allclose(min_lat_v_nd_grid, min_latitude) and
             grid_type == GRID_NEW_DYNAMICS
         )
     )
@@ -208,17 +212,18 @@ def is_lon_u_grid(longitude_points, grid_type, dlon):
 
     Parameters
     ----------
-    longitude: (array) 1D array of longitude grid points.
+    longitude_points: (array) 1D array of longitude grid points.
     grid_type: (string) model horizontal grid type.
     dlon: (float) zonal spacing between longitude grid points. 
     """
     min_longitude = longitude_points[0]
-    min_longitude_u_ND = 0.5*dlon
+    min_lon_u_nd_grid = 0.5*dlon
+    min_lon_u_eg_grid = 0
 
     return (
-        (min_longitude == 0 and grid_type == GRID_END_GAME) or
+        (min_longitude == min_lon_u_eg_grid and grid_type == GRID_END_GAME) or
         (
-            np.allclose(min_longitude_u_ND, min_longitude) and
+            np.allclose(min_lon_u_nd_grid, min_longitude) and
             grid_type == GRID_NEW_DYNAMICS
         )
     )
@@ -240,16 +245,13 @@ def add_latlon_coord_bounds(cube_coordinate):
                 f"Expected one of {LON_COORD_NAME}, {LAT_COORD_NAME}."
             )
 
-    if cube_coordinate.has_bounds(): 
-        # Don't change bounds if already exist
-        return
-    
-    if len(cube_coordinate.points) > 1:
-        cube_coordinate.guess_bounds()
-    else:
-        # For length 1, assume it's global. guess_bounds doesn't work in this case
-        cube_coordinate.bounds = GLOBAL_COORD_BOUNDS[coordinate_name]
-
+    # Only add bounds if not already present.
+    if not cube_coordinate.has_bounds():
+        if len(cube_coordinate.points) > 1:
+            cube_coordinate.guess_bounds()
+        else:
+            # For length 1, assume it's global. guess_bounds doesn't work in this case.
+            cube_coordinate.bounds = GLOBAL_COORD_BOUNDS[coordinate_name]
 
 
 def fix_latlon_coords(cube, grid_type, dlat, dlon):
@@ -257,39 +259,40 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     Wrapper function to modify cube's horizontal coordinates 
     (latitude and longitude). Converts to float64, adds grid bounds,
     and renames coordinates. Modifies cube in place.
+    
+    NB - grid spacings dlat and dlon only refer to variables on the main 
+    horizontal grids, and not the river grid.
 
     Parameters
     ----------
     cube: Iris cube object (modified in place).
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
-    NB - Only applies to variables on the main horizontal grids, 
-    and not the river grid.
     dlon: (float) zonal spacing between longitude grid points. 
-    NB - Only applies to variables on the main horizontal grids, 
-    and not the river grid.
     """
 
     # TODO: Check that we don't need the double coordinate lookup.
     try:
         latitude_coordinate = cube.coord(LAT_COORD_NAME)
         longitude_coordinate = cube.coord(LON_COORD_NAME)
-        # Force to double for consistency with CMOR
-        latitude_coordinate.points = latitude_coordinate.points.astype(np.float64)
-        longitude_coordinate.points = longitude_coordinate.points.astype(np.float64)
-        
-        add_latlon_coord_bounds(latitude_coordinate)
-        add_latlon_coord_bounds(longitude_coordinate)
-        
-        fix_lat_coord_name(latitude_coordinate, grid_type, dlat)
-        fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
-        
     except iris.exceptions.CoordinateNotFoundError:
         warnings.warn(
             "Missing latitude or longitude coordinate for variable (possible timeseries?): \n"
             f"{cube}\n"
         )
         raise 
+    
+    # Force to double for consistency with CMOR
+    latitude_coordinate.points = latitude_coordinate.points.astype(np.float64)
+    longitude_coordinate.points = longitude_coordinate.points.astype(np.float64)
+    
+    add_latlon_coord_bounds(latitude_coordinate)
+    add_latlon_coord_bounds(longitude_coordinate)
+    
+    fix_lat_coord_name(latitude_coordinate, grid_type, dlat)
+    fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
+        
+    
 
 
 # TODO: refactor to "rename level coord"
