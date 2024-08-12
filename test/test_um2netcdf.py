@@ -212,7 +212,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
                  heaviside_uv_cube, heaviside_t_cube]
 
-        # TODO: convert heaviside cubes to NonCallableMagicMock as per other fixtures?
+        # TODO: convert heaviside cubes to NonCallableMagicMock like other fixtures?
         for c in [heaviside_uv_cube, heaviside_t_cube]:
             # add attrs to mimic real cubes
             attrs = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
@@ -225,6 +225,9 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         # all cubes should be processed & not dropped
         processed = um2nc.process(fake_in_path, fake_out_path, std_args)
         assert len(processed) == len(cubes)
+
+        for pc in processed:
+            assert pc in cubes
 
 
 def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cube,
@@ -254,6 +257,9 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
         # all cubes should be kept with masking off
         processed = um2nc.process(fake_in_path, fake_out_path, std_args)
         assert len(processed) == len(cubes)
+
+        for pc in processed:
+            assert pc in cubes
 
 
 def split_item_code(item_code: int):
