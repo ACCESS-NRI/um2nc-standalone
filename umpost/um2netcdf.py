@@ -490,6 +490,11 @@ def to_item_code(stash_code):
     return 1000 * stash_code.section + stash_code.item
 
 
+def to_stash_code(item_code: int):
+    """Helper: convert item code back to older section & item components."""
+    return item_code // 1000, item_code % 1000
+
+
 def set_item_codes(cubes):
     for cube in cubes:
         if hasattr(cube, ITEM_CODE):
