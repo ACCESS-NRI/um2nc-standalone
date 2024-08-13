@@ -555,7 +555,11 @@ def is_heaviside_t(item_code):
 
 def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     """
-    Yields cubes that do not require pressure level masking.
+    Yields cubes that:
+    * do not require pressure level masking
+    * require pressure level masking & the relevant masking cube exists
+
+    This provides filtering to remove cubes from workflows for efficiency.
 
     Parameters
     ----------
