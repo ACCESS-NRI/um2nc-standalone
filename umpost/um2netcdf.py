@@ -380,9 +380,10 @@ def process(infile, outfile, args):
 MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z_theta")
 
 
+# TODO: rename this function, it's *getting* variables
 def process_mule_vars(fields_file: mule.ff.FieldsFile):
     """
-    Extract model levels with mule.
+    Extract model levels and grid structure with Mule.
 
     The model levels help with workflow dimension naming.
 
