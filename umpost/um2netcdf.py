@@ -319,7 +319,7 @@ def process(infile, outfile, args):
         cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
 
     do_masking = not args.nomask
-    heaviside_uv, heaviside_t = get_pressure_levels(cubes)
+    heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
 
     if do_masking:
         # drop cubes which cannot be pressure masked if heaviside uv or t is missing
@@ -508,12 +508,19 @@ def set_item_codes(cubes):
         setattr(cube, ITEM_CODE, item_code)
 
 
-def get_pressure_levels(cubes):
+def get_heaviside_cubes(cubes):
     """
-    TODO docs
+    Finds heaviside_uv, heaviside_t cubes in given sequence.
+
+    Parameters
+    ----------
+    cubes : sequence of cubes.
+
+    Returns
+    -------
+    (heaviside_uv, heaviside_t) tuple, or None for either cube where the
+        heaviside_uv/t cubes not found.
     """
-    # Check whether there are any pressure level fields that should be masked. Can use temperature
-    # to mask instantaneous fields, so really should check whether these are time means
     heaviside_uv = None
     heaviside_t = None
 
