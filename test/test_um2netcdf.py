@@ -71,7 +71,7 @@ def set_default_attrs(cube, item_code: int, var_name: str):
                           "data": None,
                           })
 
-    section, item = split_item_code(item_code)
+    section, item = um2nc.to_stash_code(item_code)
     cube.attributes = {um2nc.STASH: DummyStash(section, item)}
 
 
@@ -215,7 +215,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         # TODO: convert heaviside cubes to NonCallableMagicMock like other fixtures?
         for c in [heaviside_uv_cube, heaviside_t_cube]:
             # add attrs to mimic real cubes
-            attrs = {um2nc.STASH: DummyStash(*split_item_code(c.item_code))}
+            attrs = {um2nc.STASH: DummyStash(*um2nc.to_stash_code(c.item_code))}
             c.attributes = attrs
             c.cell_methods = []
 
@@ -262,9 +262,9 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
             assert pc in cubes
 
 
-def split_item_code(item_code: int):
-    """Helper func: convert item code back to older section & item components."""
-    return item_code // 1000, item_code % 1000
+def test_to_stash_code():
+    assert um2nc.to_stash_code(5126) == (5, 126)
+    assert um2nc.to_stash_code(30204) == (30, 204)
 
 
 def test_get_eg_grid_type():
