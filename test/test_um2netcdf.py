@@ -161,19 +161,25 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         m_saver().__enter__ = mock.Mock(name="mock_sman")
         std_args.verbose = True  # test some warning branches
 
+        # trying to mask None will break in numpy
+        assert precipitation_flux_cube.data is None
+
         # air temp & geo potential should be dropped in process()
         processed = um2nc.process(fake_in_path, fake_out_path, std_args)
         assert len(processed) == 1
         cube = processed[0]
 
         assert cube is precipitation_flux_cube
-        assert cube.data is None  # masking wasn't applied
+
+        # contrived testing: if the masking code was reached for some reason,
+        # the test would fail during process()
+        assert cube.data is None  # masking wasn't called/nothing changed
 
 
 def test_process_all_cubes_filtered(air_temp_cube, geo_potential_cube,
                                     mule_vars, std_args,
                                     fake_in_path, fake_out_path):
-    """Ensure process() exists early if all cubes are removed in filtering."""
+    """Ensure process() exits early if all cubes are removed in filtering."""
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
