@@ -692,17 +692,17 @@ def lon_u_points_dlon_ND():
 
 @pytest.fixture
 def lat_v_points_dlat_EG():
-    # Array of latitude points and corresponding spacing imitating 
+    # Array of latitude points and corresponding spacing imitating
     # the real lat_v grid from CM2 which uses grid type EG.
 
-    dlat = 1.25 
+    dlat = 1.25
     lat_v_points = np.arange(-90., 91, dlat)
     return (lat_v_points, um2nc.GRID_END_GAME, dlat)
 
 
 @pytest.fixture
 def lon_u_points_dlon_EG():
-    # Array of longitude points and corresponding spacing imitating 
+    # Array of longitude points and corresponding spacing imitating
     # the real lon_u grid from CM2 which uses grid type EG.
 
     dlon = 1.875
@@ -712,49 +712,49 @@ def lon_u_points_dlon_EG():
 
 @pytest.fixture
 def lat_points_standard_dlat_ND():
-    # Array of latitude points and corresponding spacing imitating the 
-    # standard (not river or v) lat grid for ESM1.5 which uses 
+    # Array of latitude points and corresponding spacing imitating the
+    # standard (not river or v) lat grid for ESM1.5 which uses
     # grid type ND.
 
     dlat = 1.25
-    lat_points_middle =  np.arange(-88.75, 89., 1.25)
+    lat_points_middle = np.arange(-88.75, 89., 1.25)
     lat_points = np.concatenate(([-90],
                                  lat_points_middle,
                                  [90.]
-                                ))
+                                 ))
     return (lat_points, um2nc.GRID_NEW_DYNAMICS, dlat)
 
 
 @pytest.fixture
 def lon_points_standard_dlon_ND():
-    # Array of longitude points and corresponding spacing imitating the 
-    # standard (not river or u) lon grid for ESM1.5 which uses grid 
+    # Array of longitude points and corresponding spacing imitating the
+    # standard (not river or u) lon grid for ESM1.5 which uses grid
     # type ND.
 
     dlon = 1.875
-    lon_points =  np.arange(0, 360, dlon)
+    lon_points = np.arange(0, 360, dlon)
     return (lon_points, um2nc.GRID_NEW_DYNAMICS, dlon)
 
 
 @pytest.fixture
 def lat_points_standard_dlat_EG():
-    # Array of latitude points and corresponding spacing imitating the 
-    # standard (not river or v) lat grid for CM2 which uses 
+    # Array of latitude points and corresponding spacing imitating the
+    # standard (not river or v) lat grid for CM2 which uses
     # grid type EG.
 
     dlat = 1.25
-    lat_points =  np.arange(-90 + 0.5*dlat, 90., dlat)
+    lat_points = np.arange(-90 + 0.5*dlat, 90., dlat)
     return (lat_points, um2nc.GRID_END_GAME, dlat)
 
 
 @pytest.fixture
 def lon_points_standard_dlon_EG():
-    # Array of longitude points and corresponding spacing imitating the 
-    # standard (not river or u) lon grid for CM2 which uses grid 
+    # Array of longitude points and corresponding spacing imitating the
+    # standard (not river or u) lon grid for CM2 which uses grid
     # type EG.
 
     dlon = 1.875
-    lon_points =  np.arange(0.5*dlon, 360, dlon)
+    lon_points = np.arange(0.5*dlon, 360, dlon)
     return (lon_points, um2nc.GRID_END_GAME, dlon)
 
 
@@ -764,7 +764,7 @@ def test_is_lat_river_grid(lat_river_points, lat_points_standard_dlat_ND):
 
     # latitude points on ESM1.5 N96
     not_lat_river_points = lat_points_standard_dlat_ND[0]
-    
+
     assert len(not_lat_river_points) != um2nc.NUM_LAT_RIVER_GRID_POINTS
     assert not um2nc.is_lat_river_grid(not_lat_river_points)
 
@@ -779,15 +779,15 @@ def test_is_lon_river_grid(lon_river_points, lon_points_standard_dlon_ND):
     assert not um2nc.is_lon_river_grid(not_lon_river_points)
 
 
-def test_is_lat_v_grid(lat_v_points_dlat_EG, 
+def test_is_lat_v_grid(lat_v_points_dlat_EG,
                        lat_v_points_dlat_ND,
                        lat_points_standard_dlat_ND,
                        lat_points_standard_dlat_EG
-                    ):
-    lat_v_points, grid_code, dlat  = lat_v_points_dlat_EG
+                       ):
+    lat_v_points, grid_code, dlat = lat_v_points_dlat_EG
     assert um2nc.is_lat_v_grid(lat_v_points, grid_code, dlat)
 
-    lat_v_points, grid_code, dlat  = lat_v_points_dlat_ND
+    lat_v_points, grid_code, dlat = lat_v_points_dlat_ND
     assert um2nc.is_lat_v_grid(lat_v_points, grid_code, dlat)
 
     not_lat_v_points, grid_code, dlat = lat_points_standard_dlat_EG
@@ -797,15 +797,15 @@ def test_is_lat_v_grid(lat_v_points_dlat_EG,
     assert not um2nc.is_lat_v_grid(not_lat_v_points, grid_code, dlat)
 
 
-def test_is_lon_u_grid(lon_u_points_dlon_EG, 
+def test_is_lon_u_grid(lon_u_points_dlon_EG,
                        lon_u_points_dlon_ND,
                        lon_points_standard_dlon_ND,
-                       lon_points_standard_dlon_EG 
-                    ):
-    lon_u_points, grid_code, dlon  = lon_u_points_dlon_EG
+                       lon_points_standard_dlon_EG
+                       ):
+    lon_u_points, grid_code, dlon = lon_u_points_dlon_EG
     assert um2nc.is_lon_u_grid(lon_u_points, grid_code, dlon)
 
-    lon_u_points, grid_code, dlon  = lon_u_points_dlon_ND
+    lon_u_points, grid_code, dlon = lon_u_points_dlon_ND
     assert um2nc.is_lon_u_grid(lon_u_points, grid_code, dlon)
 
     not_lon_u_points, grid_code, dlon = lon_points_standard_dlon_EG
@@ -825,10 +825,11 @@ class DummyCoordinate:
     bounds: np.ndarray = None
     # Note that var_name attribute is different thing to return
     # value of name() method.
-    var_name: str = None 
-    
+    var_name: str = None
+
     def name(self):
         return self.coordname
+
     def has_bounds(self):
         return self.bounds is not None
 
@@ -836,22 +837,22 @@ class DummyCoordinate:
 def test_add_latlon_coord_bounds_has_bounds():
     # Test that bounds are not modified if they already exist
     lon_points = np.array([1., 2., 3.])
-    lon_bounds =  np.array([[0.5, 1.5],
-                  [1.5, 2.5],
-                  [2.5, 3.5]])
+    lon_bounds = np.array([[0.5, 1.5],
+                           [1.5, 2.5],
+                           [2.5, 3.5]])
     lon_coord_with_bounds = DummyCoordinate(
         um2nc.LON_COORD_NAME,
         lon_points,
         lon_bounds
     )
     assert lon_coord_with_bounds.has_bounds()
-    
+
     um2nc.add_latlon_coord_bounds(lon_coord_with_bounds)
     assert np.array_equal(lon_coord_with_bounds.bounds, lon_bounds)
 
 
 def test_add_latlon_coord_guess_bounds():
-    # Test that guess_bounds method is called when 
+    # Test that guess_bounds method is called when
     # coordinate has no bounds and length > 1.
     lon_points = np.array([0., 1.])
     lon_coord_nobounds = DummyCoordinate(
@@ -861,7 +862,7 @@ def test_add_latlon_coord_guess_bounds():
 
     # Mock Iris' guess_bounds method to check whether it is called
     lon_coord_nobounds.guess_bounds = mock.Mock(return_value=None)
-    
+
     assert len(lon_coord_nobounds.points) > 1
     assert not lon_coord_nobounds.has_bounds()
 
@@ -872,7 +873,7 @@ def test_add_latlon_coord_guess_bounds():
 
 def test_add_latlon_coord_single():
     # Test that the correct global bounds are added to coordinates
-    # with just a single point. 
+    # with just a single point.
     for coord_name in [um2nc.LON_COORD_NAME, um2nc.LAT_COORD_NAME]:
         points = np.array([0.])
         coord_single_point = DummyCoordinate(
@@ -906,32 +907,32 @@ def test_fix_lat_coord_name():
     # Following values are ignored due to mocking of checking functions.
     grid_type = um2nc.GRID_END_GAME
     dlat = 1.875
-    lat_points = np.array([1.,2.,3.])
+    lat_points = np.array([1., 2., 3.])
 
     latitude_coordinate = DummyCoordinate(
         um2nc.LAT_COORD_NAME,
         lat_points
     )
-    assert latitude_coordinate.var_name is None 
+    assert latitude_coordinate.var_name is None
 
-    # Mock the return value of grid checking functions in order to simplify test setup, 
+    # Mock the return value of grid checking functions in order to simplify test setup,
     # since grid checking functions have their own tests.
-    with mock.patch("umpost.um2netcdf.is_lat_river_grid", return_value = True):
+    with mock.patch("umpost.um2netcdf.is_lat_river_grid", return_value=True):
         um2nc.fix_lat_coord_name(latitude_coordinate, grid_type, dlat)
     assert latitude_coordinate.var_name == "lat_river"
 
-    latitude_coordinate.var_name = None 
+    latitude_coordinate.var_name = None
     with (
-        mock.patch("umpost.um2netcdf.is_lat_river_grid", return_value = False),
-        mock.patch("umpost.um2netcdf.is_lat_v_grid", return_value = True)
+        mock.patch("umpost.um2netcdf.is_lat_river_grid", return_value=False),
+        mock.patch("umpost.um2netcdf.is_lat_v_grid", return_value=True)
     ):
         um2nc.fix_lat_coord_name(latitude_coordinate, grid_type, dlat)
     assert latitude_coordinate.var_name == "lat_v"
 
-    latitude_coordinate.var_name = None 
+    latitude_coordinate.var_name = None
     with (
-        mock.patch("umpost.um2netcdf.is_lat_river_grid", return_value = False),
-        mock.patch("umpost.um2netcdf.is_lat_v_grid", return_value = False)
+        mock.patch("umpost.um2netcdf.is_lat_river_grid", return_value=False),
+        mock.patch("umpost.um2netcdf.is_lat_v_grid", return_value=False)
     ):
         um2nc.fix_lat_coord_name(latitude_coordinate, grid_type, dlat)
     assert latitude_coordinate.var_name == "lat"
@@ -941,32 +942,32 @@ def test_fix_lon_coord_name():
     # Following values are ignored due to mocking of checking functions.
     grid_type = um2nc.GRID_END_GAME
     dlon = 1.875
-    lon_points = np.array([1.,2.,3.])
+    lon_points = np.array([1., 2., 3.])
 
     longitude_coordinate = DummyCoordinate(
         um2nc.LON_COORD_NAME,
         lon_points
     )
-    assert longitude_coordinate.var_name is None 
+    assert longitude_coordinate.var_name is None
 
-    # Mock the return value of grid checking functions in order to simplify test setup, 
+    # Mock the return value of grid checking functions in order to simplify test setup,
     # since grid checking functions have their own tests.
-    with mock.patch("umpost.um2netcdf.is_lon_river_grid", return_value = True):
+    with mock.patch("umpost.um2netcdf.is_lon_river_grid", return_value=True):
         um2nc.fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
     assert longitude_coordinate.var_name == "lon_river"
 
     longitude_coordinate.var_name = None 
     with (
-        mock.patch("umpost.um2netcdf.is_lon_river_grid", return_value = False),
-        mock.patch("umpost.um2netcdf.is_lon_u_grid", return_value = True)
+        mock.patch("umpost.um2netcdf.is_lon_river_grid", return_value=False),
+        mock.patch("umpost.um2netcdf.is_lon_u_grid", return_value=True)
     ):
         um2nc.fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
     assert longitude_coordinate.var_name == "lon_u"
 
-    longitude_coordinate.var_name = None 
+    longitude_coordinate.var_name = None
     with (
-        mock.patch("umpost.um2netcdf.is_lon_river_grid", return_value = False),
-        mock.patch("umpost.um2netcdf.is_lon_u_grid", return_value = False)
+        mock.patch("umpost.um2netcdf.is_lon_river_grid", return_value=False),
+        mock.patch("umpost.um2netcdf.is_lon_u_grid", return_value=False)
     ):
         um2nc.fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
     assert longitude_coordinate.var_name == "lon"
@@ -1003,20 +1004,20 @@ def test_fix_lon_coord_name_error(coordinate_fake_name):
 
 
 class DummyCubeWithCoords(DummyCube):
-    # DummyCube with coordinates, which can be filled with 
+    # DummyCube with coordinates, which can be filled with
     # DummyCoordinate objects for testing.
-    def __init__(self, item_code, var_name=None, attributes=None, units=None, coords = {}):
+    def __init__(self, item_code, var_name=None, attributes=None, units=None, coords={}):
         super().__init__(item_code, var_name, attributes, units)
-        self.coordinate_dict = coords 
+        self.coordinate_dict = coords
 
     def coord(self, coordinate_name):
         return self.coordinate_dict[coordinate_name]
 
-    
+
 @pytest.fixture
 def ua_plev_cube_with_latlon_coords(ua_plev_cube): 
-    lat_points = np.array([-90., -88.75, -87.5], dtype = "float32")
-    lon_points = np.array([ 0., 1.875, 3.75], dtype = "float32")
+    lat_points = np.array([-90., -88.75, -87.5], dtype="float32")
+    lon_points = np.array([0., 1.875, 3.75], dtype="float32")
 
     lat_coord_object = DummyCoordinate(
         um2nc.LAT_COORD_NAME,
@@ -1036,14 +1037,14 @@ def ua_plev_cube_with_latlon_coords(ua_plev_cube):
         ua_plev_cube.item_code,
         ua_plev_cube.var_name,
         coords=coords_dict
-    )    
-    
+    )
+
     return cube_with_coords
 
 
 def test_fix_latlon_coords_type_change(ua_plev_cube_with_latlon_coords):
     # Test that coordinate arrays are converted to float64
-    
+
     # Following values don't matter for test. Just needed as arguments
     grid_type = um2nc.GRID_NEW_DYNAMICS
     dlat = 1.25

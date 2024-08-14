@@ -68,7 +68,7 @@ class PostProcessingError(Exception):
 
 class UnsupportedTimeSeriesError(PostProcessingError):
     """
-    Error to be raised when latitude and longitude coordinates 
+    Error to be raised when latitude and longitude coordinates
     are missing.
     """
     pass
@@ -161,7 +161,7 @@ def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
     ----------
     lon_coordinate: coordinate object from iris cube (edits in place).
     grid_type: (string) model horizontal grid type.
-    dlon: (float) zonal spacing between longitude grid points. 
+    dlon: (float) zonal spacing between longitude grid points.
     """
 
     if lon_coordinate.name() != LON_COORD_NAME:
@@ -232,7 +232,7 @@ def is_lon_u_grid(longitude_points, grid_type, dlon):
     ----------
     longitude_points: (array) 1D array of longitude grid points.
     grid_type: (string) model horizontal grid type.
-    dlon: (float) zonal spacing between longitude grid points. 
+    dlon: (float) zonal spacing between longitude grid points.
     """
     min_longitude = longitude_points[0]
     min_lon_u_nd_grid = 0.5*dlon
@@ -274,7 +274,7 @@ def add_latlon_coord_bounds(cube_coordinate):
 
 def fix_latlon_coords(cube, grid_type, dlat, dlon):
     """
-    Wrapper function to modify cube's horizontal coordinates 
+    Wrapper function to modify cube's horizontal coordinates
     (latitude and longitude). Converts to float64, adds grid bounds,
     and renames coordinates. Modifies cube in place.
 
