@@ -10,6 +10,7 @@ import numpy as np
 import mule
 import mule.ff
 import iris.cube
+import iris.coords
 
 
 @pytest.fixture
@@ -648,3 +649,25 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
     for unit in ("", None):
         um2nc.fix_units(ua_plev_cube, unit, verbose=False)
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
+
+
+def test_fix_cell_methods_drop_hours():
+    cm = iris.coords.CellMethod("mean", "time", "3 hour")
+    modified = um2nc.fix_cell_methods((cm,))
+    assert len(modified) == 1
+
+    mod = modified[0]
+    assert mod.method == cm.method
+    assert mod.coord_names == cm.coord_names
+    assert mod.intervals == ()
+
+
+def test_fix_cell_methods_keep_weeks():
+    cm = iris.coords.CellMethod("mean", "time", "week")
+    modified = um2nc.fix_cell_methods((cm,))
+    assert len(modified) == 1
+
+    mod = modified[0]
+    assert mod.method == cm.method
+    assert mod.coord_names == cm.coord_names
+    assert mod.intervals[0] == "week"
