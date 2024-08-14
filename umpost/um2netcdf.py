@@ -11,10 +11,10 @@ Note that um2netcdf depends on the following data access libraries:
 """
 
 import os
-import sys
 import argparse
 import datetime
 import warnings
+import collections
 
 from umpost import stashvar_cmip6 as stashvar
 
@@ -52,6 +52,13 @@ GLOBAL_COORD_BOUNDS = {
 NUM_LAT_RIVER_GRID = 180
 NUM_LON_RIVER_GRID = 360
  
+
+NC_FORMATS = {
+    1: 'NETCDF3_CLASSIC',
+    2: 'NETCDF3_64BIT',
+    3: 'NETCDF4',
+    4: 'NETCDF4_CLASSIC'
+}
 
 
 class PostProcessingError(Exception):
@@ -322,6 +329,7 @@ def fix_level_coord(cube, z_rho, z_theta):
                 c_sigma.var_name = 'sigma_theta'
 
 
+# TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
     try:
         plevs = cube.coord('pressure')
@@ -461,38 +469,29 @@ def apply_mask(c, heaviside, hcrit):
 
 
 def process(infile, outfile, args):
-    # Use mule to get the model levels to help with dimension naming
-    # mule 2020.01.1 doesn't handle pathlib Paths properly
     ff = mule.load_umfile(str(infile))
-
-    if isinstance(ff, mule.ancil.AncilFile):
-        raise NotImplementedError('Ancillary files are currently not supported')
-
-    # TODO: eventually move these calls closer to their usage
-    grid_type = get_grid_type(ff)
-    dlat, dlon = get_grid_spacing(ff)
-    z_rho, z_theta = get_z_sea_constants(ff)
+    mv = process_mule_vars(ff)
 
     cubes = iris.load(infile)
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
-    (need_heaviside_uv, heaviside_uv,
-     need_heaviside_t, heaviside_t) = check_pressure_level_masking(cubes)
+    if args.include_list or args.exclude_list:
+        cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
 
-    do_mask = not args.nomask  # make warning logic more readable
+    do_masking = not args.nomask
+    heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
 
-    if do_mask:
-        # TODO: rename func to better name
-        check_pressure_warnings(need_heaviside_uv, heaviside_uv,
-                                need_heaviside_t, heaviside_t)
+    if do_masking:
+        # drop cubes which cannot be pressure masked if heaviside uv or t is missing
+        # otherwise keep all cubes when masking is off
+        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
-    # TODO: can NC type be a single arg?
-    #       defer to new process() API
-    nc_formats = {1: 'NETCDF3_CLASSIC', 2: 'NETCDF3_64BIT',
-                  3: 'NETCDF4', 4: 'NETCDF4_CLASSIC'}
+    if not cubes:
+        print("No cubes left to process after filtering")
+        return cubes
 
-    with iris.fileformats.netcdf.Saver(outfile, nc_formats[args.nckind]) as sman:
+    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # TODO: move attribute mods to end of process() to group sman ops
         #       do when sman ops refactored into a write function
         # Add global attributes
@@ -501,7 +500,7 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c in filtered_cubes(cubes, args.include_list, args.exclude_list):
+        for c in cubes:
             umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
 
             fix_var_name(c, umvar.uniquename, args.simple)
@@ -512,28 +511,58 @@ def process(infile, outfile, args):
             # Interval in cell methods isn't reliable so better to remove it.
             c.cell_methods = fix_cell_methods(c.cell_methods)
 
-            fix_latlon_coords(c, grid_type, dlat, dlon)
+            fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
 
-            fix_level_coord(c, z_rho, z_theta)
+            fix_level_coord(c, mv.z_rho, mv.z_theta)
 
-            if do_mask:
+            if do_masking:
                 # Pressure level data should be masked
-                if require_heaviside_uv(c.item_code):
-                    if heaviside_uv:
-                        apply_mask(c, heaviside_uv, args.hcrit)
-                    else:
-                        continue
+                if require_heaviside_uv(c.item_code) and heaviside_uv:
+                    apply_mask(c, heaviside_uv, args.hcrit)
 
-                if require_heaviside_t(c.item_code):
-                    if heaviside_t:
-                        apply_mask(c, heaviside_t, args.hcrit)
-                    else:
-                        continue
+                if require_heaviside_t(c.item_code) and heaviside_t:
+                    apply_mask(c, heaviside_t, args.hcrit)
 
             if args.verbose:
                 print(c.name(), c.item_code)
 
+            # TODO: split cubewrite ops into funcs & bring those steps into process() workflow
+            #       or a sub process workflow function (like process_mule_vars())
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
+
+    return cubes
+
+
+MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z_theta")
+
+
+# TODO: rename this function, it's *getting* variables
+def process_mule_vars(fields_file: mule.ff.FieldsFile):
+    """
+    Extract model levels and grid structure with Mule.
+
+    The model levels help with workflow dimension naming.
+
+    Parameters
+    ----------
+    fields_file : an open mule fields file.
+
+    Returns
+    -------
+    A MuleVars data structure.
+    """
+    if isinstance(fields_file, mule.ancil.AncilFile):
+        raise NotImplementedError('Ancillary files are currently not supported')
+
+    if mule.__version__ == "2020.01.1":
+        msg = "mule 2020.01.1 doesn't handle pathlib Paths properly"
+        raise NotImplementedError(msg)  # fail fast
+
+    grid_type = get_grid_type(fields_file)
+    d_lat, d_lon = get_grid_spacing(fields_file)
+    z_rho, z_theta = get_z_sea_constants(fields_file)
+
+    return MuleVars(grid_type, d_lat, d_lon, z_rho, z_theta)
 
 
 def get_grid_type(ff):
@@ -618,52 +647,46 @@ def to_item_code(stash_code):
     return 1000 * stash_code.section + stash_code.item
 
 
+def to_stash_code(item_code: int):
+    """Helper: convert item code back to older section & item components."""
+    return item_code // 1000, item_code % 1000
+
+
 def set_item_codes(cubes):
     for cube in cubes:
         if hasattr(cube, ITEM_CODE):
-            msg = f"Cube {cube.var_name} already has 'item_code' attribute"
-            raise NotImplementedError(msg)
+            msg = f"Cube {cube.var_name} already has 'item_code' attribute, skipping."
+            warnings.warn(msg)
+            continue
 
         # hack: manually store item_code in cubes
         item_code = to_item_code(cube.attributes[STASH])
         setattr(cube, ITEM_CODE, item_code)
 
 
-def check_pressure_level_masking(cubes):
+def get_heaviside_cubes(cubes):
     """
-    Examines cubes for heaviside uv/t pressure level masking components.
+    Finds heaviside_uv, heaviside_t cubes in given sequence.
 
     Parameters
     ----------
-    cubes : sequence iris Cube objects.
+    cubes : sequence of cubes.
 
     Returns
     -------
-    Tuple: (need_heaviside_uv [bool], heaviside_uv [iris cube or None],
-            need_heaviside_t [bool], heaviside_t [iris cube or None])
-
+    (heaviside_uv, heaviside_t) tuple, or None for either cube where the
+        heaviside_uv/t cubes not found.
     """
-    # Check whether there are any pressure level fields that should be masked.
-    # Can use temperature to mask instantaneous fields, so really should check
-    # whether these are time means
-    need_heaviside_uv = need_heaviside_t = False
     heaviside_uv = None
     heaviside_t = None
 
     for cube in cubes:
-        if require_heaviside_uv(cube.item_code):
-            need_heaviside_uv = True
-
         if is_heaviside_uv(cube.item_code):
             heaviside_uv = cube
-
-        if require_heaviside_t(cube.item_code):
-            need_heaviside_t = True
-
-        if is_heaviside_t(cube.item_code):
+        elif is_heaviside_t(cube.item_code):
             heaviside_t = cube
 
-    return need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t
+    return heaviside_uv, heaviside_t
 
 
 def require_heaviside_uv(item_code):
@@ -686,24 +709,36 @@ def is_heaviside_t(item_code):
     return item_code == 30304
 
 
-def check_pressure_warnings(need_heaviside_uv, heaviside_uv, need_heaviside_t, heaviside_t):
+def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     """
-    Prints warnings if either of heaviside uv/t are required and not present.
+    Yields cubes that:
+    * do not require pressure level masking
+    * require pressure level masking & the relevant masking cube exists
+
+    This provides filtering to remove cubes from workflows for efficiency.
 
     Parameters
     ----------
-    need_heaviside_uv : (bool)
-    heaviside_uv : iris Cube or None
-    need_heaviside_t : (bool)
-    heaviside_t : iris Cube or None
+    cubes : sequence of iris cubes for filtering
+    heaviside_uv : heaviside_uv cube or None if it's missing
+    heaviside_t : heaviside_t cube or None if it's missing
+    verbose : True to emit warnings to indicate a cube has been removed
     """
-    if need_heaviside_uv and heaviside_uv is None:
-        print("Warning: heaviside_uv field needed for masking pressure level data is not present. "
-              "These fields will be skipped")
+    msg = ("{} field needed for masking pressure level data is missing. "
+           "Excluding cube '{}' as it cannot be masked")
 
-    if need_heaviside_t and heaviside_t is None:
-        print("Warning: heaviside_t field needed for masking pressure level data is not present. "
-              "These fields will be skipped")
+    for c in cubes:
+        if require_heaviside_uv(c.item_code) and heaviside_uv is None:
+            if verbose:
+                warnings.warn(msg.format("heaviside_uv", c.name()))
+            continue
+
+        elif require_heaviside_t(c.item_code) and heaviside_t is None:
+            if verbose:
+                warnings.warn(msg.format("heaviside_t", c.name()))
+            continue
+
+        yield c
 
 
 def filtered_cubes(cubes, include=None, exclude=None):
