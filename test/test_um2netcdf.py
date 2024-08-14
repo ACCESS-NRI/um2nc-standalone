@@ -1,4 +1,7 @@
 import unittest.mock as mock
+
+import math
+import copy
 from dataclasses import dataclass
 from collections import namedtuple
 
@@ -266,6 +269,25 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
 
         for pc in processed:
             assert pc in cubes
+
+
+def test_apply_mask_with_matching_grid_extents(air_temp_cube, heaviside_uv_cube):
+    """TODO"""
+    shape = (2, 5, 3)
+    total = math.prod(shape)
+
+    air_temp_cube.shape = shape
+    orig_temp = np.linspace(0.0, 310.0, total).reshape(shape)  # assuming in Kelvin
+    air_temp_cube.data = copy.copy(orig_temp)  # copy to test data is modified
+
+    heaviside_uv_cube.shape = shape
+    heaviside_uv_cube.data = np.linspace(0.0, 1.0, total).reshape(shape)
+    default_hcrit = 0.5
+
+    um2nc.apply_mask(air_temp_cube, heaviside_uv_cube, default_hcrit)
+
+    # TODO: how to test the outputs & masked, non-masked?
+    assert np.any(air_temp_cube.data != orig_temp)
 
 
 def test_to_stash_code():
