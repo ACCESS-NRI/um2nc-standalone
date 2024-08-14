@@ -652,6 +652,8 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
 
 
 def test_fix_cell_methods_drop_hours():
+    # ensure cell methods with "hour" in the interval name are translated to
+    # empty intervals
     cm = iris.coords.CellMethod("mean", "time", "3 hour")
     modified = um2nc.fix_cell_methods((cm,))
     assert len(modified) == 1
@@ -663,6 +665,7 @@ def test_fix_cell_methods_drop_hours():
 
 
 def test_fix_cell_methods_keep_weeks():
+    # ensure cell methods with non "hour" intervals are left as is
     cm = iris.coords.CellMethod("mean", "time", "week")
     modified = um2nc.fix_cell_methods((cm,))
     assert len(modified) == 1
