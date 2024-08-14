@@ -266,18 +266,13 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
 
 
-def fix_cell_methods(mtuple):
-    # Input is tuple of cell methods
-    newm = []
-    for m in mtuple:
-        newi = []
-        for i in m.intervals:
-            # Skip the misleading hour intervals
-            if i.find('hour') == -1:
-                newi.append(i)
-        n = CellMethod(m.method, m.coord_names, tuple(newi), m.comments)
-        newm.append(n)
-    return tuple(newm)
+def fix_cell_methods(cell_methods):
+    return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments)
+                 for m in cell_methods)
+
+
+def _remove_hour_interval(cell_method):
+    return (i for i in cell_method.intervals if i.find('hour') == -1)
 
 
 def apply_mask(c, heaviside, hcrit):
