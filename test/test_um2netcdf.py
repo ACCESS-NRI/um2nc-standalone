@@ -71,8 +71,6 @@ def set_default_attrs(cube, item_code: int, var_name: str):
     cube.__dict__.update({"item_code": item_code,
                           "var_name": var_name,
                           "long_name": "",
-                          "coord": {"latitude": 0.0,  # TODO: real val = ?
-                                    "longitude": 0.0},  # TODO: real val
                           "cell_methods": [],
                           "data": None,
                           })
@@ -281,10 +279,39 @@ def test_apply_mask_with_matching_grid_extents(air_temp_cube, heaviside_uv_cube)
 
     air_temp_cube.shape = shape
     orig_temp = np.linspace(0.0, 310.0, total).reshape(shape)  # assuming in Kelvin
-    air_temp_cube.data = copy.copy(orig_temp)  # copy to test data is modified
+    air_temp_cube.data = copy.copy(orig_temp)  # copy so the mock data is modified
 
     heaviside_uv_cube.shape = shape
     heaviside_uv_cube.data = np.linspace(0.0, 1.0, total).reshape(shape)
+
+    um2nc.apply_mask(air_temp_cube, heaviside_uv_cube, DEFAULT_HCRIT)
+
+    # TODO: how to test the outputs & masked, non-masked?
+    assert np.any(air_temp_cube.data != orig_temp)
+
+
+def test_apply_mask_with_non_matching_grid_extents(air_temp_cube, heaviside_uv_cube):
+    # make air_temp a subset of heaviside
+    shape = (2, 5, 3)
+    total = math.prod(shape)
+    points = [0, 1, 2, 3, 4]
+
+    heaviside_uv_cube.shape = shape
+    heaviside_uv_cube.data = np.linspace(0.0, 1.0, total).reshape(shape)
+    heaviside_uv_cube.coord("pressure").points = points
+
+    # FIXME: ugly mocking details as we're not using iris objs
+    m_h_tmp = mock.Mock()
+    m_h_tmp.coord("pressure").points = points
+    m_h_tmp.data = heaviside_uv_cube.data
+    heaviside_uv_cube.extract.return_value = m_h_tmp
+
+    sub_shape = (1, 5, 3)  # TODO; is subsetting on 1 axis valid?
+    sub_total = math.prod(sub_shape)
+    air_temp_cube.shape = sub_shape
+    orig_temp = np.linspace(0.0, 310.0, sub_total).reshape(sub_shape)  # assuming in Kelvin
+    air_temp_cube.data = copy.copy(orig_temp)  # copy so the mock data is modified
+    air_temp_cube.coord("pressure").points = points
 
     um2nc.apply_mask(air_temp_cube, heaviside_uv_cube, DEFAULT_HCRIT)
 
@@ -442,7 +469,10 @@ def ua_plev_cube():
 
 @pytest.fixture
 def heaviside_uv_cube():
-    return DummyCube(30301, "heaviside_uv")
+    name = "heaviside_uv"
+    m_heaviside = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
+    set_default_attrs(m_heaviside, 30301, name)
+    return m_heaviside
 
 
 @pytest.fixture
