@@ -15,6 +15,9 @@ import mule.ff
 import iris.cube
 
 
+DEFAULT_HCRIT = 0.5
+
+
 @pytest.fixture
 def z_sea_rho_data():
     # data ripped from aiihca.paa1jan.subset: ff.level_dependent_constants.zsea_at_rho
@@ -282,9 +285,8 @@ def test_apply_mask_with_matching_grid_extents(air_temp_cube, heaviside_uv_cube)
 
     heaviside_uv_cube.shape = shape
     heaviside_uv_cube.data = np.linspace(0.0, 1.0, total).reshape(shape)
-    default_hcrit = 0.5
 
-    um2nc.apply_mask(air_temp_cube, heaviside_uv_cube, default_hcrit)
+    um2nc.apply_mask(air_temp_cube, heaviside_uv_cube, DEFAULT_HCRIT)
 
     # TODO: how to test the outputs & masked, non-masked?
     assert np.any(air_temp_cube.data != orig_temp)
