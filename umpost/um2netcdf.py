@@ -267,11 +267,25 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 
 
 def fix_cell_methods(cell_methods):
+    """
+    Removes misleading 'hour' from interval naming, leaving other names intact.
+
+    TODO: is this an iris bug?
+
+    Parameters
+    ----------
+    cell_methods : the cell methods from a Cube (usually a tuple)
+
+    Returns
+    -------
+    A tuple of cell methods, with "hour" removed from interval names
+    """
     return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments)
                  for m in cell_methods)
 
 
 def _remove_hour_interval(cell_method):
+    """Helper retains all non 'hour' intervals."""
     return (i for i in cell_method.intervals if i.find('hour') == -1)
 
 
