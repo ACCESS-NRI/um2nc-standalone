@@ -149,7 +149,7 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
 
         # TODO: lat/long & level coord fixes require more internal data attrs
         #       skip temporarily to manage test complexity
-        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -208,7 +208,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
 
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
         mock.patch("umpost.um2netcdf.cubewrite"),
@@ -249,7 +249,7 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
 
-        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -396,7 +396,10 @@ class DummyCube:
         self.units = None or units
         self.standard_name = None
         self.long_name = None
-        self.coord = {}
+        # TODO: Can I remove this... It breaks DummyCubeWithCoords
+        # It could be required if apply_mask is called during process
+        # tests. Would cause a KeyError anyway?
+        # self.coord = {}
 
     def name(self):
         # mimic iris API
@@ -756,23 +759,23 @@ def lon_points_standard_dlon_EG():
 
 
 def test_is_lat_river_grid(lat_river_points, lat_points_standard_dlat_ND):
-    assert len(lat_river_points) == um2nc.NUM_LAT_RIVER_GRID
+    assert len(lat_river_points) == um2nc.NUM_LAT_RIVER_GRID_POINTS
     assert um2nc.is_lat_river_grid(lat_river_points)
 
     # latitude points on ESM1.5 N96
     not_lat_river_points = lat_points_standard_dlat_ND[0]
     
-    assert len(not_lat_river_points) != um2nc.NUM_LAT_RIVER_GRID
+    assert len(not_lat_river_points) != um2nc.NUM_LAT_RIVER_GRID_POINTS
     assert not um2nc.is_lat_river_grid(not_lat_river_points)
 
 
 def test_is_lon_river_grid(lon_river_points, lon_points_standard_dlon_ND):
-    assert len(lon_river_points) == um2nc.NUM_LON_RIVER_GRID
+    assert len(lon_river_points) == um2nc.NUM_LON_RIVER_GRID_POINTS
     assert um2nc.is_lon_river_grid(lon_river_points)
 
     # longitude points on normal ESM1.5 N96 grid
     not_lon_river_points = lon_points_standard_dlon_ND[0]
-    assert len(not_lon_river_points) != um2nc.NUM_LON_RIVER_GRID
+    assert len(not_lon_river_points) != um2nc.NUM_LON_RIVER_GRID_POINTS
     assert not um2nc.is_lon_river_grid(not_lon_river_points)
 
 
@@ -1000,20 +1003,20 @@ def test_fix_lon_coord_name_error(coordinate_fake_name):
 
 
 class DummyCubeWithCoords(DummyCube):
-     # DummyCube with coordinates, which can be filled with 
-     # DummyCoordinate objects for testing.
-     def __init__(self, item_code, var_name=None, attributes=None, units=None, coords = {}):
+    # DummyCube with coordinates, which can be filled with 
+    # DummyCoordinate objects for testing.
+    def __init__(self, item_code, var_name=None, attributes=None, units=None, coords = {}):
         super().__init__(item_code, var_name, attributes, units)
         self.coordinate_dict = coords 
 
-     def coord(self, coordinate_name):
+    def coord(self, coordinate_name):
         return self.coordinate_dict[coordinate_name]
 
     
 @pytest.fixture
 def ua_plev_cube_with_latlon_coords(ua_plev_cube): 
-    lat_points = np.array([-90., -88.75, -87.5 ], dtype = "float32")
-    lon_points = np.array([ 0., 1.875, 3.75 ], dtype = "float32")
+    lat_points = np.array([-90., -88.75, -87.5], dtype = "float32")
+    lon_points = np.array([ 0., 1.875, 3.75], dtype = "float32")
 
     lat_coord_object = DummyCoordinate(
         um2nc.LAT_COORD_NAME,
@@ -1030,9 +1033,9 @@ def ua_plev_cube_with_latlon_coords(ua_plev_cube):
     }
 
     cube_with_coords = DummyCubeWithCoords(
-        ua_plev_cube.item_code, 
+        ua_plev_cube.item_code,
         ua_plev_cube.var_name,
-        coords = coords_dict
+        coords=coords_dict
     )    
     
     return cube_with_coords
@@ -1051,14 +1054,13 @@ def test_fix_latlon_coords_type_change(ua_plev_cube_with_latlon_coords):
 
     assert lat_coord.points.dtype == np.dtype("float32")
     assert lon_coord.points.dtype == np.dtype("float32")
-    
 
     # Mock additional functions called by um2nc.fix_latlon_coords, as they may
-    # require methods not implemented by the DummyCubeWithCoordinates. 
+    # require methods not implemented by the DummyCubeWithCoordinates.
     with (
-        mock.patch("umpost.um2netcdf.add_latlon_coord_bounds", return_value = None),
-        mock.patch("umpost.um2netcdf.fix_lat_coord_name", return_value = None),
-        mock.patch("umpost.um2netcdf.fix_lon_coord_name", return_value = None)
+        mock.patch("umpost.um2netcdf.add_latlon_coord_bounds", return_value=None),
+        mock.patch("umpost.um2netcdf.fix_lat_coord_name", return_value=None),
+        mock.patch("umpost.um2netcdf.fix_lon_coord_name", return_value=None)
     ):
         um2nc.fix_latlon_coords(ua_plev_cube_with_latlon_coords, grid_type, dlat, dlon)
 
@@ -1066,25 +1068,23 @@ def test_fix_latlon_coords_type_change(ua_plev_cube_with_latlon_coords):
     assert lon_coord.points.dtype == np.dtype("float64")
 
 
-
 def test_fix_latlon_coords_error(ua_plev_cube_with_latlon_coords):
     # Test that fix_latlon_coords raises the right type of error when a cube
     # is missing coordinates
     def _raise_CoordinateNotFoundError(coord_name):
-        # Include an argument "coord_name" to mimic the signature of an 
+        # Include an argument "coord_name" to mimic the signature of an
         # Iris cube's ".coord" method
-        raise CoordinateNotFoundError(coord_name)
-    
+        raise iris.exceptions.CoordinateNotFoundError(coord_name)
+
     # Following values don't matter for test. Just needed as arguments
     grid_type = um2nc.GRID_NEW_DYNAMICS
     dlat = 1.25
     dlon = 1.875
-    
-    # Replace coord method to raise CoordinateNotFoundError
+
+    # Replace coord method to raise UnsupportedTimeSeriesError
     ua_plev_cube_with_latlon_coords.coord = _raise_CoordinateNotFoundError
 
     with (
-        pytest.warns(),
-        pytest.raises(CoordinateNotFoundError)
+        pytest.raises(um2nc.UnsupportedTimeSeriesError)
     ):
         um2nc.fix_latlon_coords(ua_plev_cube_with_latlon_coords, grid_type, dlat, dlon)
