@@ -44,6 +44,7 @@ test:
 about:
     home: https://github.com/access-nri/um2nc-standalone
     license: Apache Software
+    license_file: LICENSE
     license_family: Apache
     summary: "Tool to convert fieldsfiles into netCDF format. Used for post-processing UM climate model output"
 

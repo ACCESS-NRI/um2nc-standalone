@@ -9,7 +9,7 @@ maintainers = [
     { name = "ACCESS-NRI", email = "access.nri@anu.edu.au" }
 ]
 description = "Program to convert Unified Model output files in fields file format to netCDF"
-license = { text = "Apache-2.0" }
+license = { file = "LICENSE" }
 readme = "README.md"
 keywords = ["netCDF", "UM", "postprocessing"]
 dynamic = ["version"]
