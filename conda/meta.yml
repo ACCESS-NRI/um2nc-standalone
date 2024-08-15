@@ -1,0 +1,49 @@
+{% set data = load_setup_py_data(setup_file='../setup.py', from_recipe_dir=True) %}
+{% set version = data.get('version') %}
+{% set pyproj = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
+{% set project = pyproj.get('project') %}
+
+package:
+    name: um2nc
+    version: "{{ version }}"
+
+build:
+    noarch: python
+    number: 0
+    script: "{{ python }} -m pip install . -vv"
+    entry_points:
+        {% for name, script in project.get('scripts', {}).items() %}
+        - {{ name }} = {{ script }}
+        {% endfor %}
+
+source:
+    path: ../
+
+requirements:
+    host:
+        - python
+        - pip
+        - setupools >=61.0.0
+        - versioneer
+    run:
+        - python >=3.10
+        {% for dep in project.get('dependencies', []) %}
+        - {{ dep }}
+        {% endfor %}
+
+test:
+    imports:
+        - umpost
+    requires:
+        - pytest
+    source_files:
+        - test/**
+    commands:
+        - py.test
+
+about:
+    home: https://github.com/access-nri/um2nc-standalone
+    license: Apache Software
+    license_family: Apache
+    summary: "Tool to convert fieldsfiles into netCDF format. Used for post-processing UM climate model output"
+

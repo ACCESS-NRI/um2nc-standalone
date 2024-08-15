@@ -1,0 +1,13 @@
+name: um2nc
+
+channels:
+    - conda-forge
+    - accessnri
+    - coecms
+    - defaults
+
+dependencies:
+    - anaconda-client
+    - conda-build
+    - conda-verify
+    - versioneer
