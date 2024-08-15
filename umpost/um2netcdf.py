@@ -289,7 +289,6 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     dlon: (float) zonal spacing between longitude grid points.
     """
 
-    # TODO: Check that we don't need the double coordinate lookup.
     try:
         latitude_coordinate = cube.coord(LAT_COORD_NAME)
         longitude_coordinate = cube.coord(LON_COORD_NAME)
