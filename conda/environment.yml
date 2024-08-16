@@ -12,3 +12,5 @@ dependencies:
     - conda-verify
     - versioneer
     - pylint
+    - pytest
+    - pytest-cov
