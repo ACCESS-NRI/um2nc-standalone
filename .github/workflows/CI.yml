@@ -77,6 +77,8 @@ jobs:
         with:
           miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
+          environment-file: conda/environment.yml
+          activate-environment: um2nc
 
       - name: DEBUG - where are things
         run: ls ${{ env.ARTIFACT_LOCATION }}
