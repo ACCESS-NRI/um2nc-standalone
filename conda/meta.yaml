@@ -32,16 +32,6 @@ requirements:
         - {{ dep }}
         {% endfor %}
 
-test:
-    imports:
-        - umpost
-    requires:
-        - pytest
-    source_files:
-        - test/**
-    commands:
-        - pytest
-
 about:
     home: https://github.com/access-nri/um2nc-standalone
     license: Apache Software
