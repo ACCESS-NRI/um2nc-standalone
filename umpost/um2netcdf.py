@@ -341,12 +341,11 @@ def process(infile, outfile, args):
 
     # cube processing & modification
     for c in cubes:
-        umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
-
-        fix_var_name(c, umvar.uniquename, args.simple)
-        fix_standard_name(c, umvar.standard_name, args.verbose)
-        fix_long_name(c, umvar.long_name)
-        fix_units(c, umvar.units, args.verbose)
+        st = stashvar.StashVar(c.item_code)
+        fix_var_name(c, st.uniquename, args.simple)
+        fix_standard_name(c, st.standard_name, args.verbose)
+        fix_long_name(c, st.long_name)
+        fix_units(c, st.units, args.verbose)
 
         # Interval in cell methods isn't reliable so better to remove it.
         c.cell_methods = fix_cell_methods(c.cell_methods)
