@@ -339,9 +339,37 @@ def process(infile, outfile, args):
         print("No cubes left to process after filtering")
         return cubes
 
+    # cube processing & modification
+    for c in cubes:
+        umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
+
+        fix_var_name(c, umvar.uniquename, args.simple)
+        fix_standard_name(c, umvar.standard_name, args.verbose)
+        fix_long_name(c, umvar.long_name)
+        fix_units(c, umvar.units, args.verbose)
+
+        # Interval in cell methods isn't reliable so better to remove it.
+        c.cell_methods = fix_cell_methods(c.cell_methods)
+
+        try:
+            fix_latlon_coord(c, mv.grid_type, mv.d_lat, mv.d_lon)
+        except iris.exceptions.CoordinateNotFoundError:
+            print('\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
+            print(c)
+            raise Exception("Variable can not be processed")
+
+        fix_level_coord(c, mv.z_rho, mv.z_theta)
+
+        if do_masking:
+            # Pressure level data should be masked
+            if require_heaviside_uv(c.item_code) and heaviside_uv:
+                apply_mask(c, heaviside_uv, args.hcrit)
+
+            if require_heaviside_t(c.item_code) and heaviside_t:
+                apply_mask(c, heaviside_t, args.hcrit)
+
+    # cube output I/O
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
-        # TODO: move attribute mods to end of process() to group sman ops
-        #       do when sman ops refactored into a write function
         # Add global attributes
         if not args.nohist:
             add_global_history(infile, sman)
@@ -349,37 +377,10 @@ def process(infile, outfile, args):
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
         for c in cubes:
-            umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
-
-            fix_var_name(c, umvar.uniquename, args.simple)
-            fix_standard_name(c, umvar.standard_name, args.verbose)
-            fix_long_name(c, umvar.long_name)
-            fix_units(c, umvar.units, args.verbose)
-
-            # Interval in cell methods isn't reliable so better to remove it.
-            c.cell_methods = fix_cell_methods(c.cell_methods)
-
-            try:
-                fix_latlon_coord(c, mv.grid_type, mv.d_lat, mv.d_lon)
-            except iris.exceptions.CoordinateNotFoundError:
-                print('\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
-                print(c)
-                raise Exception("Variable can not be processed")
-
-            fix_level_coord(c, mv.z_rho, mv.z_theta)
-
-            if do_masking:
-                # Pressure level data should be masked
-                if require_heaviside_uv(c.item_code) and heaviside_uv:
-                    apply_mask(c, heaviside_uv, args.hcrit)
-
-                if require_heaviside_t(c.item_code) and heaviside_t:
-                    apply_mask(c, heaviside_t, args.hcrit)
-
             if args.verbose:
                 print(c.name(), c.item_code)
 
-            # TODO: split cubewrite ops into funcs & bring those steps into process() workflow
+            # TODO: split cubewrite ops into funcs & bring into process() workflow
             #       or a sub process workflow function (like process_mule_vars())
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
 
