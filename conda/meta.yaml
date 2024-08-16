@@ -2,15 +2,16 @@
 {% set version = data.get('version') %}
 {% set pyproj = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
 {% set project = pyproj.get('project') %}
+{% set name = project.get('name') %}
 
 package:
-    name: um2nc
+    name: {{ name }}
     version: "{{ version }}"
 
 build:
     noarch: python
     number: 0
-    script: "{{ python }} -m pip install . -vv"
+    script: "python3 -m pip install . -vv"
     entry_points:
         {% for name, script in project.get('scripts', {}).items() %}
         - {{ name }} = {{ script }}
@@ -23,7 +24,7 @@ requirements:
     host:
         - python
         - pip
-        - setupools >=61.0.0
+        - setuptools >=61.0.0
         - versioneer
     run:
         - python >=3.10
@@ -39,7 +40,7 @@ test:
     source_files:
         - test/**
     commands:
-        - py.test
+        - pytest
 
 about:
     home: https://github.com/access-nri/um2nc-standalone
