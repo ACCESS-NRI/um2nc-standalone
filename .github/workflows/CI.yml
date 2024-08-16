@@ -93,6 +93,7 @@ jobs:
         run: conda list
 
       - name: Lint
+        shell: bash -l {0}
         run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=backports -E umpost
 
       - name: Run tests
