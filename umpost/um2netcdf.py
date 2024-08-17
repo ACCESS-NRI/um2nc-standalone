@@ -211,7 +211,6 @@ def is_lat_v_grid(latitude_points, grid_type, dlat):
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
     """
-
     min_latitude = latitude_points[0]
     min_lat_v_nd_grid = -90.+0.5*dlat
     min_lat_v_eg_grid = -90
