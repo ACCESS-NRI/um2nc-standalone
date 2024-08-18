@@ -157,7 +157,7 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir, delete_ff):
             um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
             succeeded.append((fields_file_path, nc_write_path))
             if delete_ff:
-                fields_file_path.unlink()
+                os.remove(fields_file_path)
 
         except Exception as exc:
             # TODO: Refactor once um2nc has specific exceptions
