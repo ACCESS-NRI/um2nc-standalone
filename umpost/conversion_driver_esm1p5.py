@@ -214,7 +214,7 @@ def format_failures(failed, quiet):
             )
             yield failure_report
     else:
-        
+
         for fields_file_path, exception in failed:
             formatted_traceback = "".join(
                 traceback.format_exception(exception)
@@ -299,7 +299,7 @@ if __name__ == "__main__":
                             "Otherwise report full stack trace."
                         )
                         )
-    parser.add_argument("--delete", "-d", action="store_true",
+    parser.add_argument("--delete_ff", "-d", action="store_true",
                         help="Delete fields files upon successful conversion"
                         )
     args = parser.parse_args()
@@ -307,7 +307,7 @@ if __name__ == "__main__":
     current_output_dir = args.current_output_dir
 
     successes, failures = convert_esm1p5_output_dir(current_output_dir,
-                                                    args.delete)
+                                                    args.delete_ff)
 
     # Report results to user
     for success_message in format_successes(successes):
