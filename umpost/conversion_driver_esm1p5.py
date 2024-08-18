@@ -126,7 +126,7 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     return fields_file_paths
 
 
-def convert_fields_file_list(fields_file_paths, nc_write_dir):
+def convert_fields_file_list(fields_file_paths, nc_write_dir, delete_ff):
     """
     Convert group of fields files to NetCDF, writing output in nc_write_dir.
 
@@ -134,6 +134,8 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
     ----------
     fields_file_paths : list of paths to fields files for conversion.
     nc_write_dir : directory to save NetCDF files into.
+    delete_ff : Boolean specifying whether to delete fields files upon
+                  successful conversion.
 
     Returns
     -------
@@ -154,6 +156,8 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
         try:
             um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
             succeeded.append((fields_file_path, nc_write_path))
+            if delete_ff:
+                fields_file_path.unlink()
 
         except Exception as exc:
             # TODO: Refactor once um2nc has specific exceptions
@@ -171,7 +175,7 @@ def format_successes(succeeded):
     Format reports of successful conversions to be shared with user.
 
     Parameters
-    ---------- 
+    ----------
     succeeded: list of (input, output) tuples of filepaths for successful
                conversions.
 
@@ -179,7 +183,7 @@ def format_successes(succeeded):
     -------
     success_report: formatted report of successful conversion.
     """
-    
+
     for input_path, output_path in succeeded:
         success_report = f"Successfully converted {input_path} to {output_path}"
         yield success_report
@@ -191,9 +195,9 @@ def format_failures(failed, quiet):
 
     Parameters
     ----------
-    failed: list of tuples of form (filepath, exception) for files which failed 
+    failed: list of tuples of form (filepath, exception) for files which failed
             to convert due to an allowable exception.
-    quiet: boolean. Report only final exception type and message rather than 
+    quiet: boolean. Report only final exception type and message rather than
            full stack trace when true.
 
     Yields
@@ -222,14 +226,16 @@ def format_failures(failed, quiet):
             yield failure_report
 
 
-def convert_esm1p5_output_dir(esm1p5_output_dir):
+def convert_esm1p5_output_dir(esm1p5_output_dir, delete_ff):
     """
     Driver function for converting ESM1.5 atmospheric outputs during a simulation.
 
     Parameters
     ----------
-    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation. 
-        Fields files in the "atmosphere" subdirectory will be converted to NetCDF.
+    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
+            Fields files in the "atmosphere" subdirectory will be
+            converted to NetCDF.
+    delete_ff : Delete fields files upon successful conversion. when true
 
     Returns
     -------
@@ -274,7 +280,8 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     succeeded, failed = convert_fields_file_list(
         atm_dir_fields_files,
-        nc_write_dir
+        nc_write_dir,
+        delete_ff
     )
 
     return succeeded, failed
@@ -292,11 +299,15 @@ if __name__ == "__main__":
                             "Otherwise report full stack trace."
                         )
                         )
+    parser.add_argument("--delete", "-d", action="store_true",
+                        help="Delete fields files upon successful conversion"
+                        )
     args = parser.parse_args()
 
     current_output_dir = args.current_output_dir
 
-    successes, failures = convert_esm1p5_output_dir(current_output_dir)
+    successes, failures = convert_esm1p5_output_dir(current_output_dir,
+                                                    args.delete)
 
     # Report results to user
     for success_message in format_successes(successes):
