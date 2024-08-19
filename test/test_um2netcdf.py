@@ -1084,3 +1084,27 @@ def test_fix_latlon_coords_has_bounds(ua_plev_cube):
 
     assert np.array_equal(lat_coord.bounds, lat_bounds)
     assert np.array_equal(lon_coord.bounds, lon_bounds)
+
+
+def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
+    """
+    Test that fix_latlon_coords raises the right type of error when a cube
+    is missing coordinates.
+    """
+    def _raise_CoordinateNotFoundError(coord_name):
+        # Include an argument "coord_name" to mimic the signature of an
+        # Iris cube's ".coord" method
+        raise iris.exceptions.CoordinateNotFoundError(coord_name)
+
+    # Following values don't matter for test. Just needed as arguments
+    grid_type = um2nc.GRID_NEW_DYNAMICS
+    dlat = 1.25
+    dlon = 1.875
+
+    # Replace coord method to raise UnsupportedTimeSeriesError
+    ua_plev_cube.coord = _raise_CoordinateNotFoundError
+
+    with (
+        pytest.raises(um2nc.UnsupportedTimeSeriesError)
+    ):
+        um2nc.fix_latlon_coords(ua_plev_cube, grid_type, dlat, dlon)
