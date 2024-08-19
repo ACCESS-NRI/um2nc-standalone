@@ -40,18 +40,24 @@ GRID_NEW_DYNAMICS = 'ND'
 # TODO: what is this limit & does it still exist?
 XCONV_LONG_NAME_LIMIT = 110
 
-LON_COORD_NAME = "longitude"
-LAT_COORD_NAME = "latitude"
+LONGITUDE = "longitude"
+LATITUDE = "latitude"
 
 # Bounds for global single cells
 GLOBAL_COORD_BOUNDS = {
-    LON_COORD_NAME: np.array([[0., 360.]]),
-    LAT_COORD_NAME: np.array([[-90., 90.]])
+    LONGITUDE: np.array([[0., 360.]]),
+    LATITUDE: np.array([[-90., 90.]])
 }
 
 NUM_LAT_RIVER_GRID_POINTS = 180
 NUM_LON_RIVER_GRID_POINTS = 360
 
+VAR_NAME_LAT_RIVER = "lat_river"
+VAR_NAME_LON_RIVER = "lon_river"
+VAR_NAME_LAT_V = "lat_v"
+VAR_NAME_LON_U = "lon_u"
+VAR_NAME_LAT_STANDARD = "lat"
+VAR_NAME_LON_STANDARD = "lon"
 
 NC_FORMATS = {
     1: 'NETCDF3_CLASSIC',
@@ -135,18 +141,18 @@ def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     dlat: (float) meridional spacing between latitude grid points.
     """
 
-    if lat_coordinate.name() != LAT_COORD_NAME:
+    if lat_coordinate.name() != LATITUDE:
         raise ValueError(
                 f"Wrong coordinate {lat_coordinate.name()} supplied. "
-                f"Expected {LAT_COORD_NAME}."
+                f"Expected {LATITUDE}."
             )
 
     if is_lat_river_grid(lat_coordinate.points):
-        lat_coordinate.var_name = 'lat_river'
+        lat_coordinate.var_name = VAR_NAME_LAT_RIVER
     elif is_lat_v_grid(lat_coordinate.points, grid_type, dlat):
-        lat_coordinate.var_name = 'lat_v'
+        lat_coordinate.var_name = VAR_NAME_LAT_V
     else:
-        lat_coordinate.var_name = 'lat'
+        lat_coordinate.var_name = VAR_NAME_LAT_STANDARD
 
 
 def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
@@ -164,18 +170,18 @@ def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
     dlon: (float) zonal spacing between longitude grid points.
     """
 
-    if lon_coordinate.name() != LON_COORD_NAME:
+    if lon_coordinate.name() != LONGITUDE:
         raise ValueError(
                 f"Wrong coordinate {lon_coordinate.name()} supplied. "
-                f"Expected {LAT_COORD_NAME}."
+                f"Expected {LATITUDE}."
             )
 
     if is_lon_river_grid(lon_coordinate.points):
-        lon_coordinate.var_name = 'lon_river'
+        lon_coordinate.var_name = VAR_NAME_LON_RIVER
     elif is_lon_u_grid(lon_coordinate.points, grid_type, dlon):
-        lon_coordinate.var_name = 'lon_u'
+        lon_coordinate.var_name = VAR_NAME_LON_U
     else:
-        lon_coordinate.var_name = 'lon'
+        lon_coordinate.var_name = VAR_NAME_LON_STANDARD
 
 
 def is_lat_river_grid(latitude_points):
@@ -255,10 +261,10 @@ def add_latlon_coord_bounds(cube_coordinate):
     cube_coordinate: coordinate object from iris cube.
     """
     coordinate_name = cube_coordinate.name()
-    if coordinate_name not in [LON_COORD_NAME, LAT_COORD_NAME]:
+    if coordinate_name not in [LONGITUDE, LATITUDE]:
         raise ValueError(
                 f"Wrong coordinate {coordinate_name} supplied. "
-                f"Expected one of {LON_COORD_NAME}, {LAT_COORD_NAME}."
+                f"Expected one of {LONGITUDE}, {LATITUDE}."
             )
 
     # Only add bounds if not already present.
@@ -289,8 +295,8 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     """
 
     try:
-        latitude_coordinate = cube.coord(LAT_COORD_NAME)
-        longitude_coordinate = cube.coord(LON_COORD_NAME)
+        latitude_coordinate = cube.coord(LATITUDE)
+        longitude_coordinate = cube.coord(LONGITUDE)
     except iris.exceptions.CoordinateNotFoundError:
         msg = (
             "Missing latitude or longitude coordinate for variable (possible timeseries?): \n"
