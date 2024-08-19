@@ -255,11 +255,11 @@ def test_format_failures_standard_mode():
     try:
         raise exception_2 from exception_1
     except Exception as exc:
-        exc_with_traceback = exc 
+        exc_with_traceback = exc
 
     failed_file = Path("fake_file")
     failed_conversion = [(failed_file, exc_with_traceback)]
-    
+
     formatted_failure_report_list = list(
         esm1p5_convert.format_failures(failed_conversion, quiet=False)
     )

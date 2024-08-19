@@ -300,7 +300,7 @@ if __name__ == "__main__":
                         )
                         )
     parser.add_argument("--delete_ff", "-d", action="store_true",
-                        help="Delete fields files upon successful conversion"
+                        help="Delete fields files upon successful conversion."
                         )
     args = parser.parse_args()
 
