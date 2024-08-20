@@ -323,5 +323,5 @@ if __name__ == "__main__":
 
     if args.delete_ff:
         # Remove files that appear only as successful conversions
-        for path in safe_removal():
+        for path in safe_removal(successes, failures):
             os.remove(path)
