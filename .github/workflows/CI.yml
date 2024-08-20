@@ -96,6 +96,10 @@ jobs:
         shell: bash -l {0}
         run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=um2netcdf4,umpost -E umpost
 
+      - name: Entrypoint test
+        shell: bash -l {0}
+        run: um2nc --help
+
       - name: Run tests
         shell: bash -l {0}
         run: python -m pytest --cov=umpost --cov-report=xml -s test
