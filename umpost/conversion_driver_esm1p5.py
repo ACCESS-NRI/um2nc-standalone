@@ -271,6 +271,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     return succeeded, failed
 
+
 def safe_removal(succeeded, failed):
     """
     Check whether any input files were reported as simultaneously
