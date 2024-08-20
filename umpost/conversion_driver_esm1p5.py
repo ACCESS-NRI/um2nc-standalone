@@ -310,7 +310,7 @@ if __name__ == "__main__":
     if args.delete_ff:
         # Check that no successful inputs somehow simultaneously failed.
         overlap = success_fail_overlap(successes, failures)
-        if overlap: 
+        if overlap:
             msg = (
                     "Following inputs reported simultaneous successful and "
                     "failed conversions. Inputs will not be deleted.\n"
