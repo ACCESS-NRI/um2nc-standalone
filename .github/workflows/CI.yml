@@ -80,9 +80,6 @@ jobs:
           environment-file: conda/environment.yml
           activate-environment: um2nc
 
-      - name: DEBUG - where are things
-        run: ls ${{ env.ARTIFACT_LOCATION }}
-
       - name: Install conda package
         shell: bash -l {0}
         run: |
@@ -95,10 +92,6 @@ jobs:
       - name: Lint
         shell: bash -l {0}
         run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=um2netcdf4,umpost -E umpost
-
-      - name: Entrypoint test
-        shell: bash -l {0}
-        run: um2nc --help
 
       - name: Run tests
         shell: bash -l {0}

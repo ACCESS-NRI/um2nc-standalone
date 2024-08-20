@@ -23,8 +23,6 @@ dependencies = [
   "PyYAML",
   "f90nml",
 ]
-[project.scripts]
-um2nc = "um2nc.umpost.um2netcdf:main"
 
 [tool.versioneer]
 VCS = "git"
