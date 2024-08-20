@@ -271,13 +271,27 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     return succeeded, failed
 
-def success_fail_overlap(succeeded, failed):
-    succeeded_inputs = [succeed_path for succeed_path, _ in succeeded]
-    failed_inputs = [fail_path for fail_path, _ in failed]
+def safe_removal(succeeded, failed):
+    """
+    Check whether any input files were reported as simultaneously
+    successful and failed conversions. Return those that appear
+    only as successes as targets for safe deletion.
 
-    overlap = set(succeeded_inputs) & set(failed_inputs)
+    Parameters
+    ----------
+    succeeded: List of (input_file, output_file) tuples of filepaths from
+        successful conversions.
+    failed: List of (input_file, Exception) tuples from failed conversions.
 
-    return overlap
+    Returns
+    -------
+    successful_only: set of input filepaths which appear in succeeded but
+        not failed.
+    """
+    succeeded_inputs = {succeed_path for succeed_path, _ in succeeded}
+    failed_inputs = {fail_path for fail_path, _ in failed}
+
+    return succeeded_inputs - failed_inputs
 
 
 if __name__ == "__main__":
@@ -308,15 +322,6 @@ if __name__ == "__main__":
         warnings.warn(failure_message)
 
     if args.delete_ff:
-        # Check that no successful inputs somehow simultaneously failed.
-        overlap = success_fail_overlap(successes, failures)
-        if overlap:
-            msg = (
-                    "Following inputs reported simultaneous successful and "
-                    "failed conversions. Inputs will not be deleted.\n"
-                    f"{overlap}"
-            )
-            raise um2netcdf.PostProcessingError(msg)
-        else:
-            for successful_input_path, _ in successes:
-                os.remove(successful_input_path)
+        # Remove files that appear only as successful conversions
+        for path in safe_removal():
+            os.remove(path)

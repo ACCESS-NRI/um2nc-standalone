@@ -233,3 +233,18 @@ def test_format_failures_standard_mode():
 
     assert exception_1.args[0] in formatted_failure_report
     assert exception_2.args[0] in formatted_failure_report
+
+
+def test_success_fail_overlap():
+    # Test that inputs listed as both successes and failures
+    # are removed as candidates for deletion.
+    success_only_path = Path("success_only")
+    success_and_fail_path = Path("success_and_fail")
+    successes = [(success_only_path, Path("success_only.nc")),
+                 (success_and_fail_path, Path("success_and_fail.nc"))]
+    failures = [(success_and_fail_path, "Exception_placeholder")]
+
+    result = esm1p5_convert.safe_removal(successes, failures)
+
+    assert success_and_fail_path not in result
+    assert success_only_path in result
