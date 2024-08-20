@@ -299,7 +299,7 @@ if __name__ == "__main__":
                             "Otherwise report full stack trace."
                         )
                         )
-    parser.add_argument("--delete_ff", "-d", action="store_true",
+    parser.add_argument("--delete-ff", "-d", action="store_true",
                         help="Delete fields files upon successful conversion."
                         )
     args = parser.parse_args()
