@@ -91,7 +91,7 @@ jobs:
 
       - name: Lint
         shell: bash -l {0}
-        run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=um2netcdf4,umpost -E umpost
+        run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=umpost -E umpost
 
       - name: Run tests
         shell: bash -l {0}
