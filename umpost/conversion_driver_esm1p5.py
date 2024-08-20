@@ -3,10 +3,10 @@
 ESM1.5 conversion driver
 
 Wrapper script for automated fields file to NetCDF conversion
-during ESM1.5 simulations. Runs conversion module (currently 
-um2netcdf4) on each atmospheric output in a specified directory.
+during ESM1.5 simulations. Runs conversion module
+on each atmospheric output in a specified directory.
 
-Adapted from Martin Dix's conversion driver for CM2: 
+Adapted from Martin Dix's conversion driver for CM2:
 https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 """
 
@@ -20,16 +20,7 @@ import traceback
 import argparse
 import errno
 from pathlib import Path
-
-# FIXME: use temp guard block while working between gadi/local envs, local umpost.um2netcdf &
-#        gadi's um2netcdf4. Replace when full umpost.um2netcdf is ready
-import socket
-hostname = socket.gethostname()
-
-if hostname.startswith("gadi"):
-    import um2netcdf4
-else:
-    import umpost.um2netcdf as um2netcdf4
+from umpost import um2netcdf
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
@@ -152,7 +143,7 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
         nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
 
         try:
-            um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
+            um2netcdf.process(fields_file_path, nc_write_path, ARG_VALS)
             succeeded.append((fields_file_path, nc_write_path))
 
         except Exception as exc:
