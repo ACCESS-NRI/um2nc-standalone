@@ -316,7 +316,7 @@ if __name__ == "__main__":
                     "failed conversions. Inputs will not be deleted.\n"
                     f"{overlap}"
             )
-            raise um2netcdf.PostProcessingError()
+            raise um2netcdf.PostProcessingError(msg)
         else:
             for successful_input_path, _ in successes:
                 os.remove(successful_input_path)
