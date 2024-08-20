@@ -126,7 +126,7 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     return fields_file_paths
 
 
-def convert_fields_file_list(fields_file_paths, nc_write_dir, delete_ff):
+def convert_fields_file_list(fields_file_paths, nc_write_dir):
     """
     Convert group of fields files to NetCDF, writing output in nc_write_dir.
 
@@ -134,8 +134,6 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir, delete_ff):
     ----------
     fields_file_paths : list of paths to fields files for conversion.
     nc_write_dir : directory to save NetCDF files into.
-    delete_ff : Boolean specifying whether to delete fields files upon
-                  successful conversion.
 
     Returns
     -------
@@ -156,8 +154,6 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir, delete_ff):
         try:
             um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
             succeeded.append((fields_file_path, nc_write_path))
-            if delete_ff:
-                os.remove(fields_file_path)
 
         except Exception as exc:
             # TODO: Refactor once um2nc has specific exceptions
@@ -226,7 +222,7 @@ def format_failures(failed, quiet):
             yield failure_report
 
 
-def convert_esm1p5_output_dir(esm1p5_output_dir, delete_ff):
+def convert_esm1p5_output_dir(esm1p5_output_dir):
     """
     Driver function for converting ESM1.5 atmospheric outputs during a simulation.
 
@@ -235,7 +231,6 @@ def convert_esm1p5_output_dir(esm1p5_output_dir, delete_ff):
     esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
             Fields files in the "atmosphere" subdirectory will be
             converted to NetCDF.
-    delete_ff : Delete fields files upon successful conversion. when true
 
     Returns
     -------
@@ -280,11 +275,18 @@ def convert_esm1p5_output_dir(esm1p5_output_dir, delete_ff):
 
     succeeded, failed = convert_fields_file_list(
         atm_dir_fields_files,
-        nc_write_dir,
-        delete_ff
+        nc_write_dir
     )
 
     return succeeded, failed
+
+def success_fail_overlap(succeeded, failed):
+    succeeded_inputs = [succeed_path for succeed_path, _ in succeeded]
+    failed_inputs = [fail_path for fail_path, _ in failed]
+
+    overlap = set(succeeded_inputs) & set(failed_inputs)
+
+    return overlap
 
 
 if __name__ == "__main__":
@@ -306,11 +308,24 @@ if __name__ == "__main__":
 
     current_output_dir = args.current_output_dir
 
-    successes, failures = convert_esm1p5_output_dir(current_output_dir,
-                                                    args.delete_ff)
+    successes, failures = convert_esm1p5_output_dir(current_output_dir)
 
     # Report results to user
     for success_message in format_successes(successes):
         print(success_message)
     for failure_message in format_failures(failures, args.quiet):
         warnings.warn(failure_message)
+
+    if args.delete_ff:
+        # Check that no successful inputs somehow simultaneously failed.
+        overlap = success_fail_overlap(successes, failures)
+        if overlap: 
+            msg = (
+                    "Following inputs reported simultaneous successful and "
+                    "failed conversions. Inputs will not be deleted.\n"
+                    f"{overlap}"
+            )
+            raise um2netcdf.PostProcessingError()
+        else:
+            for successful_input_path, _ in successes:
+                os.remove(successful_input_path)
