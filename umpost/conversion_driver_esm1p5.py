@@ -162,7 +162,7 @@ def format_successes(succeeded):
     Format reports of successful conversions to be shared with user.
 
     Parameters
-    ---------- 
+    ----------
     succeeded: list of (input, output) tuples of filepaths for successful
                conversions.
 
@@ -170,7 +170,7 @@ def format_successes(succeeded):
     -------
     success_report: formatted report of successful conversion.
     """
-    
+
     for input_path, output_path in succeeded:
         success_report = f"Successfully converted {input_path} to {output_path}"
         yield success_report
@@ -182,9 +182,9 @@ def format_failures(failed, quiet):
 
     Parameters
     ----------
-    failed: list of tuples of form (filepath, exception) for files which failed 
+    failed: list of tuples of form (filepath, exception) for files which failed
             to convert due to an allowable exception.
-    quiet: boolean. Report only final exception type and message rather than 
+    quiet: boolean. Report only final exception type and message rather than
            full stack trace when true.
 
     Yields
@@ -201,7 +201,7 @@ def format_failures(failed, quiet):
             )
             yield failure_report
     else:
-        
+
         for fields_file_path, exception in failed:
             formatted_traceback = "".join(
                 traceback.format_exception(exception)
@@ -219,8 +219,9 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     Parameters
     ----------
-    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation. 
-        Fields files in the "atmosphere" subdirectory will be converted to NetCDF.
+    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
+            Fields files in the "atmosphere" subdirectory will be
+            converted to NetCDF.
 
     Returns
     -------
@@ -271,6 +272,29 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     return succeeded, failed
 
 
+def safe_removal(succeeded, failed):
+    """
+    Check whether any input files were reported as simultaneously
+    successful and failed conversions. Return those that appear
+    only as successes as targets for safe deletion.
+
+    Parameters
+    ----------
+    succeeded: List of (input_file, output_file) tuples of filepaths from
+        successful conversions.
+    failed: List of (input_file, Exception) tuples from failed conversions.
+
+    Returns
+    -------
+    successful_only: set of input filepaths which appear in succeeded but
+        not failed.
+    """
+    succeeded_inputs = {succeed_path for succeed_path, _ in succeeded}
+    failed_inputs = {fail_path for fail_path, _ in failed}
+
+    return succeeded_inputs - failed_inputs
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -283,6 +307,9 @@ if __name__ == "__main__":
                             "Otherwise report full stack trace."
                         )
                         )
+    parser.add_argument("--delete-ff", "-d", action="store_true",
+                        help="Delete fields files upon successful conversion."
+                        )
     args = parser.parse_args()
 
     current_output_dir = args.current_output_dir
@@ -294,3 +321,8 @@ if __name__ == "__main__":
         print(success_message)
     for failure_message in format_failures(failures, args.quiet):
         warnings.warn(failure_message)
+
+    if args.delete_ff:
+        # Remove files that appear only as successful conversions
+        for path in safe_removal(successes, failures):
+            os.remove(path)

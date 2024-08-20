@@ -111,8 +111,13 @@ def mock_process_with_exception(mock_process):
     "input_list", [[], ["fake_file"], [
         "fake_file_1", "fake_file_2", "fake_file_3"]]
 )
-def test_convert_fields_file_list_success(mock_process, input_list):
+def test_convert_fields_file_list_success(mock_process,
+                                          input_list):
+    """
+    Test that process is called for each input.
+    """
     input_list_paths = [Path(p) for p in input_list]
+
     succeeded, _ = esm1p5_convert.convert_fields_file_list(
         input_list_paths, "fake_nc_write_dir")
 
@@ -120,7 +125,7 @@ def test_convert_fields_file_list_success(mock_process, input_list):
 
     successful_input_paths = [successful_path_pair[0] for
                               successful_path_pair in succeeded]
-    
+
     assert input_list_paths == successful_input_paths
 
 
@@ -213,11 +218,11 @@ def test_format_failures_standard_mode():
     try:
         raise exception_2 from exception_1
     except Exception as exc:
-        exc_with_traceback = exc 
+        exc_with_traceback = exc
 
     failed_file = Path("fake_file")
     failed_conversion = [(failed_file, exc_with_traceback)]
-    
+
     formatted_failure_report_list = list(
         esm1p5_convert.format_failures(failed_conversion, quiet=False)
     )
@@ -228,3 +233,18 @@ def test_format_failures_standard_mode():
 
     assert exception_1.args[0] in formatted_failure_report
     assert exception_2.args[0] in formatted_failure_report
+
+
+def test_success_fail_overlap():
+    # Test that inputs listed as both successes and failures
+    # are removed as candidates for deletion.
+    success_only_path = Path("success_only")
+    success_and_fail_path = Path("success_and_fail")
+    successes = [(success_only_path, Path("success_only.nc")),
+                 (success_and_fail_path, Path("success_and_fail.nc"))]
+    failures = [(success_and_fail_path, "Exception_placeholder")]
+
+    result = esm1p5_convert.safe_removal(successes, failures)
+
+    assert success_and_fail_path not in result
+    assert success_only_path in result
