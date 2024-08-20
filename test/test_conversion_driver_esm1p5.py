@@ -95,11 +95,6 @@ def mock_process(base_mock_process):
     base_mock_process.return_value = None
     return base_mock_process
 
-@pytest.fixture
-def mock_os_remove():
-    patcher = mock.patch("os.remove")
-    yield patcher.start()
-    patcher.stop()
 
 @pytest.fixture
 def mock_process_with_exception(mock_process):
@@ -116,22 +111,17 @@ def mock_process_with_exception(mock_process):
     "input_list", [[], ["fake_file"], [
         "fake_file_1", "fake_file_2", "fake_file_3"]]
 )
-def test_convert_fields_file_list_success_delete(mock_process,
-                                                 mock_os_remove,
-                                                 input_list):
+def test_convert_fields_file_list_success(mock_process,
+                                          input_list):
     """
-    Test that process is called for each input and that each input is deleted.
+    Test that process is called for each input.
     """
     input_list_paths = [Path(p) for p in input_list]
 
     succeeded, _ = esm1p5_convert.convert_fields_file_list(
-        input_list_paths, "fake_nc_write_dir", delete_ff=True)
+        input_list_paths, "fake_nc_write_dir")
 
     assert mock_process.call_count == len(input_list)
-    assert mock_os_remove.call_count == len(input_list)
-
-    for path in input_list_paths:
-        assert mock.call(path) in mock_os_remove.call_args_list
 
     successful_input_paths = [successful_path_pair[0] for
                               successful_path_pair in succeeded]
@@ -139,20 +129,7 @@ def test_convert_fields_file_list_success_delete(mock_process,
     assert input_list_paths == successful_input_paths
 
 
-def test_convert_fields_file_list_no_delete(mock_process, mock_os_remove):
-    """
-    Test that files are not deleted when delete_ff is False.
-    """
-    input_list_paths = [Path("fake_file_1"), Path("fake_file_2")]
-
-    succeeded, _ = esm1p5_convert.convert_fields_file_list(
-        input_list_paths, "fake_nc_write_dir", delete_ff=False)
-
-    mock_os_remove.assert_not_called()
-
-
-def test_convert_fields_file_list_fail_excepted(mock_process_with_exception,
-                                                mock_os_remove):
+def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
     # Hopefully this test will be unnecessary with um2nc standalone.
     # Test that the "Variable can not be processed" error arising from time
     # series inputs is excepted.
@@ -163,37 +140,30 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception,
     fake_file_path = Path("fake_file")
 
     _, failed = esm1p5_convert.convert_fields_file_list(
-        [fake_file_path], "fake_nc_write_dir", delete_ff=True)
+        [fake_file_path], "fake_nc_write_dir")
 
     assert failed[0][0] == fake_file_path
-
-    # Assert that no files removed
-    mock_os_remove.assert_not_called()
 
     # TODO: Testing the exception part of the reported failures will be easier
     # once um2nc specific exceptions are added.
 
 
-def test_convert_fields_file_list_fail_critical(mock_process_with_exception, mock_os_remove):
+def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
     # Test that critical exceptions which are not allowed by ALLOWED_UM2NC_EXCEPTION_MESSAGES
     # are raised, and hence lead to the conversion crashing.
     generic_error_message = "Test error"
     mock_process_with_exception(generic_error_message)
     with pytest.raises(Exception) as exc_info:
         esm1p5_convert.convert_fields_file_list(
-            ["fake_file"], "fake_nc_write_dir", delete_ff=True)
+            ["fake_file"], "fake_nc_write_dir")
 
     assert str(exc_info.value) == generic_error_message
-
-    # Assert that no files removed
-    mock_os_remove.assert_not_called()
 
 
 def test_convert_esm1p5_output_dir_error():
     with pytest.raises(FileNotFoundError):
         esm1p5_convert.convert_esm1p5_output_dir(
-            "/test_convert_esm1p5_output_dir_error/fake/path/",
-            delete_ff=True
+            "/test_convert_esm1p5_output_dir_error/fake/path/"
         )
 
 
