@@ -295,26 +295,33 @@ def safe_removal(succeeded, failed):
     return succeeded_inputs - failed_inputs
 
 
-if __name__ == "__main__":
+def parse_args():
+    """
+    Parse arguments given as list (args)
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "current_output_dir", help="ESM1.5 output directory to be converted", type=str
+        "current_output_dir", help="ESM1.5 output directory to be converted",
+        type=str
     )
     parser.add_argument("--quiet", "-q", action="store_true",
                         help=(
-                            "Report only final exception type and message for allowed"
-                            "exceptions raised during conversion when flag is included."
-                            "Otherwise report full stack trace."
+                            "Report only final exception type and message for "
+                            "allowed exceptions raised during conversion when "
+                            "flag is included. Otherwise report full "
+                            "stack trace."
                         )
                         )
     parser.add_argument("--delete-ff", "-d", action="store_true",
                         help="Delete fields files upon successful conversion."
                         )
-    args = parser.parse_args()
 
-    current_output_dir = args.current_output_dir
+    return parser.parse_args()
 
-    successes, failures = convert_esm1p5_output_dir(current_output_dir)
+
+def main():
+    args = parse_args()
+    successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
 
     # Report results to user
     for success_message in format_successes(successes):
@@ -326,3 +333,8 @@ if __name__ == "__main__":
         # Remove files that appear only as successful conversions
         for path in safe_removal(successes, failures):
             os.remove(path)
+
+
+if __name__ == "__main__":
+
+    main()
