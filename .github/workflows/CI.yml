@@ -83,7 +83,7 @@ jobs:
       - name: Install conda package
         shell: bash -l {0}
         run: |
-          conda install -c conda-forge -c accessnri -c coecms -c file://${{ env.ARTIFACT_LOCATION }} um2nc
+          conda install -c file://${{ env.ARTIFACT_LOCATION }} -c conda-forge -c accessnri -c coecms um2nc
 
       - name: List installed packages
         shell: bash -l {0}
