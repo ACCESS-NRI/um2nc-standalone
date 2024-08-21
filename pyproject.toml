@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-esm1p5_convert_nc = "um2netcdf-standalone.umpost.conversion_driver_esm1p5:main"
+esm1p5_convert_nc = "um2nc-standalone.umpost.conversion_driver_esm1p5:main"
 
 [tool.versioneer]
 VCS = "git"
