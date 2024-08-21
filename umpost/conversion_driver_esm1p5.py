@@ -321,11 +321,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-
-    current_output_dir = args.current_output_dir
-
-    # Run conversion
-    successes, failures = convert_esm1p5_output_dir(current_output_dir)
+    successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
 
     # Report results to user
     for success_message in format_successes(successes):
