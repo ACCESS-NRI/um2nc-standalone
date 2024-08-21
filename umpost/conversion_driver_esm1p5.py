@@ -12,7 +12,6 @@ https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 
 
 import os
-import sys
 import collections
 import re
 import f90nml
@@ -296,7 +295,7 @@ def safe_removal(succeeded, failed):
     return succeeded_inputs - failed_inputs
 
 
-def parse_args(args):
+def parse_args():
     """
     Parse arguments given as list (args)
     """
@@ -321,7 +320,7 @@ def parse_args(args):
 
 
 def main():
-    args = parse_args(sys.argv[1:])
+    args = parse_args()
 
     current_output_dir = args.current_output_dir
 
