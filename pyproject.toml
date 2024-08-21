@@ -24,6 +24,9 @@ dependencies = [
   "f90nml",
 ]
 
+[project.scripts]
+esm1p5_convert_nc = "umpost.conversion_driver_esm1p5:main"
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
