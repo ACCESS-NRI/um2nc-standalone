@@ -722,7 +722,7 @@ def fix_units(cube, um_var_units, verbose: bool):
             cube.units = um_var_units
 
 
-if __name__ == '__main__':
+def parse_args():
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3,
@@ -758,5 +758,9 @@ if __name__ == '__main__':
     parser.add_argument('infile', help='Input file')
     parser.add_argument('outfile', help='Output file')
 
-    cli_args = parser.parse_args()
-    process(cli_args.infile, cli_args.outfile, cli_args)
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    process(args.infile, args.outfile, args)
