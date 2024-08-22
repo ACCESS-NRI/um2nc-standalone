@@ -93,9 +93,13 @@ jobs:
         shell: bash -l {0}
         run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=umpost -E umpost
 
-      - name: Entrypoint test
+      - name: Entrypoint test of driver script
         shell: bash -l {0}
         run: esm1p5_convert_nc --help
+
+      - name: Entrypoint test of um2netcdf script
+        shell: bash -l {0}
+        run: um2nc --help
 
       - name: Run tests
         shell: bash -l {0}
