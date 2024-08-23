@@ -145,30 +145,6 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
         lon.var_name = 'lon'
 
 
-# TODO: move this func lower down
-def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
-    # Rename model_level_number coordinates to better distinguish rho and theta levels
-    try:
-        c_lev = cube.coord(MODEL_LEVEL_NUM)
-        c_height = cube.coord(LEVEL_HEIGHT)
-        c_sigma = cube.coord(SIGMA)
-    except iris.exceptions.CoordinateNotFoundError:
-        return
-
-    if c_lev:
-        d_rho = abs(c_height.points[0]-z_rho)
-        if d_rho.min() < tol:
-            c_lev.var_name = 'model_rho_level_number'
-            c_height.var_name = 'rho_level_height'
-            c_sigma.var_name = 'sigma_rho'
-        else:
-            d_theta = abs(c_height.points[0]-z_theta)
-            if d_theta.min() < tol:
-                c_lev.var_name = 'model_theta_level_number'
-                c_height.var_name = 'theta_level_height'
-                c_sigma.var_name = 'sigma_theta'
-
-
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
     try:
@@ -721,6 +697,29 @@ def fix_units(cube, um_var_units, verbose: bool):
                 msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
                 warnings.warn(msg)
             cube.units = um_var_units
+
+
+def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
+    # Rename model_level_number coordinates to better distinguish rho and theta levels
+    try:
+        c_lev = cube.coord(MODEL_LEVEL_NUM)
+        c_height = cube.coord(LEVEL_HEIGHT)
+        c_sigma = cube.coord(SIGMA)
+    except iris.exceptions.CoordinateNotFoundError:
+        return
+
+    if c_lev:
+        d_rho = abs(c_height.points[0]-z_rho)
+        if d_rho.min() < tol:
+            c_lev.var_name = 'model_rho_level_number'
+            c_height.var_name = 'rho_level_height'
+            c_sigma.var_name = 'sigma_rho'
+        else:
+            d_theta = abs(c_height.points[0]-z_theta)
+            if d_theta.min() < tol:
+                c_lev.var_name = 'model_theta_level_number'
+                c_height.var_name = 'theta_level_height'
+                c_sigma.var_name = 'sigma_theta'
 
 
 def parse_args():
