@@ -145,17 +145,15 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
         lon.var_name = 'lon'
 
 
-# TODO: move this to func renaming section?
+# TODO: move this func lower down
 def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
     # Rename model_level_number coordinates to better distinguish rho and theta levels
     try:
-        c_lev = cube.coord('model_level_number')
-        c_height = cube.coord('level_height')
-        c_sigma = cube.coord('sigma')
+        c_lev = cube.coord(MODEL_LEVEL_NUM)
+        c_height = cube.coord(LEVEL_HEIGHT)
+        c_sigma = cube.coord(SIGMA)
     except iris.exceptions.CoordinateNotFoundError:
-        c_lev = None
-        c_height = None
-        c_sigma = None
+        return
 
     if c_lev:
         d_rho = abs(c_height.points[0]-z_rho)
