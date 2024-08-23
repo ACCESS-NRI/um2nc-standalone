@@ -11,6 +11,7 @@ import mule
 import mule.ff
 import iris.cube
 import iris.coords
+import iris.exceptions
 
 
 @pytest.fixture
@@ -674,3 +675,46 @@ def test_fix_cell_methods_keep_weeks():
     assert mod.method == cm.method
     assert mod.coord_names == cm.coord_names
     assert mod.intervals[0] == "week"
+
+
+LEVEL_HEIGHTS = [20.0003377]  # NB: technically only need [0]
+
+LEVEL_COORDS = {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
+                um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(LEVEL_HEIGHTS),
+                um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+
+
+@dataclass
+class FakeCubeCoords:
+
+    def coord(self, key):
+        return LEVEL_COORDS[key]
+
+
+def test_fix_level_coord_rho(z_sea_rho_data, z_sea_theta_data):
+    assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name is None
+    assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name is None
+    assert LEVEL_COORDS[um2nc.SIGMA].var_name is None
+
+    cube = FakeCubeCoords()
+    rho = np.ones(z_sea_theta_data.shape) * LEVEL_HEIGHTS[0]
+    um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
+
+    assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name == "model_rho_level_number"
+    assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name == "rho_level_height"
+    assert LEVEL_COORDS[um2nc.SIGMA].var_name == "sigma_rho"
+
+
+def test_fix_level_coord_theta(z_sea_rho_data, z_sea_theta_data):
+    cube = FakeCubeCoords()
+    um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
+
+    assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name == "model_theta_level_number"
+    assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name == "theta_level_height"
+    assert LEVEL_COORDS[um2nc.SIGMA].var_name == "sigma_theta"
+
+
+def test_fix_level_coord_not_found(z_sea_rho_data, z_sea_theta_data):
+    mcube = mock.Mock(iris.cube.Cube)
+    mcube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
+    um2nc.fix_level_coord(mcube, z_sea_rho_data, z_sea_theta_data)
