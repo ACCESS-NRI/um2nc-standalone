@@ -145,9 +145,8 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
         lon.var_name = 'lon'
 
 
-# TODO: refactor to "rename level coord"
 # TODO: move this to func renaming section?
-def fix_level_coord(cube, z_rho, z_theta):
+def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
     # Rename model_level_number coordinates to better distinguish rho and theta levels
     try:
         c_lev = cube.coord('model_level_number')
@@ -160,13 +159,13 @@ def fix_level_coord(cube, z_rho, z_theta):
 
     if c_lev:
         d_rho = abs(c_height.points[0]-z_rho)
-        if d_rho.min() < 1e-6:
+        if d_rho.min() < tol:
             c_lev.var_name = 'model_rho_level_number'
             c_height.var_name = 'rho_level_height'
             c_sigma.var_name = 'sigma_rho'
         else:
             d_theta = abs(c_height.points[0]-z_theta)
-            if d_theta.min() < 1e-6:
+            if d_theta.min() < tol:
                 c_lev.var_name = 'model_theta_level_number'
                 c_height.var_name = 'theta_level_height'
                 c_sigma.var_name = 'sigma_theta'
