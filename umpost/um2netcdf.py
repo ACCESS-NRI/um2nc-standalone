@@ -700,7 +700,18 @@ def fix_units(cube, um_var_units, verbose: bool):
 
 
 def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
-    # Rename model_level_number coordinates to better distinguish rho and theta levels
+    """
+    Renames model_level_number coordinates to help distinguish rho/theta levels.
+
+    Cubes without 'model_level_number' coordinates are skipped.
+
+    Parameters
+    ----------
+    cube : iris.cube.Cube object to
+    z_rho : geopotential height of the sea free surface
+    z_theta : density (rho) of the air at sea level
+    tol : height tolerance
+    """
     try:
         c_lev = cube.coord(MODEL_LEVEL_NUM)
         c_height = cube.coord(LEVEL_HEIGHT)
