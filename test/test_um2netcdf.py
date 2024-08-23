@@ -71,9 +71,10 @@ def _lon_points():
 
 
 def coordinate(key):
-    # mimic the cube.coord('coord_name') lookup
-    lookup = {"latitude": _lat_points(),
-              "longitude": _lon_points()}
+    # function mimics cube.coord('coord_name') lookup
+    # NB: each cube with this drops through fix_level_coord() as there's no model levels
+    lookup = {"latitude": iris.coords.DimCoord(_lat_points(), "latitude"),
+              "longitude": iris.coords.DimCoord(_lon_points(), "longitude")}
 
     if key in lookup:
         return lookup[key]
@@ -81,12 +82,28 @@ def coordinate(key):
     raise iris.exceptions.CoordinateNotFoundError
 
 
-def set_default_attrs(cube, item_code: int, var_name: str):
+def coordinate_model(key):
+    # function mimics cube.coord('coord_name') lookup
+    # NB: each cube with this drops through fix_level_coord() as there's no model levels
+    lookup = {"latitude": iris.coords.DimCoord(_lat_points(), "latitude"),
+              "longitude": iris.coords.DimCoord(_lon_points(), "longitude"),
+              um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39), um2nc.MODEL_LEVEL_NUM),
+              um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(LEVEL_HEIGHTS, um2nc.LEVEL_HEIGHT),
+              um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+
+    if key in lookup:
+        return lookup[key]
+    else:
+        raise iris.exceptions.CoordinateNotFoundError
+
+
+def set_default_attrs(cube, item_code: int, var_name: str,
+                      coord=coordinate):
     """Add subset of default attributes to flesh out cube like objects."""
     cube.__dict__.update({"item_code": item_code,
                           "var_name": var_name,
                           "long_name": "",
-                          "coord": coordinate,  # mimic cube.coord() function
+                          "coord": coord,  # mimic cube.coord() function
                           "cell_methods": [],
                           "data": None,
                           })
