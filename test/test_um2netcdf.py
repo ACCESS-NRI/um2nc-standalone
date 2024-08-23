@@ -62,13 +62,31 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
+def _lat_points():
+    return np.linspace(-90.0, 90.0, 145, dtype="float32")
+
+
+def _lon_points():
+    return np.linspace(0.0,358.125,192, dtype="float32")
+
+
+def coordinate(key):
+    # mimic the cube.coord('coord_name') lookup
+    lookup = {"latitude": _lat_points(),
+              "longitude": _lon_points()}
+
+    if key in lookup:
+        return lookup[key]
+
+    raise iris.exceptions.CoordinateNotFoundError
+
+
 def set_default_attrs(cube, item_code: int, var_name: str):
     """Add subset of default attributes to flesh out cube like objects."""
     cube.__dict__.update({"item_code": item_code,
                           "var_name": var_name,
                           "long_name": "",
-                          "coord": {"latitude": 0.0,  # TODO: real val = ?
-                                    "longitude": 0.0},  # TODO: real val
+                          "coord": coordinate,  # mimic cube.coord() function
                           "cell_methods": [],
                           "data": None,
                           })
@@ -150,7 +168,6 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         # TODO: lat/long & level coord fixes require more internal data attrs
         #       skip temporarily to manage test complexity
         mock.patch("umpost.um2netcdf.fix_latlon_coord"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
@@ -209,7 +226,6 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
         mock.patch("umpost.um2netcdf.fix_latlon_coord"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -226,6 +242,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
             attrs = {um2nc.STASH: DummyStash(*um2nc.to_stash_code(c.item_code))}
             c.attributes = attrs
             c.cell_methods = []
+            c.coord = coordinate
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -248,9 +265,7 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
 
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
         mock.patch("umpost.um2netcdf.fix_latlon_coord"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
