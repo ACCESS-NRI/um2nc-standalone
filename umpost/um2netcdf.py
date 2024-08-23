@@ -712,6 +712,9 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
     z_theta : density (rho) of the air at sea level
     tol : height tolerance
     """
+    # TODO: this is called once per cube and many lack the model_level_number
+    #       coord. Is a potential optimisation possible from pre-specifying a
+    #       list of cubes with model_level_numbers & only processing these?
     try:
         c_lev = cube.coord(MODEL_LEVEL_NUM)
         c_height = cube.coord(LEVEL_HEIGHT)
