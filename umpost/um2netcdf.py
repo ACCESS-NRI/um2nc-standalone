@@ -47,6 +47,10 @@ NC_FORMATS = {
     4: 'NETCDF4_CLASSIC'
 }
 
+MODEL_LEVEL_NUM = "model_level_number"
+LEVEL_HEIGHT = "level_height"
+SIGMA = "sigma"
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
