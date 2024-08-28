@@ -677,7 +677,9 @@ def test_fix_cell_methods_keep_weeks():
     assert mod.intervals[0] == "week"
 
 
-LEVEL_HEIGHTS = [20.0003377]  # NB: technically only need [0]
+# NB: sourced from z_sea_theta_data fixture. This "array" is cropped as
+#     fix_level_coords() only accesses height array[0]
+LEVEL_HEIGHTS = [20.0003377]
 
 LEVEL_COORDS = {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
                 um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(LEVEL_HEIGHTS),
@@ -691,7 +693,8 @@ class FakeCubeCoords:
         return LEVEL_COORDS[key]
 
 
-def test_fix_level_coord_rho(z_sea_rho_data, z_sea_theta_data):
+def test_fix_level_coord_modify_cube_with_rho(z_sea_rho_data, z_sea_theta_data):
+    # verify cube renaming with appropriate z_rho data
     assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name is None
     assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name is None
     assert LEVEL_COORDS[um2nc.SIGMA].var_name is None
@@ -705,7 +708,8 @@ def test_fix_level_coord_rho(z_sea_rho_data, z_sea_theta_data):
     assert LEVEL_COORDS[um2nc.SIGMA].var_name == "sigma_rho"
 
 
-def test_fix_level_coord_theta(z_sea_rho_data, z_sea_theta_data):
+def test_fix_level_coord_modify_cube_with_theta(z_sea_rho_data, z_sea_theta_data):
+    # verify cube renaming with appropriate z_theta data
     cube = FakeCubeCoords()
     um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
 
@@ -714,7 +718,8 @@ def test_fix_level_coord_theta(z_sea_rho_data, z_sea_theta_data):
     assert LEVEL_COORDS[um2nc.SIGMA].var_name == "sigma_theta"
 
 
-def test_fix_level_coord_not_found(z_sea_rho_data, z_sea_theta_data):
+def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
+    # ensures level fixes are skipped if the cube lacks model levels, sigma etc
     mcube = mock.Mock(iris.cube.Cube)
     mcube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
     um2nc.fix_level_coord(mcube, z_sea_rho_data, z_sea_theta_data)
