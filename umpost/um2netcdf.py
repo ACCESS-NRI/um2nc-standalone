@@ -707,7 +707,7 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
 
     Parameters
     ----------
-    cube : iris.cube.Cube object to
+    cube : iris.cube.Cube object for in place modification
     z_rho : geopotential height of the sea free surface
     z_theta : density (rho) of the air at sea level
     tol : height tolerance
