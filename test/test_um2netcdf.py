@@ -12,6 +12,7 @@ import numpy as np
 import mule
 import mule.ff
 import iris.cube
+import iris.coords
 
 D_LAT_N96 = 1.25
 D_LON_N96 = 1.875
@@ -661,109 +662,84 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
 
 
-@dataclass
-class DummyCoordinate:
-    """
-    Imitation cube coordinate for unit testing.
-    Includes additional information that is not part of
-    a standard iris cube coordinate, but is useful for testing,
-    including MuleVars grid metadata, and atribute values expected
-    after testing.
-    """
-    coordname: str
-    points: np.ndarray
-    bounds: np.ndarray = None
-    # Note that var_name attribute is different thing to return
-    # value of name() method.
-    var_name: str = None
-
-    def name(self):
-        return self.coordname
-
-    def has_bounds(self):
-        return self.bounds is not None
-
-
 @pytest.fixture
-def lat_river_dummy():
-    # Dummy coordinate imitating UM V7.3s river grid. Must have length 180.
+def lat_river():
+    # iris DimCoord imitating UM V7.3s river grid. Must have length 180.
     lat_river_points = np.arange(-90., 90, dtype="float32") + 0.5
-
-    lat_river_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LATITUDE,
-        points=lat_river_points
+    lat_river_coord = iris.coords.DimCoord(
+        points=lat_river_points,
+        standard_name=um2nc.LATITUDE
     )
-    return lat_river_dummy_coord
+    return lat_river_coord
 
 
 @pytest.fixture
-def lon_river_dummy():
-    # Dummy coordinate imitating UM V7.3s river grid. Must have length 90.
+def lon_river():
+    # iris DimCoord imitating UM V7.3s river grid. Must have length 90.
     lon_river_points = np.arange(0., 360., dtype="float32") + 0.5
-
-    lon_river_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LONGITUDE,
+    lon_river_coord = iris.coords.DimCoord(
         points=lon_river_points,
+        standard_name=um2nc.LONGITUDE
     )
-    return lon_river_dummy_coord
+    return lon_river_coord
 
 
 @pytest.fixture
-def lat_v_nd_dummy():
-    # Dummy coordinate imitating imitating the real
+def lat_v_nd():
+    # iris DimCoord imitating imitating the real
     # lat_v grid from ESM1.5 (which uses the New Dynamics grid).
     lat_v_points = np.arange(-90.+0.5*D_LAT_N96, 90,
                              D_LAT_N96, dtype="float32")
 
-    lat_v_nd_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LATITUDE,
+    lat_v_nd_coord = iris.coords.DimCoord(
         points=lat_v_points,
+        standard_name=um2nc.LATITUDE,
     )
-    return lat_v_nd_dummy_coord
+    return lat_v_nd_coord
 
 
 @pytest.fixture
-def lon_u_nd_dummy():
-    # Dummy coordinate imitating the real
+def lon_u_nd():
+    # iris DimCoord imitating the real
     # lon_u grid from ESM1.5 (which uses the New Dynamics grid).
     lon_u_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
 
-    lon_u_nd_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LONGITUDE,
+    lon_u_nd_coord = iris.coords.DimCoord(
         points=lon_u_points,
-     )
-    return lon_u_nd_dummy_coord
+        standard_name=um2nc.LONGITUDE,
+    )
+    return lon_u_nd_coord
 
 
 @pytest.fixture
-def lat_v_eg_dummy():
-    # Dummy coordinate imitating the real
+def lat_v_eg():
+    # iris DimCoord imitating the real
     # lat_v grid from CM2 (which uses the End Game grid).
     lat_v_points = np.arange(-90., 91, D_LAT_N96, dtype="float32")
 
-    lat_v_eg_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LATITUDE,
-        points=lat_v_points
+    lat_v_eg_coord = iris.coords.DimCoord(
+        points=lat_v_points,
+        standard_name=um2nc.LATITUDE
     )
-    return lat_v_eg_dummy_coord
+    return lat_v_eg_coord
 
 
 @pytest.fixture
-def lon_u_eg_dummy():
-    # Dummy coordinate imitating the real
+def lon_u_eg():
+    # iris DimCoord imitating the real
     # lon_v grid from CM2 (which uses the End Game grid).
     lon_u_points = np.arange(0, 360, D_LON_N96, dtype="float32")
 
-    lon_u_eg_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LONGITUDE,
-        points=lon_u_points
+    lon_u_eg_coord = iris.coords.DimCoord(
+        points=lon_u_points,
+        standard_name=um2nc.LONGITUDE
     )
-    return lon_u_eg_dummy_coord
+    return lon_u_eg_coord
 
 
 @pytest.fixture
-def lat_standard_nd_dummy():
-    # Dummy coordinate imitating the standard latitude
+def lat_standard_nd():
+    # iris DimCoord imitating the standard latitude
     # grid from ESM1.5 (which uses the New Dynamics grid).
     lat_points_middle = np.arange(-88.75, 89., D_LAT_N96)
     lat_points = np.concatenate(([-90],
@@ -771,55 +747,55 @@ def lat_standard_nd_dummy():
                                  [90.]
                                  ), dtype="float32")
 
-    lat_standard_nd_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LATITUDE,
-        points=lat_points
+    lat_standard_nd_coord = iris.coords.DimCoord(
+        points=lat_points,
+        standard_name=um2nc.LATITUDE
     )
-    return lat_standard_nd_dummy_coord
+    return lat_standard_nd_coord
 
 
 @pytest.fixture
-def lon_standard_nd_dummy():
-    # Dummy coordinate imitating the standard longitude
+def lon_standard_nd():
+    # iris DimCoord imitating the standard longitude
     # grid from ESM1.5 (which uses the New Dynamics grid).
     lon_points = np.arange(0, 360, D_LON_N96, dtype="float32")
 
-    lon_standard_nd_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LONGITUDE,
-        points=lon_points
+    lon_standard_nd_coord = iris.coords.DimCoord(
+        points=lon_points,
+        standard_name=um2nc.LONGITUDE
     )
-    return lon_standard_nd_dummy_coord
+    return lon_standard_nd_coord
 
 
 @pytest.fixture
-def lat_standard_eg_dummy():
-    # Dummy coordinate imitating the standard latitude
+def lat_standard_eg():
+    # iris DimCoord imitating the standard latitude
     # grid from CM2 (which uses the End Game grid).
     lat_points = np.arange(-90 + 0.5*D_LAT_N96, 90.,
                            D_LAT_N96, dtype="float32")
 
-    lat_standard_eg_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LATITUDE,
-        points=lat_points
+    lat_standard_eg_coord = iris.coords.DimCoord(
+        points=lat_points,
+        standard_name=um2nc.LATITUDE
     )
-    return lat_standard_eg_dummy_coord
+    return lat_standard_eg_coord
 
 
 @pytest.fixture
-def lon_standard_eg_dummy():
-    # Dummy coordinate imitating the standard longitude
+def lon_standard_eg():
+    # iris DimCoord imitating the standard longitude
     # grid from CM2 (which uses the End Game grid).
     lon_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
-    lon_standard_eg_dummy_coord = DummyCoordinate(
-        coordname=um2nc.LONGITUDE,
-        points=lon_points
+    lon_standard_eg_coord = iris.coords.DimCoord(
+        points=lon_points,
+        standard_name=um2nc.LONGITUDE
     )
-    return lon_standard_eg_dummy_coord
+    return lon_standard_eg_coord
 
 
 class DummyCubeWithCoords(DummyCube):
     # DummyCube with coordinates, which can be filled with
-    # DummyCoordinate objects for testing.
+    # iris.DimCoord objects for testing.
     def __init__(self, dummy_cube, coords=[]):
         super().__init__(dummy_cube.item_code,
                          dummy_cube.var_name,
@@ -831,37 +807,37 @@ class DummyCubeWithCoords(DummyCube):
         # access a coordinate via the coord method matches the
         # coordinate's name.
         self.coordinate_dict = {}
-        for dummy_coord in coords:
-            self.coordinate_dict[dummy_coord.name()] = dummy_coord
+        for coord in coords:
+            self.coordinate_dict[coord.name()] = coord
 
     def coord(self, coordinate_name):
         return self.coordinate_dict[coordinate_name]
 
 
-def assert_unmodified_coordinate(dummy_coord):
+def assert_unmodified_coordinate(coord):
     """
-    Helper function to heck that a dummy_coordinate's attributes match
+    Helper function to check that a coordinate's attributes match
     those expected for a coordinate that has not yet been modified
     by fix_latlon_coords.
     """
-    assert dummy_coord.points.dtype == np.dtype("float32")
-    assert not dummy_coord.has_bounds()
-    assert dummy_coord.var_name is None
+    assert coord.points.dtype == np.dtype("float32")
+    assert not coord.has_bounds()
+    assert coord.var_name is None
 
 
 # Tests of fix_latlon_coords. This function converts coordinate points
 # to double, adds bounds, and adds var_names to the coordinates.
 # The following tests check that these are done correctly.
 def test_fix_latlon_coords_river(ua_plev_cube,
-                                 lat_river_dummy,
-                                 lon_river_dummy):
+                                 lat_river,
+                                 lon_river):
     """
     Tests of the fix_lat_lon_coords function on river grid coordinates.
     """
 
     cube_with_river_coords = DummyCubeWithCoords(
         dummy_cube=ua_plev_cube,
-        coords=[lat_river_dummy, lon_river_dummy]
+        coords=[lat_river, lon_river]
     )
 
     # Supplementary grid information used by fix_latlon_coords.
@@ -875,10 +851,6 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     assert_unmodified_coordinate(cube_lat_coord)
     assert_unmodified_coordinate(cube_lon_coord)
 
-    # Add mocks of guess_bounds method, to see that it is called.
-    cube_lat_coord.guess_bounds = mock.Mock(return_value=None)
-    cube_lon_coord.guess_bounds = mock.Mock(return_value=None)
-
     um2nc.fix_latlon_coords(cube_with_river_coords, grid_type,
                             D_LAT_N96, D_LON_N96)
 
@@ -889,22 +861,22 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     assert cube_lat_coord.points.dtype == np.dtype("float64")
     assert cube_lon_coord.points.dtype == np.dtype("float64")
 
-    cube_lat_coord.guess_bounds.assert_called
-    cube_lon_coord.guess_bounds.assert_called
+    assert cube_lat_coord.has_bounds()
+    assert cube_lon_coord.has_bounds()
 
 
 def test_fix_latlon_coords_uv(ua_plev_cube,
-                              lat_v_nd_dummy,
-                              lon_u_nd_dummy,
-                              lat_v_eg_dummy,
-                              lon_u_eg_dummy):
+                              lat_v_nd,
+                              lon_u_nd,
+                              lat_v_eg,
+                              lon_u_eg):
     """
     Tests of the fix_lat_lon_coords for longitude u and latitude v
     coordinates on both the New Dynamics and End Game grids.
     """
     coord_sets = [
-        (lat_v_nd_dummy, lon_u_nd_dummy, um2nc.GRID_NEW_DYNAMICS),
-        (lat_v_eg_dummy, lon_u_eg_dummy, um2nc.GRID_END_GAME)
+        (lat_v_nd, lon_u_nd, um2nc.GRID_NEW_DYNAMICS),
+        (lat_v_eg, lon_u_eg, um2nc.GRID_END_GAME)
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
@@ -918,10 +890,6 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
         assert_unmodified_coordinate(lat_coordinate)
         assert_unmodified_coordinate(lon_coordinate)
 
-        # Add mocks of guess_bounds method, to check that it is called.
-        lat_coordinate.guess_bounds = mock.Mock(return_value=None)
-        lon_coordinate.guess_bounds = mock.Mock(return_value=None)
-
         um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
                                 D_LAT_N96, D_LON_N96)
 
@@ -931,15 +899,15 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
         assert lat_coordinate.points.dtype == np.dtype("float64")
         assert lon_coordinate.points.dtype == np.dtype("float64")
 
-        lat_coordinate.guess_bounds.assert_called
-        lon_coordinate.guess_bounds.assert_called
+        assert lat_coordinate.has_bounds()
+        assert lat_coordinate.has_bounds()
 
 
 def test_fix_latlon_coords_standard(ua_plev_cube,
-                                    lat_standard_nd_dummy,
-                                    lon_standard_nd_dummy,
-                                    lat_standard_eg_dummy,
-                                    lon_standard_eg_dummy):
+                                    lat_standard_nd,
+                                    lon_standard_nd,
+                                    lat_standard_eg,
+                                    lon_standard_eg):
     """
     Tests of the fix_lat_lon_coords for standard longitude
     and latitude coordinates on both the New Dynamics and
@@ -947,13 +915,13 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
     """
     coord_sets = [
         (
-            lat_standard_nd_dummy,
-            lon_standard_nd_dummy,
+            lat_standard_nd,
+            lon_standard_nd,
             um2nc.GRID_NEW_DYNAMICS
          ),
         (
-            lat_standard_eg_dummy,
-            lon_standard_eg_dummy,
+            lat_standard_eg,
+            lon_standard_eg,
             um2nc.GRID_END_GAME
         )
     ]
@@ -969,10 +937,6 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
         assert_unmodified_coordinate(lat_coordinate)
         assert_unmodified_coordinate(lon_coordinate)
 
-        # Add mocks of guess_bounds method, to check that it is called.
-        lat_coordinate.guess_bounds = mock.Mock(return_value=None)
-        lon_coordinate.guess_bounds = mock.Mock(return_value=None)
-
         um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
                                 D_LAT_N96, D_LON_N96)
 
@@ -982,8 +946,8 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
         assert lat_coordinate.points.dtype == np.dtype("float64")
         assert lon_coordinate.points.dtype == np.dtype("float64")
 
-        lat_coordinate.guess_bounds.assert_called
-        lon_coordinate.guess_bounds.assert_called
+        assert lat_coordinate.has_bounds()
+        assert lat_coordinate.has_bounds()
 
 
 def test_fix_latlon_coords_single_point(ua_plev_cube):
@@ -997,10 +961,10 @@ def test_fix_latlon_coords_single_point(ua_plev_cube):
     expected_lat_bounds = um2nc.GLOBAL_COORD_BOUNDS[um2nc.LATITUDE]
     expected_lon_bounds = um2nc.GLOBAL_COORD_BOUNDS[um2nc.LONGITUDE]
 
-    lat_coord_single = DummyCoordinate(coordname=um2nc.LATITUDE,
-                                       points=np.array([0]))
-    lon_coord_single = DummyCoordinate(coordname=um2nc.LONGITUDE,
-                                       points=np.array([0]))
+    lat_coord_single = iris.coords.DimCoord(points=np.array([0]),
+                                            standard_name=um2nc.LATITUDE)
+    lon_coord_single = iris.coords.DimCoord(points=np.array([0]),
+                                            standard_name=um2nc.LONGITUDE)
 
     cube_with_uv_coords = DummyCubeWithCoords(
         dummy_cube=ua_plev_cube,
@@ -1031,12 +995,12 @@ def test_fix_latlon_coords_has_bounds(ua_plev_cube):
     lon_bounds = np.array([[0, 1]])
     lat_bounds = np.array([[10, 25]])
 
-    lat_coord = DummyCoordinate(coordname=um2nc.LATITUDE,
-                                points=np.array([0]),
-                                bounds=lat_bounds.copy())
-    lon_coord = DummyCoordinate(coordname=um2nc.LONGITUDE,
-                                points=np.array([0]),
-                                bounds=lon_bounds.copy())
+    lat_coord = iris.coords.DimCoord(points=np.array([0]),
+                                     standard_name=um2nc.LATITUDE,
+                                     bounds=lat_bounds.copy())
+    lon_coord = iris.coords.DimCoord(points=np.array([0]),
+                                     standard_name=um2nc.LONGITUDE,
+                                     bounds=lon_bounds.copy())
 
     cube_with_uv_coords = DummyCubeWithCoords(
         dummy_cube=ua_plev_cube,
