@@ -524,13 +524,7 @@ def process(infile, outfile, args):
         # Interval in cell methods isn't reliable so better to remove it.
         c.cell_methods = fix_cell_methods(c.cell_methods)
 
-        try:
-            fix_latlon_coord(c, mv.grid_type, mv.d_lat, mv.d_lon)
-        except iris.exceptions.CoordinateNotFoundError:
-            print('\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
-            print(c)
-            raise Exception("Variable can not be processed")
-
+        fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
         fix_level_coord(c, mv.z_rho, mv.z_theta)
 
         if do_masking:
