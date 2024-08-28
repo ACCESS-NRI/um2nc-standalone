@@ -677,49 +677,66 @@ def test_fix_cell_methods_keep_weeks():
     assert mod.intervals[0] == "week"
 
 
-# NB: sourced from z_sea_theta_data fixture. This "array" is cropped as
-#     fix_level_coords() only accesses height array[0]
-LEVEL_HEIGHTS = [20.0003377]
+@pytest.fixture
+def level_heights():
+    # NB: sourced from z_sea_theta_data fixture. This "array" is cropped as
+    #     fix_level_coords() only accesses height array[0]
+    return [20.0003377]
 
-LEVEL_COORDS = {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
-                um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(LEVEL_HEIGHTS),
-                um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+@pytest.fixture
+def level_coords(level_heights):
+    return {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
+            um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(level_heights),
+            um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+
+@pytest.fixture
+def get_fake_cube_coords(level_coords):
+
+    @dataclass
+    class FakeCubeCoords:
+        """Test object to represent a cube with a coords() access function."""
+
+        def coord(self, key):
+            return level_coords[key]
+
+    # return class for instantiation in tests
+    return FakeCubeCoords
 
 
-@dataclass
-class FakeCubeCoords:
-
-    def coord(self, key):
-        return LEVEL_COORDS[key]
-
-
-def test_fix_level_coord_modify_cube_with_rho(z_sea_rho_data, z_sea_theta_data):
+def test_fix_level_coord_modify_cube_with_rho(level_heights,
+                                              get_fake_cube_coords,
+                                              z_sea_rho_data,
+                                              z_sea_theta_data):
     # verify cube renaming with appropriate z_rho data
-    assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name is None
-    assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name is None
-    assert LEVEL_COORDS[um2nc.SIGMA].var_name is None
+    cube = get_fake_cube_coords()
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name is None
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name is None
+    assert cube.coord(um2nc.SIGMA).var_name is None
 
-    cube = FakeCubeCoords()
-    rho = np.ones(z_sea_theta_data.shape) * LEVEL_HEIGHTS[0]
+
+    rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
     um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
 
-    assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name == "model_rho_level_number"
-    assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name == "rho_level_height"
-    assert LEVEL_COORDS[um2nc.SIGMA].var_name == "sigma_rho"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_rho_level_number"
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "rho_level_height"
+    assert cube.coord(um2nc.SIGMA).var_name == "sigma_rho"
 
 
-def test_fix_level_coord_modify_cube_with_theta(z_sea_rho_data, z_sea_theta_data):
+def test_fix_level_coord_modify_cube_with_theta(level_heights,
+                                                get_fake_cube_coords,
+                                                z_sea_rho_data,
+                                                z_sea_theta_data):
     # verify cube renaming with appropriate z_theta data
-    cube = FakeCubeCoords()
+    cube = get_fake_cube_coords()
     um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
 
-    assert LEVEL_COORDS[um2nc.MODEL_LEVEL_NUM].var_name == "model_theta_level_number"
-    assert LEVEL_COORDS[um2nc.LEVEL_HEIGHT].var_name == "theta_level_height"
-    assert LEVEL_COORDS[um2nc.SIGMA].var_name == "sigma_theta"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_theta_level_number"
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "theta_level_height"
+    assert cube.coord(um2nc.SIGMA).var_name == "sigma_theta"
 
 
 def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
     # ensures level fixes are skipped if the cube lacks model levels, sigma etc
-    mcube = mock.Mock(iris.cube.Cube)
-    mcube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
-    um2nc.fix_level_coord(mcube, z_sea_rho_data, z_sea_theta_data)
+    m_cube = mock.Mock(iris.cube.Cube)
+    m_cube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
+    um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
