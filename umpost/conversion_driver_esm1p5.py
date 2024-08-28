@@ -2,7 +2,7 @@
 """
 ESM1.5 conversion driver
 
-Wrapper script for automated fields file to NetCDF conversion
+Wrapper script for automated fields file to netCDF conversion
 during ESM1.5 simulations. Runs conversion module
 on each atmospheric output in a specified directory.
 
@@ -72,12 +72,12 @@ def get_esm1p5_fields_file_pattern(run_id: str):
 
 def get_nc_write_path(fields_file_path, nc_write_dir):
     """
-    Get filepath for writing NetCDF to based on fields file name.
+    Get filepath for writing netCDF to based on fields file name.
 
     Parameters
     ----------
     fields_file_path : path to single UM fields file to be converted.
-    nc_write_dir : path to target directory for writing NetCDF files.
+    nc_write_dir : path to target directory for writing netCDF files.
 
     Returns
     -------
@@ -119,12 +119,12 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
 
 def convert_fields_file_list(fields_file_paths, nc_write_dir):
     """
-    Convert group of fields files to NetCDF, writing output in nc_write_dir.
+    Convert group of fields files to netCDF, writing output in nc_write_dir.
 
     Parameters
     ----------
     fields_file_paths : list of paths to fields files for conversion.
-    nc_write_dir : directory to save NetCDF files into.
+    nc_write_dir : directory to save netCDF files into.
 
     Returns
     -------
@@ -221,7 +221,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     ----------
     esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
             Fields files in the "atmosphere" subdirectory will be
-            converted to NetCDF.
+            converted to netCDF.
 
     Returns
     -------
@@ -240,8 +240,8 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
             errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir
         )
 
-    # Create a directory for writing NetCDF files
-    nc_write_dir = current_atm_output_dir / "NetCDF"
+    # Create a directory for writing netCDF files
+    nc_write_dir = current_atm_output_dir / "netCDF"
     nc_write_dir.mkdir(exist_ok=True)
 
     # Find fields file outputs to be converted
@@ -259,7 +259,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
         warnings.warn(
             f"No files matching pattern '{fields_file_name_pattern}' "
             f"found in {current_atm_output_dir.resolve()}. No files will be "
-            "converted to NetCDF."
+            "converted to netCDF."
         )
 
         return [], []  # Don't try to run the conversion
