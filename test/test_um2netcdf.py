@@ -1036,3 +1036,26 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
         pytest.raises(um2nc.UnsupportedTimeSeriesError)
     ):
         um2nc.fix_latlon_coords(ua_plev_cube, grid_type, D_LAT_N96, D_LON_N96)
+def test_fix_cell_methods_drop_hours():
+    # ensure cell methods with "hour" in the interval name are translated to
+    # empty intervals
+    cm = iris.coords.CellMethod("mean", "time", "3 hour")
+    modified = um2nc.fix_cell_methods((cm,))
+    assert len(modified) == 1
+
+    mod = modified[0]
+    assert mod.method == cm.method
+    assert mod.coord_names == cm.coord_names
+    assert mod.intervals == ()
+
+
+def test_fix_cell_methods_keep_weeks():
+    # ensure cell methods with non "hour" intervals are left as is
+    cm = iris.coords.CellMethod("mean", "time", "week")
+    modified = um2nc.fix_cell_methods((cm,))
+    assert len(modified) == 1
+
+    mod = modified[0]
+    assert mod.method == cm.method
+    assert mod.coord_names == cm.coord_names
+    assert mod.intervals[0] == "week"

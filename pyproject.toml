@@ -1,0 +1,48 @@
+[project]
+name = "um2nc"
+authors = [
+  {name = "Ben Davies", email="ben.davies@anu.edu.au"},
+  {name = "Martin Dix", email="martin.dix@anu.edu.au"},
+  {name = "Spencer Wong", email="spencer.wong@anu.edu.au"},
+]
+maintainers = [
+    { name = "ACCESS-NRI", email = "access.nri@anu.edu.au" }
+]
+description = "Program to convert Unified Model output files in fields file format to netCDF"
+license = { file = "LICENSE" }
+readme = "README.md"
+keywords = ["netCDF", "UM", "postprocessing"]
+dynamic = ["version"]
+dependencies = [
+  "numpy",
+  "mule",
+  "cftime",
+  "netCDF4",
+  "scitools-iris",
+  "cf-units",
+  "PyYAML",
+  "f90nml",
+]
+
+[project.scripts]
+esm1p5_convert_nc = "umpost.conversion_driver_esm1p5:main"
+um2nc = "umpost.um2netcdf:main"
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "umpost/_version.py"
+versionfile_build = "umpost/_version.py"
+tag_prefix = ""
+parentdir_prefix = "umpost-"
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>64", 
+    "versioneer[toml]"
+]
+
+[tool.setuptools.packages.find]
+include = ["umpost*"]
+namespaces = false

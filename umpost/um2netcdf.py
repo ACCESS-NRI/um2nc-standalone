@@ -440,18 +440,27 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
 
 
-def fix_cell_methods(mtuple):
-    # Input is tuple of cell methods
-    newm = []
-    for m in mtuple:
-        newi = []
-        for i in m.intervals:
-            # Skip the misleading hour intervals
-            if i.find('hour') == -1:
-                newi.append(i)
-        n = CellMethod(m.method, m.coord_names, tuple(newi), m.comments)
-        newm.append(n)
-    return tuple(newm)
+def fix_cell_methods(cell_methods):
+    """
+    Removes misleading 'hour' from interval naming, leaving other names intact.
+
+    TODO: is this an iris bug?
+
+    Parameters
+    ----------
+    cell_methods : the cell methods from a Cube (usually a tuple)
+
+    Returns
+    -------
+    A tuple of cell methods, with "hour" removed from interval names
+    """
+    return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments)
+                 for m in cell_methods)
+
+
+def _remove_hour_interval(cell_method):
+    """Helper retains all non 'hour' intervals."""
+    return (i for i in cell_method.intervals if i.find('hour') == -1)
 
 
 def apply_mask(c, heaviside, hcrit):
@@ -504,9 +513,36 @@ def process(infile, outfile, args):
         print("No cubes left to process after filtering")
         return cubes
 
+    # cube processing & modification
+    for c in cubes:
+        st = stashvar.StashVar(c.item_code)
+        fix_var_name(c, st.uniquename, args.simple)
+        fix_standard_name(c, st.standard_name, args.verbose)
+        fix_long_name(c, st.long_name)
+        fix_units(c, st.units, args.verbose)
+
+        # Interval in cell methods isn't reliable so better to remove it.
+        c.cell_methods = fix_cell_methods(c.cell_methods)
+
+        try:
+            fix_latlon_coord(c, mv.grid_type, mv.d_lat, mv.d_lon)
+        except iris.exceptions.CoordinateNotFoundError:
+            print('\nMissing lat/lon coordinates for variable (possible timeseries?)\n')
+            print(c)
+            raise Exception("Variable can not be processed")
+
+        fix_level_coord(c, mv.z_rho, mv.z_theta)
+
+        if do_masking:
+            # Pressure level data should be masked
+            if require_heaviside_uv(c.item_code) and heaviside_uv:
+                apply_mask(c, heaviside_uv, args.hcrit)
+
+            if require_heaviside_t(c.item_code) and heaviside_t:
+                apply_mask(c, heaviside_t, args.hcrit)
+
+    # cube output I/O
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
-        # TODO: move attribute mods to end of process() to group sman ops
-        #       do when sman ops refactored into a write function
         # Add global attributes
         if not args.nohist:
             add_global_history(infile, sman)
@@ -514,32 +550,10 @@ def process(infile, outfile, args):
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
         for c in cubes:
-            umvar = stashvar.StashVar(c.item_code)  # TODO: rename with `stash` as it's from stash codes
-
-            fix_var_name(c, umvar.uniquename, args.simple)
-            fix_standard_name(c, umvar.standard_name, args.verbose)
-            fix_long_name(c, umvar.long_name)
-            fix_units(c, umvar.units, args.verbose)
-
-            # Interval in cell methods isn't reliable so better to remove it.
-            c.cell_methods = fix_cell_methods(c.cell_methods)
-
-            fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
-
-            fix_level_coord(c, mv.z_rho, mv.z_theta)
-
-            if do_masking:
-                # Pressure level data should be masked
-                if require_heaviside_uv(c.item_code) and heaviside_uv:
-                    apply_mask(c, heaviside_uv, args.hcrit)
-
-                if require_heaviside_t(c.item_code) and heaviside_t:
-                    apply_mask(c, heaviside_t, args.hcrit)
-
             if args.verbose:
                 print(c.name(), c.item_code)
 
-            # TODO: split cubewrite ops into funcs & bring those steps into process() workflow
+            # TODO: split cubewrite ops into funcs & bring into process() workflow
             #       or a sub process workflow function (like process_mule_vars())
             cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
 
@@ -882,7 +896,7 @@ def fix_units(cube, um_var_units, verbose: bool):
             cube.units = um_var_units
 
 
-if __name__ == '__main__':
+def parse_args():
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument('-k', dest='nckind', required=False, type=int,
                         default=3,
@@ -918,5 +932,13 @@ if __name__ == '__main__':
     parser.add_argument('infile', help='Input file')
     parser.add_argument('outfile', help='Output file')
 
-    cli_args = parser.parse_args()
-    process(cli_args.infile, cli_args.outfile, cli_args)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    process(args.infile, args.outfile, args)
+
+
+if __name__ == '__main__':
+    main()

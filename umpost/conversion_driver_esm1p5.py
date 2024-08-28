@@ -3,23 +3,24 @@
 ESM1.5 conversion driver
 
 Wrapper script for automated fields file to NetCDF conversion
-during ESM1.5 simulations. Runs conversion module (currently 
-um2netcdf4) on each atmospheric output in a specified directory.
+during ESM1.5 simulations. Runs conversion module
+on each atmospheric output in a specified directory.
 
-Adapted from Martin Dix's conversion driver for CM2: 
+Adapted from Martin Dix's conversion driver for CM2:
 https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 """
 
 
 import os
 import collections
-import um2netcdf4
 import re
 import f90nml
 import warnings
+import traceback
 import argparse
 import errno
 from pathlib import Path
+from umpost import um2netcdf
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
@@ -42,7 +43,7 @@ ALLOWED_UM2NC_EXCEPTION_MESSAGES = {
 }
 
 
-def get_esm1p5_fields_file_pattern(run_id):
+def get_esm1p5_fields_file_pattern(run_id: str):
     """
     Generate regex pattern for finding current experiment's UM outputs.
 
@@ -61,7 +62,7 @@ def get_esm1p5_fields_file_pattern(run_id):
 
     if len(run_id) != 5:
         raise ValueError(
-            f"Recieved run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
+            f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
         )
 
     fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
@@ -127,27 +128,89 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
 
     Returns
     -------
-    None
+    succeeded: list of tuples of (input, output) filepaths for successful
+               conversions.
+    failed: list of tuples of form (input path, exception) for files which
+            failed to convert due to an allowed exception.
     """
+    succeeded = []
+    failed = []
+
+    fields_file_paths = [Path(p) for p in fields_file_paths]
 
     for fields_file_path in fields_file_paths:
 
-        fields_file_path = Path(fields_file_path)
-
         nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
 
-        print("Converting file " + fields_file_path.name)
-
         try:
-            um2netcdf4.process(fields_file_path, nc_write_path, ARG_VALS)
+            um2netcdf.process(fields_file_path, nc_write_path, ARG_VALS)
+            succeeded.append((fields_file_path, nc_write_path))
 
         except Exception as exc:
-            # Not ideal here - um2netcdf4 raises generic exception when missing coordinates
+            # TODO: Refactor once um2nc has specific exceptions
             if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
-                warnings.warn("Unable to convert file: " +
-                              fields_file_path.name)
+                failed.append((fields_file_path, exc))
             else:
+                # raise any unexpected errors
                 raise
+
+    return succeeded, failed
+
+
+def format_successes(succeeded):
+    """
+    Format reports of successful conversions to be shared with user.
+
+    Parameters
+    ----------
+    succeeded: list of (input, output) tuples of filepaths for successful
+               conversions.
+
+    Yields
+    -------
+    success_report: formatted report of successful conversion.
+    """
+
+    for input_path, output_path in succeeded:
+        success_report = f"Successfully converted {input_path} to {output_path}"
+        yield success_report
+
+
+def format_failures(failed, quiet):
+    """
+    Format reports of conversions which failed with permitted exceptions.
+
+    Parameters
+    ----------
+    failed: list of tuples of form (filepath, exception) for files which failed
+            to convert due to an allowable exception.
+    quiet: boolean. Report only final exception type and message rather than
+           full stack trace when true.
+
+    Yields
+    -------
+    failure_report: Formatted reports of failed conversion.
+    """
+
+    if quiet:
+
+        for fields_file_path, exception in failed:
+            failure_report = (
+                f"Failed to convert {fields_file_path}. Final reported error: \n"
+                f"{repr(exception)}"
+            )
+            yield failure_report
+    else:
+
+        for fields_file_path, exception in failed:
+            formatted_traceback = "".join(
+                traceback.format_exception(exception)
+            )
+            failure_report = (
+                f"Failed to convert {fields_file_path}. Final reported error: \n"
+                f"{formatted_traceback}"
+            )
+            yield failure_report
 
 
 def convert_esm1p5_output_dir(esm1p5_output_dir):
@@ -156,12 +219,16 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     Parameters
     ----------
-    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation. 
-        Fields files in the "atmosphere" subdirectory will be converted to NetCDF.
+    esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
+            Fields files in the "atmosphere" subdirectory will be
+            converted to NetCDF.
 
     Returns
     -------
-    None
+    succeeded: list of tuples of (input, output) filepaths for successful
+               conversions.
+    failed: list of tuples of form (filepath, exception) for files which failed
+            to convert due to an allowed exception.
     """
 
     esm1p5_output_dir = Path(esm1p5_output_dir)
@@ -188,25 +255,86 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
         atm_dir_contents, fields_file_name_pattern
     )
 
-    if len(atm_dir_fields_files) > 0:
-         # Run the conversion
-        convert_fields_file_list(atm_dir_fields_files, nc_write_dir)
-    else:
+    if len(atm_dir_fields_files) == 0:
         warnings.warn(
             f"No files matching pattern '{fields_file_name_pattern}' "
             f"found in {current_atm_output_dir.resolve()}. No files will be "
             "converted to NetCDF."
         )
 
-   
+        return [], []  # Don't try to run the conversion
+
+    succeeded, failed = convert_fields_file_list(
+        atm_dir_fields_files,
+        nc_write_dir
+    )
+
+    return succeeded, failed
+
+
+def safe_removal(succeeded, failed):
+    """
+    Check whether any input files were reported as simultaneously
+    successful and failed conversions. Return those that appear
+    only as successes as targets for safe deletion.
+
+    Parameters
+    ----------
+    succeeded: List of (input_file, output_file) tuples of filepaths from
+        successful conversions.
+    failed: List of (input_file, Exception) tuples from failed conversions.
+
+    Returns
+    -------
+    successful_only: set of input filepaths which appear in succeeded but
+        not failed.
+    """
+    succeeded_inputs = {succeed_path for succeed_path, _ in succeeded}
+    failed_inputs = {fail_path for fail_path, _ in failed}
+
+    return succeeded_inputs - failed_inputs
+
+
+def parse_args():
+    """
+    Parse arguments given as list (args)
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "current_output_dir", help="ESM1.5 output directory to be converted",
+        type=str
+    )
+    parser.add_argument("--quiet", "-q", action="store_true",
+                        help=(
+                            "Report only final exception type and message for "
+                            "allowed exceptions raised during conversion when "
+                            "flag is included. Otherwise report full "
+                            "stack trace."
+                        )
+                        )
+    parser.add_argument("--delete-ff", "-d", action="store_true",
+                        help="Delete fields files upon successful conversion."
+                        )
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
+
+    # Report results to user
+    for success_message in format_successes(successes):
+        print(success_message)
+    for failure_message in format_failures(failures, args.quiet):
+        warnings.warn(failure_message)
+
+    if args.delete_ff:
+        # Remove files that appear only as successful conversions
+        for path in safe_removal(successes, failures):
+            os.remove(path)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "current_output_dir", help="ESM1.5 output directory to be converted", type=str
-    )
-    args = parser.parse_args()
 
-    current_output_dir = args.current_output_dir
-    convert_esm1p5_output_dir(current_output_dir)
+    main()
