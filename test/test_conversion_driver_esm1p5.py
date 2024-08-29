@@ -75,7 +75,7 @@ def test_get_nc_write_path_unrecognized_unit():
     ff_year = 50
     ff_month = 7
     nc_write_dir = Path("netCDF")
-    expected_nc_write_path = nc_write_dir / f"{ff_name}-005007.nc"
+    expected_nc_write_path = nc_write_dir / f"aiihca.p{unknown_key}-005007.nc"
 
     # Mock get_ff_date to avoid reading header from fields file
     with mock.patch("umpost.conversion_driver_esm1p5.get_ff_date",

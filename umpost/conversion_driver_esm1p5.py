@@ -163,7 +163,7 @@ def get_nc_filename(fields_file_name, year, month):
             "not recognized. Frequency information will not be added "
             "to the netCDF filename."
         )
-        return f"{fields_file_name}-{year:04d}{month:02d}.nc"
+        return f"{stem}-{year:04d}{month:02d}.nc"
 
 
 def get_ff_date(fields_file_path):
@@ -341,7 +341,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
         return [], []  # Don't try to run the conversion
 
     input_output_pairs = [
-        (ff_path, get_nc_write_path(ff_path))
+        (ff_path, get_nc_write_path(ff_path, nc_write_dir))
         for ff_path in atm_dir_fields_files
     ]
     succeeded, failed = convert_fields_file_list(input_output_pairs)
