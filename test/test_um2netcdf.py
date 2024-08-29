@@ -745,3 +745,44 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
     m_cube = mock.Mock(iris.cube.Cube)
     m_cube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
     um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
+
+
+# fix pressure level tests
+
+def test_fix_plevs_no_pressure_coord(get_fake_cube_coords):
+    cube = get_fake_cube_coords()
+
+    with pytest.raises(KeyError):
+        um2nc.fix_plevs(cube)  # ensure there's no 'pressure' key
+
+
+def _add_attrs_points(m_plevs: mock.MagicMock, points):
+    setattr(m_plevs, "attributes", {"positive": None})
+    setattr(m_plevs, "points", points)
+
+
+def test_fix_plevs_do_rounding(get_fake_cube_coords):
+    m_plevs = mock.Mock()
+    _add_attrs_points(m_plevs, [1.000001, 0.000001])
+    extra = {"pressure": m_plevs}
+    cube = get_fake_cube_coords(extra)
+
+    um2nc.fix_plevs(cube)
+
+    plev = cube.coord('pressure')
+    assert plev.attributes["positive"] == "down"
+    assert all(plev.points == [1.0, 0.0])
+
+
+def test_fix_plevs_reverse_pressure(get_fake_cube_coords):
+    m_plevs = mock.Mock()
+    _add_attrs_points(m_plevs, [0.000001, 1.000001])
+    extra = {"pressure": m_plevs}
+    cube = get_fake_cube_coords(extra)
+
+    with mock.patch("iris.util.reverse"):
+        um2nc.fix_plevs(cube)
+
+    plev = cube.coord('pressure')
+    assert plev.attributes["positive"] == "down"
+    assert all(plev.points == [0.0, 1.0])
