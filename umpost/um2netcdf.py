@@ -147,17 +147,7 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
-    try:
-        plevs = cube.coord('pressure')
-        plevs.attributes['positive'] = 'down'
-        plevs.convert_units('Pa')
-        # Otherwise they're off by 1e-10 which looks odd in ncdump
-        plevs.points = np.round(plevs.points, 5)
-        if plevs.points[0] < plevs.points[-1]:
-            # Flip to get pressure decreasing as in CMIP6 standard
-            cube = iris.util.reverse(cube, 'pressure')
-    except iris.exceptions.CoordinateNotFoundError:
-        pass
+    fix_plevs(cube)
 
     if not use64bit:
         if cube.data.dtype == 'float64':
@@ -734,6 +724,27 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
                 c_lev.var_name = 'model_theta_level_number'
                 c_height.var_name = 'theta_level_height'
                 c_sigma.var_name = 'sigma_theta'
+
+
+def fix_plevs(cube):
+    """
+    TODO
+
+    Parameters
+    ----------
+    cube : iris Cube (modifies in place)
+    """
+    try:
+        plevs = cube.coord('pressure')
+        plevs.attributes['positive'] = 'down'
+        plevs.convert_units('Pa')
+        # Otherwise they're off by 1e-10 which looks odd in ncdump
+        plevs.points = np.round(plevs.points, 5)
+        if plevs.points[0] < plevs.points[-1]:
+            # Flip to get pressure decreasing as in CMIP6 standard
+            cube = iris.util.reverse(cube, 'pressure')
+    except iris.exceptions.CoordinateNotFoundError:
+        pass
 
 
 def parse_args():
