@@ -21,6 +21,7 @@ import argparse
 import errno
 from pathlib import Path
 from umpost import um2netcdf
+import mule
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
@@ -42,6 +43,17 @@ ALLOWED_UM2NC_EXCEPTION_MESSAGES = {
     "TIMESERIES_ERROR": "Variable can not be processed",
 }
 
+# Character in filenames specifying the unit key
+FF_UNIT_INDEX = 8
+# Output file suffix for each type of unit. Assume's
+# ESM1.5's unit definitions are being used.
+FF_UNIT_SUFFIX = {
+    "a": "mon",
+    "e": "dai",
+    "i": "3hr",
+    "j": "6hr",
+}
+
 
 def get_esm1p5_fields_file_pattern(run_id: str):
     """
@@ -54,6 +66,7 @@ def get_esm1p5_fields_file_pattern(run_id: str):
     Returns
     -------
     fields_file_name_pattern: Regex pattern for matching fields file names
+                              and extracting file stream.
     """
 
     # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
@@ -68,29 +81,6 @@ def get_esm1p5_fields_file_pattern(run_id: str):
     fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
 
     return fields_file_name_pattern
-
-
-def get_nc_write_path(fields_file_path, nc_write_dir):
-    """
-    Get filepath for writing netCDF to based on fields file name.
-
-    Parameters
-    ----------
-    fields_file_path : path to single UM fields file to be converted.
-    nc_write_dir : path to target directory for writing netCDF files.
-
-    Returns
-    -------
-    nc_write_path : path for writing converted fields_file_path file.
-    """
-    fields_file_path = Path(fields_file_path)
-    nc_write_dir = Path(nc_write_dir)
-
-    fields_file_name = fields_file_path.name
-    nc_file_name = fields_file_name + ".nc"
-    nc_file_write_path = nc_write_dir / nc_file_name
-
-    return nc_file_write_path
 
 
 def find_matching_fields_files(dir_contents, fields_file_name_pattern):
@@ -117,14 +107,106 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     return fields_file_paths
 
 
-def convert_fields_file_list(fields_file_paths, nc_write_dir):
+def get_nc_write_path(fields_file_path, nc_write_dir):
+    """
+    Get filepath for writing netCDF to based on fields file name.
+
+    Parameters
+    ----------
+    fields_file_path : path to single UM fields file to be converted.
+    nc_write_dir : path to target directory for writing netCDF files.
+
+    Returns
+    -------
+    nc_write_path : path for writing converted fields_file_path file.
+    """
+    fields_file_path = Path(fields_file_path)
+    nc_write_dir = Path(nc_write_dir)
+
+    ff_year, ff_month, _ = get_ff_date(fields_file_path)
+
+    nc_file_name = format_nc_filename(fields_file_path.name,
+                                      ff_year,
+                                      ff_month)
+
+    nc_file_write_path = nc_write_dir / nc_file_name
+
+    return nc_file_write_path
+
+
+def format_nc_filename(fields_file_name, year, month):
+    """
+    Format a netCDF output filename based on the input fields file name and
+    its date. Assumes fields_file_name follows ESM1.5's naming convention
+    '{5 char run_id}.pa{unit}{date encoding}`.
+
+    Parameters
+    ----------
+    fields_file_name: name of fields file for conversion.
+    year: integer year for fields file data.
+    month: integer month for fields file data.
+
+    Returns
+    -------
+    name: formated netCDF filename for writing output.
+    """
+    stem = fields_file_name[0:FF_UNIT_INDEX + 1]
+
+    unit = fields_file_name[FF_UNIT_INDEX]
+
+    try:
+        suffix = FF_UNIT_SUFFIX[unit]
+        return f"{stem}-{year:04d}{month:02d}_{suffix}.nc"
+
+    except KeyError:
+        warnings.warn(
+            f"Unit code '{unit}' from filename f{fields_file_name} "
+            "not recognized. Frequency information will not be added "
+            "to the netCDF file name."
+        )
+        return f"{fields_file_name}-{year:04d}{month:02d}.nc"
+
+
+def get_ff_date(fields_file_path):
+    """
+    Get the year and month from a fields file. To be used for
+    naming output files.
+
+    Parameters
+    ----------
+    fields_file_path : path to single fields file.
+
+    Returns
+    -------
+    date_tuple : tuple of integers (yyyy,mm,dd) containing the fields
+                 files date.
+    """
+    fields_file_header = mule.FixedLengthHeader.from_file(
+                                            str(fields_file_path))
+    year = fields_file_header.t2_year
+    month = fields_file_header.t2_month
+    day = fields_file_header.t2_day
+
+    return year, month, day
+
+
+def date_to_yyyymm(date_tuple):
+    """
+    Convert a date into a YYYYMM string
+    """
+    year = date_tuple[0]
+    month = date_tuple[1]
+    return f"{year:04d}{month:02d}"
+
+
+def convert_fields_file_list(input_output_paths):
     """
     Convert group of fields files to netCDF, writing output in nc_write_dir.
 
     Parameters
     ----------
-    fields_file_paths : list of paths to fields files for conversion.
-    nc_write_dir : directory to save netCDF files into.
+    input_output_paths : list of tuples of form (input_path, output_path). Fields file
+                         at input_path will be written to netCDF at ouput_path.
 
     Returns
     -------
@@ -136,20 +218,15 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
     succeeded = []
     failed = []
 
-    fields_file_paths = [Path(p) for p in fields_file_paths]
-
-    for fields_file_path in fields_file_paths:
-
-        nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
-
+    for ff_path, nc_path in input_output_paths:
         try:
-            um2netcdf.process(fields_file_path, nc_write_path, ARG_VALS)
-            succeeded.append((fields_file_path, nc_write_path))
+            um2netcdf.process(ff_path, nc_path, ARG_VALS)
+            succeeded.append((ff_path, nc_path))
 
         except Exception as exc:
             # TODO: Refactor once um2nc has specific exceptions
             if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
-                failed.append((fields_file_path, exc))
+                failed.append((ff_path, exc))
             else:
                 # raise any unexpected errors
                 raise
@@ -264,10 +341,11 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
         return [], []  # Don't try to run the conversion
 
-    succeeded, failed = convert_fields_file_list(
-        atm_dir_fields_files,
-        nc_write_dir
-    )
+    input_output_pairs = [
+        (ff_path, get_nc_write_path(ff_path))
+        for ff_path in atm_dir_fields_files
+    ]
+    succeeded, failed = convert_fields_file_list(input_output_pairs)
 
     return succeeded, failed
 

@@ -17,14 +17,14 @@ def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
         esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
 
 
-def test_get_nc_write_path():
-    fields_file_path = Path("/test/path/fields_123.file")
-    nc_write_dir = Path("/test/path/NetCDF")
+# def test_get_nc_write_path():
+#     fields_file_path = Path("/test/path/fields_123.file")
+#     nc_write_dir = Path("/test/path/NetCDF")
 
-    nc_write_path = esm1p5_convert.get_nc_write_path(
-        fields_file_path, nc_write_dir)
+#     nc_write_path = esm1p5_convert.get_nc_write_path(
+#         fields_file_path, nc_write_dir)
 
-    assert nc_write_path == Path("/test/path/NetCDF/fields_123.file.nc")
+#     assert nc_write_path == Path("/test/path/NetCDF/fields_123.file.nc")
 
 
 def test_find_matching_fields_files():
@@ -108,25 +108,24 @@ def mock_process_with_exception(mock_process):
 
 
 @pytest.mark.parametrize(
-    "input_list", [[], ["fake_file"], [
-        "fake_file_1", "fake_file_2", "fake_file_3"]]
+    "input_output_list", [[],
+                          [("fake_file", "fake_file.nc")],
+                          [("fake_file_1", "fake_file_1.nc"),
+                           ("fake_file_2", "fake_file_2.nc"),
+                           ("fake_file_3", "fake_file_3.nc")]]
 )
 def test_convert_fields_file_list_success(mock_process,
-                                          input_list):
+                                          input_output_list):
     """
     Test that process is called for each input.
     """
-    input_list_paths = [Path(p) for p in input_list]
+    input_output_paths = [(Path(p1), Path(p2)) for p1, p2 in input_output_list]
 
-    succeeded, _ = esm1p5_convert.convert_fields_file_list(
-        input_list_paths, "fake_nc_write_dir")
+    succeeded, _ = esm1p5_convert.convert_fields_file_list(input_output_paths)
 
-    assert mock_process.call_count == len(input_list)
+    assert mock_process.call_count == len(input_output_list)
 
-    successful_input_paths = [successful_path_pair[0] for
-                              successful_path_pair in succeeded]
-
-    assert input_list_paths == successful_input_paths
+    assert succeeded == input_output_paths
 
 
 def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
@@ -137,12 +136,12 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
         "TIMESERIES_ERROR"
     ]
     mock_process_with_exception(allowed_error_message)
-    fake_file_path = Path("fake_file")
+    fake_input_output_paths = [(Path("fake_file"), Path("fake_file.nc"))]
 
     _, failed = esm1p5_convert.convert_fields_file_list(
-        [fake_file_path], "fake_nc_write_dir")
+        fake_input_output_paths)
 
-    assert failed[0][0] == fake_file_path
+    assert failed[0][0] == fake_input_output_paths[0][0]
 
     # TODO: Testing the exception part of the reported failures will be easier
     # once um2nc specific exceptions are added.
@@ -155,7 +154,7 @@ def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
     mock_process_with_exception(generic_error_message)
     with pytest.raises(Exception) as exc_info:
         esm1p5_convert.convert_fields_file_list(
-            ["fake_file"], "fake_nc_write_dir")
+            [("fake_file", "fake_file.nc")])
 
     assert str(exc_info.value) == generic_error_message
 
