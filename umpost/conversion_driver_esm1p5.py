@@ -65,8 +65,7 @@ def get_esm1p5_fields_file_pattern(run_id: str):
 
     Returns
     -------
-    fields_file_name_pattern: Regex pattern for matching fields file names
-                              and extracting file stream.
+    fields_file_name_pattern: Regex pattern for matching fields file names.
     """
 
     # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
@@ -125,16 +124,16 @@ def get_nc_write_path(fields_file_path, nc_write_dir):
 
     ff_year, ff_month, _ = get_ff_date(fields_file_path)
 
-    nc_file_name = format_nc_filename(fields_file_path.name,
-                                      ff_year,
-                                      ff_month)
+    nc_file_name = get_nc_filename(fields_file_path.name,
+                                   ff_year,
+                                   ff_month)
 
     nc_file_write_path = nc_write_dir / nc_file_name
 
     return nc_file_write_path
 
 
-def format_nc_filename(fields_file_name, year, month):
+def get_nc_filename(fields_file_name, year, month):
     """
     Format a netCDF output filename based on the input fields file name and
     its date. Assumes fields_file_name follows ESM1.5's naming convention
@@ -142,7 +141,7 @@ def format_nc_filename(fields_file_name, year, month):
 
     Parameters
     ----------
-    fields_file_name: name of fields file for conversion.
+    fields_file_name: name of fields file to be converted.
     year: integer year for fields file data.
     month: integer month for fields file data.
 
@@ -162,7 +161,7 @@ def format_nc_filename(fields_file_name, year, month):
         warnings.warn(
             f"Unit code '{unit}' from filename f{fields_file_name} "
             "not recognized. Frequency information will not be added "
-            "to the netCDF file name."
+            "to the netCDF filename."
         )
         return f"{fields_file_name}-{year:04d}{month:02d}.nc"
 
@@ -179,7 +178,7 @@ def get_ff_date(fields_file_path):
     Returns
     -------
     date_tuple : tuple of integers (yyyy,mm,dd) containing the fields
-                 files date.
+                 file's date.
     """
     fields_file_header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
