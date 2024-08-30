@@ -777,7 +777,7 @@ def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
 
     um2nc.fix_pressure_levels(cube)
 
-    # TODO: test flaw, this verifies pressure coord but ignores fix_plevs()
+    # TODO: test flaw, this verifies pressure coord but ignores fix_pressure_levels()
     #       returning a new cube if the pressure is reversed. This is verified
     #       in command line testing though
     c_pressure = cube.coord('pressure')
@@ -794,7 +794,7 @@ def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
     with mock.patch("iris.util.reverse"):
         um2nc.fix_pressure_levels(cube)
 
-    # TODO: test flaw, this verifies pressure coord but ignores fix_plevs()
+    # TODO: test flaw, this verifies pressure coord but ignores fix_pressure_levels()
     #       returning a new cube if the pressure is reversed. This is verified
     #       in command line testing though
     c_pressure = cube.coord('pressure')
