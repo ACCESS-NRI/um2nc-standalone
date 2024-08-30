@@ -662,83 +662,74 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
 
 
+def to_iris_DimCoord(points_and_name_func):
+
+    def DimCoord_maker():
+        points, name = points_and_name_func()
+        return iris.coords.DimCoord(
+            points=points,
+            standard_name=name
+        )
+
+    return DimCoord_maker
+
+
 @pytest.fixture
-def lat_river():
+@to_iris_DimCoord
+def lat_river_coord():
     # iris DimCoord imitating UM V7.3s river grid. Must have length 180.
     lat_river_points = np.arange(-90., 90, dtype="float32") + 0.5
-    lat_river_coord = iris.coords.DimCoord(
-        points=lat_river_points,
-        standard_name=um2nc.LATITUDE
-    )
-    return lat_river_coord
+    return lat_river_points, um2nc.LATITUDE
 
 
 @pytest.fixture
-def lon_river():
+@to_iris_DimCoord
+def lon_river_coord():
     # iris DimCoord imitating UM V7.3s river grid. Must have length 90.
     lon_river_points = np.arange(0., 360., dtype="float32") + 0.5
-    lon_river_coord = iris.coords.DimCoord(
-        points=lon_river_points,
-        standard_name=um2nc.LONGITUDE
-    )
-    return lon_river_coord
+    return lon_river_points, um2nc.LONGITUDE
 
 
 @pytest.fixture
-def lat_v_nd():
-    # iris DimCoord imitating imitating the real
+@to_iris_DimCoord
+def lat_v_nd_coord():
+    # iris DimCoord imitating the real
     # lat_v grid from ESM1.5 (which uses the New Dynamics grid).
     lat_v_points = np.arange(-90.+0.5*D_LAT_N96, 90,
                              D_LAT_N96, dtype="float32")
-
-    lat_v_nd_coord = iris.coords.DimCoord(
-        points=lat_v_points,
-        standard_name=um2nc.LATITUDE,
-    )
-    return lat_v_nd_coord
+    return lat_v_points, um2nc.LATITUDE
 
 
 @pytest.fixture
-def lon_u_nd():
+@to_iris_DimCoord
+def lon_u_nd_coord():
     # iris DimCoord imitating the real
     # lon_u grid from ESM1.5 (which uses the New Dynamics grid).
     lon_u_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
-
-    lon_u_nd_coord = iris.coords.DimCoord(
-        points=lon_u_points,
-        standard_name=um2nc.LONGITUDE,
-    )
-    return lon_u_nd_coord
+    return lon_u_points, um2nc.LONGITUDE
 
 
 @pytest.fixture
-def lat_v_eg():
+@to_iris_DimCoord
+def lat_v_eg_coord():
     # iris DimCoord imitating the real
     # lat_v grid from CM2 (which uses the End Game grid).
     lat_v_points = np.arange(-90., 91, D_LAT_N96, dtype="float32")
-
-    lat_v_eg_coord = iris.coords.DimCoord(
-        points=lat_v_points,
-        standard_name=um2nc.LATITUDE
-    )
-    return lat_v_eg_coord
+    return lat_v_points, um2nc.LATITUDE
 
 
 @pytest.fixture
-def lon_u_eg():
+@to_iris_DimCoord
+def lon_u_eg_coord():
     # iris DimCoord imitating the real
     # lon_v grid from CM2 (which uses the End Game grid).
     lon_u_points = np.arange(0, 360, D_LON_N96, dtype="float32")
-
-    lon_u_eg_coord = iris.coords.DimCoord(
-        points=lon_u_points,
-        standard_name=um2nc.LONGITUDE
-    )
-    return lon_u_eg_coord
+    return lon_u_points, um2nc.LONGITUDE
 
 
 @pytest.fixture
-def lat_standard_nd():
+@to_iris_DimCoord
+def lat_standard_nd_coord():
     # iris DimCoord imitating the standard latitude
     # grid from ESM1.5 (which uses the New Dynamics grid).
     lat_points_middle = np.arange(-88.75, 89., D_LAT_N96)
@@ -746,51 +737,35 @@ def lat_standard_nd():
                                  lat_points_middle,
                                  [90.]
                                  ), dtype="float32")
-
-    lat_standard_nd_coord = iris.coords.DimCoord(
-        points=lat_points,
-        standard_name=um2nc.LATITUDE
-    )
-    return lat_standard_nd_coord
+    return lat_points, um2nc.LATITUDE
 
 
 @pytest.fixture
-def lon_standard_nd():
+@to_iris_DimCoord
+def lon_standard_nd_coord():
     # iris DimCoord imitating the standard longitude
     # grid from ESM1.5 (which uses the New Dynamics grid).
     lon_points = np.arange(0, 360, D_LON_N96, dtype="float32")
-
-    lon_standard_nd_coord = iris.coords.DimCoord(
-        points=lon_points,
-        standard_name=um2nc.LONGITUDE
-    )
-    return lon_standard_nd_coord
+    return lon_points, um2nc.LONGITUDE
 
 
 @pytest.fixture
-def lat_standard_eg():
+@to_iris_DimCoord
+def lat_standard_eg_coord():
     # iris DimCoord imitating the standard latitude
     # grid from CM2 (which uses the End Game grid).
     lat_points = np.arange(-90 + 0.5*D_LAT_N96, 90.,
                            D_LAT_N96, dtype="float32")
-
-    lat_standard_eg_coord = iris.coords.DimCoord(
-        points=lat_points,
-        standard_name=um2nc.LATITUDE
-    )
-    return lat_standard_eg_coord
+    return lat_points, um2nc.LATITUDE
 
 
 @pytest.fixture
-def lon_standard_eg():
+@to_iris_DimCoord
+def lon_standard_eg_coord():
     # iris DimCoord imitating the standard longitude
     # grid from CM2 (which uses the End Game grid).
     lon_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
-    lon_standard_eg_coord = iris.coords.DimCoord(
-        points=lon_points,
-        standard_name=um2nc.LONGITUDE
-    )
-    return lon_standard_eg_coord
+    return lon_points, um2nc.LONGITUDE
 
 
 class DummyCubeWithCoords(DummyCube):
@@ -840,15 +815,15 @@ def assert_has_bounds(lat_coord, lon_coord):
 # to double, adds bounds, and adds var_names to the coordinates.
 # The following tests check that these are done correctly.
 def test_fix_latlon_coords_river(ua_plev_cube,
-                                 lat_river,
-                                 lon_river):
+                                 lat_river_coord,
+                                 lon_river_coord):
     """
     Tests of the fix_lat_lon_coords function on river grid coordinates.
     """
 
     cube_with_river_coords = DummyCubeWithCoords(
         dummy_cube=ua_plev_cube,
-        coords=[lat_river, lon_river]
+        coords=[lat_river_coord, lon_river_coord]
     )
 
     # Supplementary grid information used by fix_latlon_coords.
@@ -873,17 +848,18 @@ def test_fix_latlon_coords_river(ua_plev_cube,
 
 
 def test_fix_latlon_coords_uv(ua_plev_cube,
-                              lat_v_nd,
-                              lon_u_nd,
-                              lat_v_eg,
-                              lon_u_eg):
+                              lat_v_nd_coord,
+                              lon_u_nd_coord,
+                              lat_v_eg_coord,
+                              lon_u_eg_coord,
+                              ):
     """
     Tests of the fix_lat_lon_coords for longitude u and latitude v
     coordinates on both the New Dynamics and End Game grids.
     """
     coord_sets = [
-        (lat_v_nd, lon_u_nd, um2nc.GRID_NEW_DYNAMICS),
-        (lat_v_eg, lon_u_eg, um2nc.GRID_END_GAME)
+        (lat_v_nd_coord, lon_u_nd_coord, um2nc.GRID_NEW_DYNAMICS),
+        (lat_v_eg_coord, lon_u_eg_coord, um2nc.GRID_END_GAME)
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
@@ -907,10 +883,10 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
 
 
 def test_fix_latlon_coords_standard(ua_plev_cube,
-                                    lat_standard_nd,
-                                    lon_standard_nd,
-                                    lat_standard_eg,
-                                    lon_standard_eg):
+                                    lat_standard_nd_coord,
+                                    lon_standard_nd_coord,
+                                    lat_standard_eg_coord,
+                                    lon_standard_eg_coord):
     """
     Tests of the fix_lat_lon_coords for standard longitude
     and latitude coordinates on both the New Dynamics and
@@ -918,13 +894,13 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
     """
     coord_sets = [
         (
-            lat_standard_nd,
-            lon_standard_nd,
+            lat_standard_nd_coord,
+            lon_standard_nd_coord,
             um2nc.GRID_NEW_DYNAMICS
          ),
         (
-            lat_standard_eg,
-            lon_standard_eg,
+            lat_standard_eg_coord,
+            lon_standard_eg_coord,
             um2nc.GRID_END_GAME
         )
     ]
