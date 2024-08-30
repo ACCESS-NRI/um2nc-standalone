@@ -297,12 +297,12 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     try:
         latitude_coordinate = cube.coord(LATITUDE)
         longitude_coordinate = cube.coord(LONGITUDE)
-    except iris.exceptions.CoordinateNotFoundError:
+    except iris.exceptions.CoordinateNotFoundError as CoordError:
         msg = (
             "Missing latitude or longitude coordinate for variable (possible timeseries?): \n"
             f"{cube}\n"
         )
-        raise UnsupportedTimeSeriesError(msg)
+        raise UnsupportedTimeSeriesError(msg) from CoordError
 
     # Force to double for consistency with CMOR
     latitude_coordinate.points = latitude_coordinate.points.astype(np.float64)
