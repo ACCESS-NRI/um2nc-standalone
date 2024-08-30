@@ -147,7 +147,7 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
-    fix_plevs(cube)
+    cube = fix_plevs(cube) or cube  # NB: use new cube if pressure points are modified
 
     if not use64bit:
         if cube.data.dtype == 'float64':
@@ -728,23 +728,37 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
 
 def fix_plevs(cube):
     """
-    TODO
+    Reformat pressure level data for NetCDF output.
+
+    This converts units, rounds small fractional errors & ensures pressure is
+    decreasing (following the CMIP6 standard).
 
     Parameters
     ----------
     cube : iris Cube (modifies in place)
+
+    Returns
+    -------
+    None if cube lacks pressure coord or is modified in place, otherwise a new
+    cube if the pressure levels are reversed.
     """
+    # TODO: add rounding places arg
     try:
         plevs = cube.coord('pressure')
-        plevs.attributes['positive'] = 'down'
-        plevs.convert_units('Pa')
-        # Otherwise they're off by 1e-10 which looks odd in ncdump
-        plevs.points = np.round(plevs.points, 5)
-        if plevs.points[0] < plevs.points[-1]:
-            # Flip to get pressure decreasing as in CMIP6 standard
-            cube = iris.util.reverse(cube, 'pressure')
     except iris.exceptions.CoordinateNotFoundError:
-        pass
+        return
+
+    # update existing cube metadata in place
+    plevs.attributes['positive'] = 'down'
+    plevs.convert_units('Pa')
+
+    # Round small fractions otherwise coordinates are off by 1e-10 in ncdump output
+    plevs.points = np.round(plevs.points, 5)
+
+    if plevs.points[0] < plevs.points[-1]:
+        # Flip to get pressure decreasing as per CMIP6 standard
+        # NOTE: returns a new cube!
+        return iris.util.reverse(cube, 'pressure')
 
 
 def parse_args():
