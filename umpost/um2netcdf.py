@@ -148,7 +148,7 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
     # TODO: move into process() AND if a new cube is returned, swap into filtered cube list
-    cube = fix_plevs(cube) or cube  # NB: use new cube if pressure points are modified
+    cube = fix_pressure_levels(cube) or cube  # NB: use new cube if pressure points are modified
 
     if not use64bit:
         if cube.data.dtype == 'float64':
@@ -727,7 +727,7 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
                 c_sigma.var_name = 'sigma_theta'
 
 
-def fix_plevs(cube, decimals=5):
+def fix_pressure_levels(cube, decimals=5):
     """
     Reformat pressure level data for NetCDF output.
 

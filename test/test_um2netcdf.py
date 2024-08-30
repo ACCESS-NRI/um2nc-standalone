@@ -759,7 +759,7 @@ def test_fix_plevs_no_pressure_coord(get_fake_cube_coords):
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         cube.coord("pressure")  # ensure missing 'pressure' coord
 
-    um2nc.fix_plevs(cube)  # should just exit
+    um2nc.fix_pressure_levels(cube)  # should just exit
 
 
 def _add_attrs_points(m_plevs: mock.MagicMock, points):
@@ -775,7 +775,7 @@ def test_fix_plevs_do_rounding(get_fake_cube_coords):
     extra = {"pressure": m_plevs}
     cube = get_fake_cube_coords(extra)
 
-    um2nc.fix_plevs(cube)
+    um2nc.fix_pressure_levels(cube)
 
     # TODO: test flaw, this verifies pressure coord but ignores fix_plevs()
     #       returning a new cube if the pressure is reversed. This is verified
@@ -792,7 +792,7 @@ def test_fix_plevs_reverse_pressure(get_fake_cube_coords):
     cube = get_fake_cube_coords(extra)
 
     with mock.patch("iris.util.reverse"):
-        um2nc.fix_plevs(cube)
+        um2nc.fix_pressure_levels(cube)
 
     # TODO: test flaw, this verifies pressure coord but ignores fix_plevs()
     #       returning a new cube if the pressure is reversed. This is verified
