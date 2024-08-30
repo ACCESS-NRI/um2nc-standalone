@@ -745,18 +745,18 @@ def fix_pressure_levels(cube, decimals=5):
     cube if the pressure levels are reversed.
     """
     try:
-        plevs = cube.coord('pressure')
+        pressure = cube.coord('pressure')
     except iris.exceptions.CoordinateNotFoundError:
         return
 
     # update existing cube metadata in place
-    plevs.attributes['positive'] = 'down'
-    plevs.convert_units('Pa')
+    pressure.attributes['positive'] = 'down'
+    pressure.convert_units('Pa')
 
     # Round small fractions otherwise coordinates are off by 1e-10 in ncdump output
-    plevs.points = np.round(plevs.points, decimals)
+    pressure.points = np.round(pressure.points, decimals)
 
-    if plevs.points[0] < plevs.points[-1]:
+    if pressure.points[0] < pressure.points[-1]:
         # Flip to get pressure decreasing as per CMIP6 standard
         # NOTE: returns a new cube!
         return iris.util.reverse(cube, 'pressure')
