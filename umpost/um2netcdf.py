@@ -147,6 +147,7 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
+    # TODO: move into process() AND if a new cube is returned, swap into filtered cube list
     cube = fix_plevs(cube) or cube  # NB: use new cube if pressure points are modified
 
     if not use64bit:
