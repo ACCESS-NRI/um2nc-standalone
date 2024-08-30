@@ -726,7 +726,7 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
                 c_sigma.var_name = 'sigma_theta'
 
 
-def fix_plevs(cube):
+def fix_plevs(cube, decimals=5):
     """
     Reformat pressure level data for NetCDF output.
 
@@ -736,13 +736,13 @@ def fix_plevs(cube):
     Parameters
     ----------
     cube : iris Cube (modifies in place)
+    decimals : number of decimals to round to
 
     Returns
     -------
     None if cube lacks pressure coord or is modified in place, otherwise a new
     cube if the pressure levels are reversed.
     """
-    # TODO: add rounding places arg
     try:
         plevs = cube.coord('pressure')
     except iris.exceptions.CoordinateNotFoundError:
@@ -753,7 +753,7 @@ def fix_plevs(cube):
     plevs.convert_units('Pa')
 
     # Round small fractions otherwise coordinates are off by 1e-10 in ncdump output
-    plevs.points = np.round(plevs.points, 5)
+    plevs.points = np.round(plevs.points, decimals)
 
     if plevs.points[0] < plevs.points[-1]:
         # Flip to get pressure decreasing as per CMIP6 standard
