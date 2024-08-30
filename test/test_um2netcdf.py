@@ -703,7 +703,11 @@ def get_fake_cube_coords(level_coords):
                 level_coords.update(custom_coord)
 
         def coord(self, key):
-            return level_coords[key]
+            if key in level_coords:
+                return level_coords[key]
+
+            msg = f"{self.__class__}: lacks coord for '{key}'"
+            raise iris.exceptions.CoordinateNotFoundError(msg)
 
     # return class for instantiation in tests
     return FakeCubeCoords
@@ -747,16 +751,20 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
     um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
 
 
-# fix pressure level tests
+# tests - fix pressure level data
 
 def test_fix_plevs_no_pressure_coord(get_fake_cube_coords):
     cube = get_fake_cube_coords()
 
-    with pytest.raises(KeyError):
-        um2nc.fix_plevs(cube)  # ensure there's no 'pressure' key
+    with pytest.raises(iris.exceptions.CoordinateNotFoundError):
+        cube.coord("pressure")  # ensure missing 'pressure' coord
+
+    um2nc.fix_plevs(cube)  # should just exit
 
 
 def _add_attrs_points(m_plevs: mock.MagicMock, points):
+    # NB: iris attributes appear to be added via mixins, so it's easier but
+    #     less desirable to rely on mock attrs here
     setattr(m_plevs, "attributes", {"positive": None})
     setattr(m_plevs, "points", points)
 
