@@ -753,7 +753,7 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
 
 # tests - fix pressure level data
 
-def test_fix_plevs_no_pressure_coord(get_fake_cube_coords):
+def test_fix_pressure_levels_no_pressure_coord(get_fake_cube_coords):
     cube = get_fake_cube_coords()
 
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
@@ -769,10 +769,10 @@ def _add_attrs_points(m_plevs: mock.MagicMock, points):
     setattr(m_plevs, "points", points)
 
 
-def test_fix_plevs_do_rounding(get_fake_cube_coords):
-    m_plevs = mock.Mock()
-    _add_attrs_points(m_plevs, [1.000001, 0.000001])
-    extra = {"pressure": m_plevs}
+def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
+    m_pressure = mock.Mock()
+    _add_attrs_points(m_pressure, [1.000001, 0.000001])
+    extra = {"pressure": m_pressure}
     cube = get_fake_cube_coords(extra)
 
     um2nc.fix_pressure_levels(cube)
@@ -780,15 +780,15 @@ def test_fix_plevs_do_rounding(get_fake_cube_coords):
     # TODO: test flaw, this verifies pressure coord but ignores fix_plevs()
     #       returning a new cube if the pressure is reversed. This is verified
     #       in command line testing though
-    plev = cube.coord('pressure')
-    assert plev.attributes["positive"] == "down"
-    assert all(plev.points == [1.0, 0.0])
+    c_pressure = cube.coord('pressure')
+    assert c_pressure.attributes["positive"] == "down"
+    assert all(c_pressure.points == [1.0, 0.0])
 
 
-def test_fix_plevs_reverse_pressure(get_fake_cube_coords):
-    m_plevs = mock.Mock()
-    _add_attrs_points(m_plevs, [0.000001, 1.000001])
-    extra = {"pressure": m_plevs}
+def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
+    m_pressure = mock.Mock()
+    _add_attrs_points(m_pressure, [0.000001, 1.000001])
+    extra = {"pressure": m_pressure}
     cube = get_fake_cube_coords(extra)
 
     with mock.patch("iris.util.reverse"):
@@ -797,6 +797,6 @@ def test_fix_plevs_reverse_pressure(get_fake_cube_coords):
     # TODO: test flaw, this verifies pressure coord but ignores fix_plevs()
     #       returning a new cube if the pressure is reversed. This is verified
     #       in command line testing though
-    plev = cube.coord('pressure')
-    assert plev.attributes["positive"] == "down"
-    assert all(plev.points == [0.0, 1.0])
+    c_pressure = cube.coord('pressure')
+    assert c_pressure.attributes["positive"] == "down"
+    assert all(c_pressure.points == [0.0, 1.0])
