@@ -733,10 +733,24 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
                 c_sigma.var_name = 'sigma_theta'
 
 
+MAX_NP_INT32 = np.iinfo(np.int32).max
+MIN_NP_INT32 = np.iinfo(np.int32).min
+
+
 def convert_32_bit(cube):
     if cube.data.dtype == 'float64':
         cube.data = cube.data.astype(np.float32)
     elif cube.data.dtype == 'int64':
+        _max = np.max(cube.data)
+        _min = np.min(cube.data)
+
+        if _max > MAX_NP_INT32:
+            msg = f"Converting {cube.var_name} causes a 32 bit overflow!"
+            warnings.warn(msg)
+        elif _min < MIN_NP_INT32:
+            msg = f"Converting {cube.var_name} causes a 32 bit underflow!"
+            warnings.warn(msg)
+
         cube.data = cube.data.astype(np.int32)
 
 

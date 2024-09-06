@@ -745,10 +745,32 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
 
 # 64 to 32 bit data conversion tests
 
-def test_64_to_32_int(ua_plev_cube):
+def test_convert_32_bit_with_int64(ua_plev_cube):
     array = np.array([100, 10, 1, 0, -10], dtype=np.int64)
     ua_plev_cube.data = array
     um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.int32
+
+
+def test_convert_32_bit_overflow_with_int64(ua_plev_cube):
+    array = np.array([3000000000], dtype=np.int64)
+    assert array[0] > np.iinfo(np.int32).max
+    ua_plev_cube.data = array
+
+    with pytest.warns():
+        um2nc.convert_32_bit(ua_plev_cube)
+
+    assert ua_plev_cube.data.dtype == np.int32
+
+
+def test_convert_32_bit_underflow_with_int64(ua_plev_cube):
+    array = np.array([-3000000000], dtype=np.int64)
+    assert array[0] < np.iinfo(np.int32).max
+    ua_plev_cube.data = array
+
+    with pytest.warns():
+        um2nc.convert_32_bit(ua_plev_cube)
+
     assert ua_plev_cube.data.dtype == np.int32
 
 
