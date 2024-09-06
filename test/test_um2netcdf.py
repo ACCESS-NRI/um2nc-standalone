@@ -744,6 +744,7 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
 
 
 # 64 to 32 bit data conversion tests
+# NB: skip float63 to float32 overflow as float32 min/max is  -/+ 3.40e+38
 
 def test_convert_32_bit_with_int64(ua_plev_cube):
     array = np.array([100, 10, 1, 0, -10], dtype=np.int64)
@@ -774,7 +775,7 @@ def test_convert_32_bit_underflow_with_int64(ua_plev_cube):
     assert ua_plev_cube.data.dtype == np.int32
 
 
-def test_64_to_32_float(ua_plev_cube):
+def test_convert_32_bit_with_float64(ua_plev_cube):
     array = np.array([300.33, 30.456, 3.04, 0.0, -30.667], dtype=np.float64)
     ua_plev_cube.data = array
     um2nc.convert_32_bit(ua_plev_cube)
