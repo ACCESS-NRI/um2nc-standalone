@@ -403,11 +403,6 @@ class DummyCube:
         self.units = None or units
         self.standard_name = None
         self.long_name = None
-        # TODO: Can I remove this... It breaks DummyCubeWithCoords
-        # It could be required if apply_mask is called during process
-        # tests. Would cause a KeyError anyway?
-        # self.coord = {}
-
 
     def coord(self):
         raise NotImplementedError(
