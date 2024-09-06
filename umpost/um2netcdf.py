@@ -160,10 +160,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         pass
 
     if not use64bit:
-        if cube.data.dtype == 'float64':
-            cube.data = cube.data.astype(np.float32)
-        elif cube.data.dtype == 'int64':
-            cube.data = cube.data.astype(np.int32)
+        convert_32_bit(cube)
 
     # Set the missing_value attribute. Use an array to force the type to match
     # the data type
@@ -734,6 +731,13 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
                 c_lev.var_name = 'model_theta_level_number'
                 c_height.var_name = 'theta_level_height'
                 c_sigma.var_name = 'sigma_theta'
+
+
+def convert_32_bit(cube):
+    if cube.data.dtype == 'float64':
+        cube.data = cube.data.astype(np.float32)
+    elif cube.data.dtype == 'int64':
+        cube.data = cube.data.astype(np.int32)
 
 
 def parse_args():
