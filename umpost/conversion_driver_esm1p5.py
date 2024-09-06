@@ -35,13 +35,6 @@ ARG_NAMES = collections.namedtuple(
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
-# TODO: um2nc standalone will raise more specific exceptions.
-# See https://github.com/ACCESS-NRI/um2nc-standalone/issues/18
-# Improve exception handling here once those changes have been made.
-ALLOWED_UM2NC_EXCEPTION_MESSAGES = {
-    "TIMESERIES_ERROR": "Variable can not be processed",
-}
-
 
 def get_esm1p5_fields_file_pattern(run_id: str):
     """
@@ -146,13 +139,10 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
             um2netcdf.process(fields_file_path, nc_write_path, ARG_VALS)
             succeeded.append((fields_file_path, nc_write_path))
 
-        except Exception as exc:
-            # TODO: Refactor once um2nc has specific exceptions
-            if exc.args[0] in ALLOWED_UM2NC_EXCEPTION_MESSAGES.values():
-                failed.append((fields_file_path, exc))
-            else:
-                # raise any unexpected errors
-                raise
+        except um2netcdf.UnsupportedTimeSeriesError as exc:
+            failed.append((fields_file_path, exc))
+
+        # Any unexpected errors will be raised
 
     return succeeded, failed
 
