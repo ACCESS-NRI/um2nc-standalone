@@ -397,6 +397,7 @@ class DummyCube:
         self.standard_name = None
         self.long_name = None
         self.coord = {}
+        self.data = None
 
     def name(self):
         # mimic iris API
@@ -740,3 +741,19 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
     m_cube = mock.Mock(iris.cube.Cube)
     m_cube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
     um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
+
+
+# 64 to 32 bit data conversion tests
+
+def test_64_to_32_int(ua_plev_cube):
+    array = np.array([100, 10, 1, 0, -10], dtype=np.int64)
+    ua_plev_cube.data = array
+    um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.int32
+
+
+def test_64_to_32_float(ua_plev_cube):
+    array = np.array([300.33, 30.456, 3.04, 0.0, -30.667], dtype=np.float64)
+    ua_plev_cube.data = array
+    um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.float32
