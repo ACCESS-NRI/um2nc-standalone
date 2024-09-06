@@ -738,6 +738,13 @@ MIN_NP_INT32 = np.iinfo(np.int32).min
 
 
 def convert_32_bit(cube):
+    """
+    Convert 64 bit int/float data to 32 bit (in place).
+
+    Parameters
+    ----------
+    cube : iris.cube object to modify.
+    """
     if cube.data.dtype == 'float64':
         cube.data = cube.data.astype(np.float32)
     elif cube.data.dtype == 'int64':
