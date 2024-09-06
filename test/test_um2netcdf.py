@@ -404,11 +404,10 @@ class DummyCube:
         self.standard_name = None
         self.long_name = None
 
-    def coord(self):
+    def coord(self, _):
         raise NotImplementedError(
             "coord() method not implemented on DummyCube"
         )
-
 
     def name(self):
         # mimic iris API
@@ -664,20 +663,20 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
 
 
-def to_iris_DimCoord(points_and_name_func):
+def to_iris_dimcoord(points_and_name_func):
 
-    def DimCoord_maker():
+    def dimcoord_maker():
         points, name = points_and_name_func()
         return iris.coords.DimCoord(
             points=points,
             standard_name=name
         )
 
-    return DimCoord_maker
+    return dimcoord_maker
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lat_river_coord():
     # iris DimCoord imitating UM V7.3s 1x1 degree river grid.
     # Must have length 180.
@@ -686,7 +685,7 @@ def lat_river_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lon_river_coord():
     # iris DimCoord imitating UM V7.3s 1x1 degree river grid.
     # Must have length 360.
@@ -695,7 +694,7 @@ def lon_river_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lat_v_nd_coord():
     # iris DimCoord imitating the real
     # lat_v grid from ESM1.5 (which uses the New Dynamics grid).
@@ -707,7 +706,7 @@ def lat_v_nd_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lon_u_nd_coord():
     # iris DimCoord imitating the real
     # lon_u grid from ESM1.5 (which uses the New Dynamics grid).
@@ -718,7 +717,7 @@ def lon_u_nd_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lat_v_eg_coord():
     # iris DimCoord imitating the real
     # lat_v grid from CM2 (which uses the End Game grid).
@@ -729,7 +728,7 @@ def lat_v_eg_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lon_u_eg_coord():
     # iris DimCoord imitating the real
     # lon_v grid from CM2 (which uses the End Game grid).
@@ -740,7 +739,7 @@ def lon_u_eg_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lat_standard_nd_coord():
     # iris DimCoord imitating the standard latitude
     # grid from ESM1.5 (which uses the New Dynamics grid).
@@ -749,7 +748,7 @@ def lat_standard_nd_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lon_standard_nd_coord():
     # iris DimCoord imitating the standard longitude
     # grid from ESM1.5 (which uses the New Dynamics grid).
@@ -758,7 +757,7 @@ def lon_standard_nd_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lat_standard_eg_coord():
     # iris DimCoord imitating the standard latitude
     # grid from CM2 (which uses the End Game grid).
@@ -768,7 +767,7 @@ def lat_standard_eg_coord():
 
 
 @pytest.fixture
-@to_iris_DimCoord
+@to_iris_dimcoord
 def lon_standard_eg_coord():
     # iris DimCoord imitating the standard longitude
     # grid from CM2 (which uses the End Game grid).
