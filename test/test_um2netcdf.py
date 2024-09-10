@@ -1,6 +1,7 @@
 import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
+import operator
 
 import umpost.um2netcdf as um2nc
 
@@ -743,38 +744,23 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
     um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
 
 
-# 64 to 32 bit data conversion tests
-# NB: skip float63 to float32 overflow as float32 min/max is  -/+ 3.40e+38
-
-def test_convert_32_bit_with_int64(ua_plev_cube):
-    array = np.array([100, 10, 1, 0, -10], dtype=np.int64)
-    ua_plev_cube.data = array
+# int64 to int32 data conversion tests
+# NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
+@pytest.mark.parametrize("array,_operator,bound",
+                         [([100, 10, 1, 0, -10], None, None),
+                          ([3000000000], operator.gt, np.iinfo(np.int32).max),
+                          ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
+def test_convert_32_bit(ua_plev_cube, array, _operator, bound):
+    ua_plev_cube.data = np.array(array, dtype=np.int64)
     um2nc.convert_32_bit(ua_plev_cube)
-    assert ua_plev_cube.data.dtype == np.int32
 
-
-def test_convert_32_bit_overflow_with_int64(ua_plev_cube):
-    array = np.array([3000000000], dtype=np.int64)
-    assert array[0] > np.iinfo(np.int32).max
-    ua_plev_cube.data = array
-
-    with pytest.warns():
-        um2nc.convert_32_bit(ua_plev_cube)
+    if _operator:
+        assert _operator(array[0], bound)
 
     assert ua_plev_cube.data.dtype == np.int32
 
 
-def test_convert_32_bit_underflow_with_int64(ua_plev_cube):
-    array = np.array([-3000000000], dtype=np.int64)
-    assert array[0] < np.iinfo(np.int32).max
-    ua_plev_cube.data = array
-
-    with pytest.warns():
-        um2nc.convert_32_bit(ua_plev_cube)
-
-    assert ua_plev_cube.data.dtype == np.int32
-
-
+# test float conversion separately, otherwise parametrize block is ugly
 def test_convert_32_bit_with_float64(ua_plev_cube):
     array = np.array([300.33, 30.456, 3.04, 0.0, -30.667], dtype=np.float64)
     ua_plev_cube.data = array
