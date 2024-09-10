@@ -149,7 +149,7 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
 
 
 def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
-    # Test that critical exceptions which are not allowed by ALLOWED_UM2NC_EXCEPTION_MESSAGES
+    # Test that critical unexpected exceptions
     # are raised, and hence lead to the conversion crashing.
     generic_error_message = "Test error"
     mock_process_with_exception(Exception, generic_error_message)

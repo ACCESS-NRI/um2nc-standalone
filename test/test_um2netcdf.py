@@ -796,7 +796,11 @@ class DummyCubeWithCoords(DummyCube):
             self.coordinate_dict = {}
 
     def coord(self, coordinate_name):
-        return self.coordinate_dict[coordinate_name]
+        try:
+            return self.coordinate_dict[coordinate_name]
+        except KeyError:
+            msg = f"{self.__class__}: lacks coord for '{coordinate_name}'"
+            raise iris.exceptions.CoordinateNotFoundError(msg)
 
 
 def assert_coordinates_are_unmodified(lat_coord, lon_coord):
@@ -811,14 +815,13 @@ def assert_coordinates_are_unmodified(lat_coord, lon_coord):
         assert coord.var_name is None
 
 
-def assert_dtype_float64(lat_coord, lon_coord):
-    assert lat_coord.points.dtype == np.dtype("float64")
-    assert lon_coord.points.dtype == np.dtype("float64")
+def is_float64(lat_coord, lon_coord):
+    return (lat_coord.points.dtype == np.dtype("float64") and
+            lon_coord.points.dtype == np.dtype("float64"))
 
 
-def assert_has_bounds(lat_coord, lon_coord):
-    assert lat_coord.has_bounds()
-    assert lon_coord.has_bounds()
+def has_bounds(lat_coord, lon_coord):
+    return lat_coord.has_bounds() and lon_coord.has_bounds()
 
 
 # Tests of fix_latlon_coords. This function converts coordinate points
@@ -849,8 +852,8 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     assert cube_lat_coord.var_name == um2nc.VAR_NAME_LAT_RIVER
     assert cube_lon_coord.var_name == um2nc.VAR_NAME_LON_RIVER
 
-    assert_dtype_float64(cube_lat_coord, cube_lon_coord)
-    assert_has_bounds(cube_lat_coord, cube_lon_coord)
+    assert is_float64(cube_lat_coord, cube_lon_coord)
+    assert has_bounds(cube_lat_coord, cube_lon_coord)
 
 
 def test_fix_latlon_coords_uv(ua_plev_cube,
@@ -884,8 +887,8 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
         assert lat_coordinate.var_name == um2nc.VAR_NAME_LAT_V
         assert lon_coordinate.var_name == um2nc.VAR_NAME_LON_U
 
-        assert_dtype_float64(lat_coordinate, lon_coordinate)
-        assert_has_bounds(lat_coordinate, lon_coordinate)
+        assert is_float64(lat_coordinate, lon_coordinate)
+        assert has_bounds(lat_coordinate, lon_coordinate)
 
 
 def test_fix_latlon_coords_standard(ua_plev_cube,
@@ -927,8 +930,8 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
         assert lat_coordinate.var_name == um2nc.VAR_NAME_LAT_STANDARD
         assert lon_coordinate.var_name == um2nc.VAR_NAME_LON_STANDARD
 
-        assert_dtype_float64(lat_coordinate, lon_coordinate)
-        assert_has_bounds(lat_coordinate, lon_coordinate)
+        assert is_float64(lat_coordinate, lon_coordinate)
+        assert has_bounds(lat_coordinate, lon_coordinate)
 
 
 def test_fix_latlon_coords_single_point(ua_plev_cube):
@@ -951,13 +954,12 @@ def test_fix_latlon_coords_single_point(ua_plev_cube):
         coords=[lat_coord_single, lon_coord_single]
     )
 
-    assert not lat_coord_single.has_bounds()
-    assert not lon_coord_single.has_bounds()
+    assert not has_bounds(lat_coord_single, lon_coord_single)
 
     um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
                             D_LAT_N96, D_LON_N96)
 
-    assert_has_bounds(lat_coord_single, lon_coord_single)
+    assert has_bounds(lat_coord_single, lon_coord_single)
     assert np.array_equal(lat_coord_single.bounds, expected_lat_bounds)
     assert np.array_equal(lon_coord_single.bounds, expected_lon_bounds)
 
@@ -983,7 +985,7 @@ def test_fix_latlon_coords_has_bounds(ua_plev_cube):
         dummy_cube=ua_plev_cube,
         coords=[lat_coord, lon_coord]
     )
-    assert_has_bounds(lat_coord, lon_coord)
+    assert has_bounds(lat_coord, lon_coord)
 
     um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
                             D_LAT_N96, D_LON_N96)
@@ -997,18 +999,19 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
     Test that fix_latlon_coords raises the right type of error when a cube
     is missing coordinates.
     """
-    def _raise_CoordinateNotFoundError(coord_name):
-        # Include an argument "coord_name" to mimic the signature of an
-        # Iris cube's ".coord" method
-        raise iris.exceptions.CoordinateNotFoundError(coord_name)
+    fake_coord = iris.coords.DimCoord(
+            points=np.array([1, 2, 3], dtype="float32"),
+            # Iris requires name to still be valid 'standard name'
+            standard_name="height"
 
-    # Replace coord method to raise UnsupportedTimeSeriesError
-    ua_plev_cube.coord = _raise_CoordinateNotFoundError
+        )
+
+    cube_with_fake_coord = DummyCubeWithCoords(ua_plev_cube, fake_coord)
 
     with (
         pytest.raises(um2nc.UnsupportedTimeSeriesError)
     ):
-        um2nc.fix_latlon_coords(ua_plev_cube, um2nc.GRID_NEW_DYNAMICS,
+        um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS,
                                 D_LAT_N96, D_LON_N96)
 
 
