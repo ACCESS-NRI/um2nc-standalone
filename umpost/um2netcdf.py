@@ -744,6 +744,10 @@ def convert_32_bit(cube):
     Parameters
     ----------
     cube : iris.cube object to modify.
+
+    Warns
+    -----
+    RuntimeWarning : if the cube has data over 32-bit limits, causing an overflow.
     """
     if cube.data.dtype == 'float64':
         cube.data = cube.data.astype(np.float32)
