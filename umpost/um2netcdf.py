@@ -159,6 +159,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     except iris.exceptions.CoordinateNotFoundError:
         pass
 
+    # TODO: flag warnings as an error for the driver script?
     if not use64bit:
         convert_32_bit(cube)
 
