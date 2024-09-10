@@ -755,12 +755,13 @@ def convert_32_bit(cube):
         _max = np.max(cube.data)
         _min = np.min(cube.data)
 
+        msg = (f"32 bit under/overflow converting {cube.var_name}! Output data "
+               f"likely invalid. Use '--64' option to retain data integrity.")
+
         if _max > MAX_NP_INT32:
-            msg = f"Converting {cube.var_name} causes a 32 bit overflow!"
             warnings.warn(msg, category=RuntimeWarning)
 
         if _min < MIN_NP_INT32:
-            msg = f"Converting {cube.var_name} causes a 32 bit underflow!"
             warnings.warn(msg, category=RuntimeWarning)
 
         cube.data = cube.data.astype(np.int32)
