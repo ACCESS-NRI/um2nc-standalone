@@ -82,30 +82,6 @@ def get_esm1p5_fields_file_pattern(run_id: str):
     return fields_file_name_pattern
 
 
-def find_matching_fields_files(dir_contents, fields_file_name_pattern):
-    """
-    Find files in list of paths with names matching fields_file_name_pattern.
-    Used to find ESM1.5 UM outputs in a simulation output directory.
-
-    Parameters
-    ----------
-    dir_contents : list of file paths, typically contents of a single directory.
-    fields_file_name_pattern : Regex pattern for matching fields file names.
-
-    Returns
-    -------
-    fields_file_paths : subset of dir_contents with names matching fields_file_name_pattern.
-    """
-
-    dir_contents = [Path(filepath) for filepath in dir_contents]
-    fields_file_paths = [
-        filepath for filepath in dir_contents
-        if re.match(fields_file_name_pattern, filepath.name)
-    ]
-
-    return fields_file_paths
-
-
 def get_nc_write_path(fields_file_path, nc_write_dir):
     """
     Get filepath for writing netCDF to based on fields file name.
@@ -131,6 +107,30 @@ def get_nc_write_path(fields_file_path, nc_write_dir):
     nc_file_write_path = nc_write_dir / nc_file_name
 
     return nc_file_write_path
+
+
+def find_matching_fields_files(dir_contents, fields_file_name_pattern):
+    """
+    Find files in list of paths with names matching fields_file_name_pattern.
+    Used to find ESM1.5 UM outputs in a simulation output directory.
+
+    Parameters
+    ----------
+    dir_contents : list of file paths, typically contents of a single directory.
+    fields_file_name_pattern : Regex pattern for matching fields file names.
+
+    Returns
+    -------
+    fields_file_paths : subset of dir_contents with names matching fields_file_name_pattern.
+    """
+
+    dir_contents = [Path(filepath) for filepath in dir_contents]
+    fields_file_paths = [
+        filepath for filepath in dir_contents
+        if re.match(fields_file_name_pattern, filepath.name)
+    ]
+
+    return fields_file_paths
 
 
 def get_nc_filename(fields_file_name, year, month):
