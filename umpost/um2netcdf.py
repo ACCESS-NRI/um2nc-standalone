@@ -293,6 +293,9 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception('Unable to match levels of heaviside function to variable %s' % c.name())
 
 
+# TODO: adding overwrite_ok=False is uglier as it's only related to cube processing
+#       ideally need to treat process as the high level workflow, using a separate
+#       func for cube filtering (split operations up)
 def process(infile, outfile, args, overwrite_ok=False):
     ff = mule.load_umfile(str(infile))
     mv = process_mule_vars(ff)
