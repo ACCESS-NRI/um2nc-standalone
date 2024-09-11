@@ -293,12 +293,12 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception('Unable to match levels of heaviside function to variable %s' % c.name())
 
 
-def process(infile, outfile, args):
+def process(infile, outfile, args, overwrite_ok=False):
     ff = mule.load_umfile(str(infile))
     mv = process_mule_vars(ff)
 
     cubes = iris.load(infile)
-    set_item_codes(cubes)
+    set_item_codes(cubes, overwrite_ok)
     cubes.sort(key=lambda cs: cs.item_code)
 
     if args.include_list or args.exclude_list:
@@ -482,12 +482,13 @@ def to_stash_code(item_code: int):
     return item_code // 1000, item_code % 1000
 
 
-def set_item_codes(cubes):
+def set_item_codes(cubes, overwrite_ok=False):
     for cube in cubes:
         if hasattr(cube, ITEM_CODE):
-            msg = f"Cube {cube.var_name} already has 'item_code' attribute, skipping."
-            warnings.warn(msg)
-            continue
+            if not overwrite_ok:
+                msg = f"Cube {cube.var_name} already has 'item_code' attribute, skipping."
+                warnings.warn(msg)
+                continue
 
         # hack: manually store item_code in cubes
         item_code = to_item_code(cube.attributes[STASH])

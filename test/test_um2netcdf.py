@@ -167,7 +167,7 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
-        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        processed = um2nc.process(fake_in_path, fake_out_path, std_args, overwrite_ok=True)
         assert len(processed) == 1
         cube = processed[0]
 
@@ -194,7 +194,7 @@ def test_process_all_cubes_filtered(air_temp_cube, geo_potential_cube,
         m_saver().__enter__ = mock.Mock(name="mock_sman")
 
         # all cubes should be dropped
-        assert um2nc.process(fake_in_path, fake_out_path, std_args) == []
+        assert um2nc.process(fake_in_path, fake_out_path, std_args, overwrite_ok=True) == []
 
 
 def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
@@ -231,7 +231,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         m_saver().__enter__ = mock.Mock(name="mock_sman")
 
         # all cubes should be processed & not dropped
-        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        processed = um2nc.process(fake_in_path, fake_out_path, std_args, overwrite_ok=True)
         assert len(processed) == len(cubes)
 
         for pc in processed:
@@ -263,7 +263,7 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
         std_args.nomask = True
 
         # all cubes should be kept with masking off
-        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        processed = um2nc.process(fake_in_path, fake_out_path, std_args, overwrite_ok=True)
         assert len(processed) == len(cubes)
 
         for pc in processed:
@@ -408,7 +408,10 @@ def test_set_item_codes_avoid_overwrite():
     item_code2 = 51006
 
     cubes = [DummyCube(item_code, "fake_var"), DummyCube(item_code2, "fake_var2")]
-    um2nc.set_item_codes(cubes)
+
+    with pytest.warns():
+        um2nc.set_item_codes(cubes)
+
     assert cubes[0].item_code == item_code
     assert cubes[1].item_code == item_code2
 
