@@ -16,6 +16,7 @@ def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
     with pytest.raises(ValueError):
         esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
 
+
 @pytest.mark.parametrize("ff_path,ff_year,ff_month,nc_write_dir,expected",
                          [
                             (
@@ -53,12 +54,11 @@ def test_get_nc_write_path_recognized_unit(ff_path, ff_year, ff_month,
     Check that netCDF file naming produces expected file paths for various
     expected unit keys.
     """
-    # Mock get_ff_date to avoid reading header from fields file
-    with mock.patch("umpost.conversion_driver_esm1p5.get_ff_date",
-                    return_value=(ff_year, ff_month, 1)):
-
-        nc_write_path = esm1p5_convert.get_nc_write_path(ff_path,
-                                                         nc_write_dir)
+    nc_write_path = esm1p5_convert.get_nc_write_path(
+                        ff_path,
+                        nc_write_dir,
+                        (ff_year, ff_month, 1)
+                    )
 
     assert nc_write_path == expected
 
@@ -77,12 +77,11 @@ def test_get_nc_write_path_unrecognized_unit():
     nc_write_dir = Path("netCDF")
     expected_nc_write_path = nc_write_dir / f"aiihca.p{unknown_key}-005007.nc"
 
-    # Mock get_ff_date to avoid reading header from fields file
-    with mock.patch("umpost.conversion_driver_esm1p5.get_ff_date",
-                    return_value=(ff_year, ff_month, 1)):
-        with pytest.warns():
-            nc_write_path = esm1p5_convert.get_nc_write_path(Path(ff_name),
-                                                             nc_write_dir)
+    nc_write_path = esm1p5_convert.get_nc_write_path(
+                        Path(ff_name),
+                        nc_write_dir,
+                        (ff_year, ff_month, 1)
+                    )
 
     assert nc_write_path == expected_nc_write_path
 

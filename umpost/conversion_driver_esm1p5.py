@@ -82,31 +82,33 @@ def get_esm1p5_fields_file_pattern(run_id: str):
     return fields_file_name_pattern
 
 
-def get_nc_write_path(fields_file_path, nc_write_dir):
+def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
     """
-    Get filepath for writing netCDF to based on fields file name.
+    Get filepath for writing netCDF to based on fields file name and date.
 
     Parameters
     ----------
     fields_file_path : path to single UM fields file to be converted.
     nc_write_dir : path to target directory for writing netCDF files.
+    date : tuple of form (year, month, date) associated with fields file data.
 
     Returns
     -------
     nc_write_path : path for writing converted fields_file_path file.
     """
     fields_file_path = Path(fields_file_path)
+    fields_file_name = fields_file_path.name
     nc_write_dir = Path(nc_write_dir)
 
-    ff_year, ff_month, _ = get_ff_date(fields_file_path)
+    if date is not None:
+        ff_year, ff_month, _ = date
+        nc_file_name = get_nc_filename(fields_file_name,
+                                       ff_year,
+                                       ff_month)
+    else:
+        nc_file_name = f"{fields_file_name}.nc"
 
-    nc_file_name = get_nc_filename(fields_file_path.name,
-                                   ff_year,
-                                   ff_month)
-
-    nc_file_write_path = nc_write_dir / nc_file_name
-
-    return nc_file_write_path
+    return nc_write_dir / nc_file_name
 
 
 def find_matching_fields_files(dir_contents, fields_file_name_pattern):
@@ -168,8 +170,7 @@ def get_nc_filename(fields_file_name, year, month):
 
 def get_ff_date(fields_file_path):
     """
-    Get the year and month from a fields file. To be used for
-    naming output files.
+    Get the date from a fields file. To be used for naming output files.
 
     Parameters
     ----------
@@ -186,7 +187,7 @@ def get_ff_date(fields_file_path):
     month = fields_file_header.t2_month
     day = fields_file_header.t2_day
 
-    return year, month, day
+    return (year, month, day)
 
 
 def date_to_yyyymm(date_tuple):
@@ -340,10 +341,12 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
         return [], []  # Don't try to run the conversion
 
-    input_output_pairs = [
-        (ff_path, get_nc_write_path(ff_path, nc_write_dir))
-        for ff_path in atm_dir_fields_files
-    ]
+    input_output_pairs = []
+    for ff_path in atm_dir_fields_files:
+        ff_date = get_ff_date(ff_path)
+        nc_path = get_nc_write_path(ff_path, nc_write_dir, ff_date)
+        input_output_pairs.append((ff_path, nc_path))
+
     succeeded, failed = convert_fields_file_list(input_output_pairs)
 
     return succeeded, failed
