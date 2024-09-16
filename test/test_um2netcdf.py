@@ -777,3 +777,25 @@ def test_convert_32_bit_with_float64(ua_plev_cube):
     ua_plev_cube.data = array
     um2nc.convert_32_bit(ua_plev_cube)
     assert ua_plev_cube.data.dtype == np.float32
+
+
+# fix forecast reference time tests
+@pytest.fixture
+def forecast_cube():
+    return DummyCube(item_code=999)
+
+
+def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
+    with pytest.raises(iris.exceptions.CoordinateNotFoundError):
+        forecast_cube.coord("forecast_reference_time")
+
+    um2nc.fix_forecast_reference_time(forecast_cube)
+
+
+def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube):
+    forecast_cube._coords["forecast_reference_time"] = None
+
+    with pytest.raises(iris.exceptions.CoordinateNotFoundError):
+        forecast_cube.coord("time")
+
+    um2nc.fix_forecast_reference_time(forecast_cube)
