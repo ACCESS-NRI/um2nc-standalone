@@ -397,12 +397,19 @@ class DummyCube:
         self.units = None or units
         self.standard_name = None
         self.long_name = None
-        self.coord = {}
         self.data = None
+        self._coords = {}
 
     def name(self):
         # mimic iris API
         return self.var_name
+
+    def coord(self, key):
+        try:
+            return self._coords[key]
+        except KeyError as error:
+            msg = f"Missing coord: {key}"
+            raise iris.exceptions.CoordinateNotFoundError(msg) from error
 
 
 def test_set_item_codes_avoid_overwrite():
