@@ -692,6 +692,7 @@ def level_heights():
     #     fix_level_coords() only accesses height array[0]
     return [20.0003377]
 
+
 @pytest.fixture
 def level_coords(level_heights):
     return {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
@@ -706,7 +707,11 @@ def get_fake_cube_coords(level_coords):
         """Test object to represent a cube with a coords() access function."""
 
         def coord(self, key):
-            return level_coords[key]
+            try:
+                return level_coords[key]
+            except KeyError:
+                msg = f"Missing coord: {key}"
+                raise iris.exceptions.CoordinateNotFoundError(msg)
 
     # return class for instantiation in tests
     return FakeCubeCoords
@@ -721,7 +726,6 @@ def test_fix_level_coord_modify_cube_with_rho(level_heights,
     assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name is None
     assert cube.coord(um2nc.LEVEL_HEIGHT).var_name is None
     assert cube.coord(um2nc.SIGMA).var_name is None
-
 
     rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
     um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
