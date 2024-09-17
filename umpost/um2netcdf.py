@@ -150,11 +150,9 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     # TODO: move into process() AND if a new cube is returned, swap into filtered cube list
     cube = fix_pressure_levels(cube) or cube  # NB: use new cube if pressure points are modified
 
+    # TODO: flag warnings as an error for the driver script?
     if not use64bit:
-        if cube.data.dtype == 'float64':
-            cube.data = cube.data.astype(np.float32)
-        elif cube.data.dtype == 'int64':
-            cube.data = cube.data.astype(np.int32)
+        convert_32_bit(cube)
 
     # Set the missing_value attribute. Use an array to force the type to match
     # the data type
@@ -760,6 +758,40 @@ def fix_pressure_levels(cube, decimals=5):
         # Flip to get pressure decreasing as per CMIP6 standard
         # NOTE: returns a new cube!
         return iris.util.reverse(cube, 'pressure')
+
+
+MAX_NP_INT32 = np.iinfo(np.int32).max
+MIN_NP_INT32 = np.iinfo(np.int32).min
+
+
+def convert_32_bit(cube):
+    """
+    Convert 64 bit int/float data to 32 bit (in place).
+
+    Parameters
+    ----------
+    cube : iris.cube object to modify.
+
+    Warns
+    -----
+    RuntimeWarning : if the cube has data over 32-bit limits, causing an overflow.
+    """
+    if cube.data.dtype == 'float64':
+        cube.data = cube.data.astype(np.float32)
+    elif cube.data.dtype == 'int64':
+        _max = np.max(cube.data)
+        _min = np.min(cube.data)
+
+        msg = (f"32 bit under/overflow converting {cube.var_name}! Output data "
+               f"likely invalid. Use '--64' option to retain data integrity.")
+
+        if _max > MAX_NP_INT32:
+            warnings.warn(msg, category=RuntimeWarning)
+
+        if _min < MIN_NP_INT32:
+            warnings.warn(msg, category=RuntimeWarning)
+
+        cube.data = cube.data.astype(np.int32)
 
 
 def parse_args():

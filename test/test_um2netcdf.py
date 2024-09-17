@@ -1,6 +1,7 @@
 import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
+import operator
 
 import umpost.um2netcdf as um2nc
 
@@ -397,6 +398,7 @@ class DummyCube:
         self.standard_name = None
         self.long_name = None
         self.coord = {}
+        self.data = None
 
     def name(self):
         # mimic iris API
@@ -800,3 +802,27 @@ def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
     c_pressure = cube.coord('pressure')
     assert c_pressure.attributes["positive"] == "down"
     assert all(c_pressure.points == [0.0, 1.0])
+
+
+# int64 to int32 data conversion tests
+# NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
+@pytest.mark.parametrize("array,_operator,bound",
+                         [([100, 10, 1, 0, -10], None, None),
+                          ([3000000000], operator.gt, np.iinfo(np.int32).max),
+                          ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
+def test_convert_32_bit(ua_plev_cube, array, _operator, bound):
+    ua_plev_cube.data = np.array(array, dtype=np.int64)
+    um2nc.convert_32_bit(ua_plev_cube)
+
+    if _operator:
+        assert _operator(array[0], bound)
+
+    assert ua_plev_cube.data.dtype == np.int32
+
+
+# test float conversion separately, otherwise parametrize block is ugly
+def test_convert_32_bit_with_float64(ua_plev_cube):
+    array = np.array([300.33, 30.456, 3.04, 0.0, -30.667], dtype=np.float64)
+    ua_plev_cube.data = array
+    um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.float32
