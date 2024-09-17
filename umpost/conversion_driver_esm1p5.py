@@ -97,16 +97,9 @@ def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
     nc_write_path : path for writing converted fields_file_path file.
     """
     fields_file_path = Path(fields_file_path)
-    fields_file_name = fields_file_path.name
     nc_write_dir = Path(nc_write_dir)
 
-    if date is not None:
-        ff_year, ff_month, _ = date
-        nc_file_name = get_nc_filename(fields_file_name,
-                                       ff_year,
-                                       ff_month)
-    else:
-        nc_file_name = f"{fields_file_name}.nc"
+    nc_file_name = get_nc_filename(fields_file_path.name, date)
 
     return nc_write_dir / nc_file_name
 
@@ -145,14 +138,14 @@ def get_nc_filename(fields_file_name, date=None):
     ----------
     fields_file_name: name of fields file to be converted.
     date: tuple of form (year, month, day) associated with fields file data.
+          If no date supplied, ".nc" will concatenated to the original fields
+          file name.
 
     Returns
     -------
     name: formated netCDF filename for writing output.
     """
     if date is None:
-        # If no date information supplied, just append ".nc"
-        # to current file name.
         return f"{fields_file_name}.nc"
 
     stem = fields_file_name[0:FF_UNIT_INDEX + 1]
@@ -187,9 +180,9 @@ def get_ff_date(fields_file_path):
     """
     fields_file_header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
-    year = fields_file_header.t2_year
-    month = fields_file_header.t2_month
-    day = fields_file_header.t2_day
+    year = fields_file_header.t2_year       # pylint: disable=no-member
+    month = fields_file_header.t2_month     # pylint: disable=no-member
+    day = fields_file_header.t2_day         # pylint: disable=no-member
 
     return (year, month, day)
 
@@ -336,11 +329,13 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
         return [], []  # Don't try to run the conversion
 
-    input_output_pairs = []
-    for ff_path in atm_dir_fields_files:
-        ff_date = get_ff_date(ff_path)
-        nc_path = get_nc_write_path(ff_path, nc_write_dir, ff_date)
-        input_output_pairs.append((ff_path, nc_path))
+    input_output_pairs = [
+        (
+            ff_path,
+            get_nc_write_path(ff_path, nc_write_dir, get_ff_date(ff_path))
+        )
+        for ff_path in atm_dir_fields_files
+    ]
 
     succeeded, failed = convert_fields_file_list(input_output_pairs)
 

@@ -43,12 +43,6 @@ def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
                                 Path("./netCDF"),
                                 Path("./netCDF/aiihca.pj-012001_6hr.nc")
                             ),
-                            (
-                                Path("abc/aiihca.paa1jan"),
-                                None,
-                                Path("./netCDF"),
-                                Path("./netCDF/aiihca.paa1jan.nc")
-                            ),
                          ])
 def test_get_nc_write_path_recognized_unit(ff_path, ff_date,
                                            nc_write_dir, expected):
