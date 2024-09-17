@@ -47,6 +47,10 @@ NC_FORMATS = {
     4: 'NETCDF4_CLASSIC'
 }
 
+MODEL_LEVEL_NUM = "model_level_number"
+LEVEL_HEIGHT = "level_height"
+SIGMA = "sigma"
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -141,33 +145,6 @@ def fix_latlon_coord(cube, grid_type, dlat, dlon):
         lon.var_name = 'lon'
 
 
-# TODO: refactor to "rename level coord"
-# TODO: move this to func renaming section?
-def fix_level_coord(cube, z_rho, z_theta):
-    # Rename model_level_number coordinates to better distinguish rho and theta levels
-    try:
-        c_lev = cube.coord('model_level_number')
-        c_height = cube.coord('level_height')
-        c_sigma = cube.coord('sigma')
-    except iris.exceptions.CoordinateNotFoundError:
-        c_lev = None
-        c_height = None
-        c_sigma = None
-
-    if c_lev:
-        d_rho = abs(c_height.points[0]-z_rho)
-        if d_rho.min() < 1e-6:
-            c_lev.var_name = 'model_rho_level_number'
-            c_height.var_name = 'rho_level_height'
-            c_sigma.var_name = 'sigma_rho'
-        else:
-            d_theta = abs(c_height.points[0]-z_theta)
-            if d_theta.min() < 1e-6:
-                c_lev.var_name = 'model_theta_level_number'
-                c_height.var_name = 'theta_level_height'
-                c_sigma.var_name = 'sigma_theta'
-
-
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
     try:
@@ -182,11 +159,9 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     except iris.exceptions.CoordinateNotFoundError:
         pass
 
+    # TODO: flag warnings as an error for the driver script?
     if not use64bit:
-        if cube.data.dtype == 'float64':
-            cube.data = cube.data.astype(np.float32)
-        elif cube.data.dtype == 'int64':
-            cube.data = cube.data.astype(np.int32)
+        convert_32_bit(cube)
 
     # Set the missing_value attribute. Use an array to force the type to match
     # the data type
@@ -720,6 +695,77 @@ def fix_units(cube, um_var_units, verbose: bool):
                 msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
                 warnings.warn(msg)
             cube.units = um_var_units
+
+
+def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
+    """
+    Renames model_level_number coordinates to help distinguish rho/theta levels.
+
+    Cubes without 'model_level_number' coordinates are skipped.
+
+    Parameters
+    ----------
+    cube : iris.cube.Cube object for in place modification
+    z_rho : geopotential height of the sea free surface
+    z_theta : density (rho) of the air at sea level
+    tol : height tolerance
+    """
+    # TODO: this is called once per cube and many lack the model_level_number
+    #       coord. Is a potential optimisation possible from pre-specifying a
+    #       list of cubes with model_level_numbers & only processing these?
+    try:
+        c_lev = cube.coord(MODEL_LEVEL_NUM)
+        c_height = cube.coord(LEVEL_HEIGHT)
+        c_sigma = cube.coord(SIGMA)
+    except iris.exceptions.CoordinateNotFoundError:
+        return
+
+    if c_lev:
+        d_rho = abs(c_height.points[0]-z_rho)
+        if d_rho.min() < tol:
+            c_lev.var_name = 'model_rho_level_number'
+            c_height.var_name = 'rho_level_height'
+            c_sigma.var_name = 'sigma_rho'
+        else:
+            d_theta = abs(c_height.points[0]-z_theta)
+            if d_theta.min() < tol:
+                c_lev.var_name = 'model_theta_level_number'
+                c_height.var_name = 'theta_level_height'
+                c_sigma.var_name = 'sigma_theta'
+
+
+MAX_NP_INT32 = np.iinfo(np.int32).max
+MIN_NP_INT32 = np.iinfo(np.int32).min
+
+
+def convert_32_bit(cube):
+    """
+    Convert 64 bit int/float data to 32 bit (in place).
+
+    Parameters
+    ----------
+    cube : iris.cube object to modify.
+
+    Warns
+    -----
+    RuntimeWarning : if the cube has data over 32-bit limits, causing an overflow.
+    """
+    if cube.data.dtype == 'float64':
+        cube.data = cube.data.astype(np.float32)
+    elif cube.data.dtype == 'int64':
+        _max = np.max(cube.data)
+        _min = np.min(cube.data)
+
+        msg = (f"32 bit under/overflow converting {cube.var_name}! Output data "
+               f"likely invalid. Use '--64' option to retain data integrity.")
+
+        if _max > MAX_NP_INT32:
+            warnings.warn(msg, category=RuntimeWarning)
+
+        if _min < MIN_NP_INT32:
+            warnings.warn(msg, category=RuntimeWarning)
+
+        cube.data = cube.data.astype(np.int32)
 
 
 def parse_args():
