@@ -100,13 +100,7 @@ def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
     fields_file_name = fields_file_path.name
     nc_write_dir = Path(nc_write_dir)
 
-    if date is not None:
-        ff_year, ff_month, _ = date
-        nc_file_name = get_nc_filename(fields_file_name,
-                                       ff_year,
-                                       ff_month)
-    else:
-        nc_file_name = f"{fields_file_name}.nc"
+    nc_file_name = get_nc_filename(fields_file_name, date)
 
     return nc_write_dir / nc_file_name
 
