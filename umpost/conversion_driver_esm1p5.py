@@ -181,9 +181,9 @@ def get_ff_date(fields_file_path):
     """
     fields_file_header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
-    year = fields_file_header.t2_year
-    month = fields_file_header.t2_month
-    day = fields_file_header.t2_day
+    year = fields_file_header.t2_year       # noqa
+    month = fields_file_header.t2_month     # noqa
+    day = fields_file_header.t2_day         # noqa
 
     return (year, month, day)
 
