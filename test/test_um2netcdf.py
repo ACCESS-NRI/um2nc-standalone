@@ -1,6 +1,8 @@
 import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
+import numpy as np
+from iris.exceptions import CoordinateNotFoundError
 
 import umpost.um2netcdf as um2nc
 
@@ -11,6 +13,9 @@ import mule
 import mule.ff
 import iris.cube
 import iris.coords
+
+D_LAT_N96 = 1.25   # Degrees between latitude points on N96 grid
+D_LON_N96 = 1.875  # Degrees between longitude points on N96 grid
 
 
 @pytest.fixture
@@ -55,7 +60,10 @@ def z_sea_theta_data():
 
 @pytest.fixture
 def mule_vars(z_sea_rho_data, z_sea_theta_data):
-    """Simulate mule variables from aiihca.paa1jan.subset data."""
+    """
+    Simulate mule variables for the New Dynamics grid from
+    aiihca.paa1jan.subset data.
+    """
     d_lat = 1.25  # spacing manually copied from aiihca.paa1jan.subset file
     d_lon = 1.875
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
@@ -148,7 +156,7 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
 
         # TODO: lat/long & level coord fixes require more internal data attrs
         #       skip temporarily to manage test complexity
-        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -207,7 +215,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
 
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
         mock.patch("umpost.um2netcdf.cubewrite"),
@@ -248,7 +256,7 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
 
-        mock.patch("umpost.um2netcdf.fix_latlon_coord"),
+        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
         mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -395,7 +403,11 @@ class DummyCube:
         self.units = None or units
         self.standard_name = None
         self.long_name = None
-        self.coord = {}
+
+    def coord(self, _):
+        raise NotImplementedError(
+            "coord() method not implemented on DummyCube"
+        )
 
     def name(self):
         # mimic iris API
@@ -649,6 +661,358 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
     for unit in ("", None):
         um2nc.fix_units(ua_plev_cube, unit, verbose=False)
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
+
+
+def to_iris_dimcoord(points_and_name_func):
+
+    def dimcoord_maker():
+        points, name = points_and_name_func()
+        return iris.coords.DimCoord(
+            points=points,
+            standard_name=name
+        )
+
+    return dimcoord_maker
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lat_river_coord():
+    # iris DimCoord imitating UM V7.3s 1x1 degree river grid.
+    # Must have length 180.
+    lat_river_points = np.arange(-90., 90, dtype="float32") + 0.5
+    return lat_river_points, um2nc.LATITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lon_river_coord():
+    # iris DimCoord imitating UM V7.3s 1x1 degree river grid.
+    # Must have length 360.
+    lon_river_points = np.arange(0., 360., dtype="float32") + 0.5
+    return lon_river_points, um2nc.LONGITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lat_v_nd_coord():
+    # iris DimCoord imitating the real
+    # lat_v grid from ESM1.5 (which uses the New Dynamics grid).
+    # This grid is offset half a grid cell compared to the standard
+    # New Dynamics latitude grid.
+    lat_v_points = np.arange(-90.+0.5*D_LAT_N96, 90,
+                             D_LAT_N96, dtype="float32")
+    return lat_v_points, um2nc.LATITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lon_u_nd_coord():
+    # iris DimCoord imitating the real
+    # lon_u grid from ESM1.5 (which uses the New Dynamics grid).
+    # This grid is offset half a grid cell compared to the standard
+    # New Dynamics longitude grid.
+    lon_u_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
+    return lon_u_points, um2nc.LONGITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lat_v_eg_coord():
+    # iris DimCoord imitating the real
+    # lat_v grid from CM2 (which uses the End Game grid).
+    # This grid is offset half a grid cell compared to the standard
+    # End Game latitude grid.
+    lat_v_points = np.arange(-90., 91, D_LAT_N96, dtype="float32")
+    return lat_v_points, um2nc.LATITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lon_u_eg_coord():
+    # iris DimCoord imitating the real
+    # lon_v grid from CM2 (which uses the End Game grid).
+    # This grid is offset half a grid cell compared to the standard
+    # New Dynamics longitude grid.
+    lon_u_points = np.arange(0, 360, D_LON_N96, dtype="float32")
+    return lon_u_points, um2nc.LONGITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lat_standard_nd_coord():
+    # iris DimCoord imitating the standard latitude
+    # grid from ESM1.5 (which uses the New Dynamics grid).
+    lat_points = np.arange(-90, 91, D_LAT_N96, dtype="float32")
+    return lat_points, um2nc.LATITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lon_standard_nd_coord():
+    # iris DimCoord imitating the standard longitude
+    # grid from ESM1.5 (which uses the New Dynamics grid).
+    lon_points = np.arange(0, 360, D_LON_N96, dtype="float32")
+    return lon_points, um2nc.LONGITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lat_standard_eg_coord():
+    # iris DimCoord imitating the standard latitude
+    # grid from CM2 (which uses the End Game grid).
+    lat_points = np.arange(-90 + 0.5*D_LAT_N96, 90.,
+                           D_LAT_N96, dtype="float32")
+    return lat_points, um2nc.LATITUDE
+
+
+@pytest.fixture
+@to_iris_dimcoord
+def lon_standard_eg_coord():
+    # iris DimCoord imitating the standard longitude
+    # grid from CM2 (which uses the End Game grid).
+    lon_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
+    return lon_points, um2nc.LONGITUDE
+
+
+class DummyCubeWithCoords(DummyCube):
+    # DummyCube with coordinates, which can be filled with
+    # iris.DimCoord objects for testing.
+    def __init__(self, dummy_cube, coords=None):
+        super().__init__(dummy_cube.item_code,
+                         dummy_cube.var_name,
+                         dummy_cube.attributes,
+                         dummy_cube.units)
+
+        # Set up coordinate dictionary to hold each dummy coordinate, with keys
+        # given by the coordinate names. This ensures that the key used to
+        # access a coordinate via the coord method matches the
+        # coordinate's name.
+        if coords is not None:
+            self.coordinate_dict = {
+                coord.name(): coord for coord in coords
+            }
+        else:
+            self.coordinate_dict = {}
+
+    def coord(self, coordinate_name):
+        try:
+            return self.coordinate_dict[coordinate_name]
+        except KeyError:
+            msg = f"{self.__class__}: lacks coord for '{coordinate_name}'"
+            raise CoordinateNotFoundError(msg)
+
+
+def assert_coordinates_are_unmodified(lat_coord, lon_coord):
+    """
+    Helper function to check that a coordinate's attributes match
+    those expected for a coordinate that has not yet been modified
+    by fix_latlon_coords.
+    """
+    for coord in [lat_coord, lon_coord]:
+        assert coord.points.dtype == np.dtype("float32")
+        assert not coord.has_bounds()
+        assert coord.var_name is None
+
+
+def is_float64(lat_coord, lon_coord):
+    return (lat_coord.points.dtype == np.dtype("float64") and
+            lon_coord.points.dtype == np.dtype("float64"))
+
+
+def has_bounds(lat_coord, lon_coord):
+    return lat_coord.has_bounds() and lon_coord.has_bounds()
+
+
+# Tests of fix_latlon_coords. This function converts coordinate points
+# to double, adds bounds, and adds var_names to the coordinates.
+# The following tests check that these are done correctly.
+def test_fix_latlon_coords_river(ua_plev_cube,
+                                 lat_river_coord,
+                                 lon_river_coord):
+    """
+    Tests of the fix_lat_lon_coords function on river grid coordinates.
+    """
+
+    cube_with_river_coords = DummyCubeWithCoords(
+        dummy_cube=ua_plev_cube,
+        coords=[lat_river_coord, lon_river_coord]
+    )
+
+    cube_lat_coord = cube_with_river_coords.coord(um2nc.LATITUDE)
+    cube_lon_coord = cube_with_river_coords.coord(um2nc.LONGITUDE)
+
+    # Checks prior to modifications.
+    assert_coordinates_are_unmodified(cube_lat_coord, cube_lon_coord)
+
+    um2nc.fix_latlon_coords(cube_with_river_coords, um2nc.GRID_END_GAME,
+                            D_LAT_N96, D_LON_N96)
+
+    # Checks post modifications.
+    assert cube_lat_coord.var_name == um2nc.VAR_NAME_LAT_RIVER
+    assert cube_lon_coord.var_name == um2nc.VAR_NAME_LON_RIVER
+
+    assert is_float64(cube_lat_coord, cube_lon_coord)
+    assert has_bounds(cube_lat_coord, cube_lon_coord)
+
+
+def test_fix_latlon_coords_uv(ua_plev_cube,
+                              lat_v_nd_coord,
+                              lon_u_nd_coord,
+                              lat_v_eg_coord,
+                              lon_u_eg_coord,
+                              ):
+    """
+    Tests of the fix_lat_lon_coords for longitude u and latitude v
+    coordinates on both the New Dynamics and End Game grids.
+    """
+    coord_sets = [
+        (lat_v_nd_coord, lon_u_nd_coord, um2nc.GRID_NEW_DYNAMICS),
+        (lat_v_eg_coord, lon_u_eg_coord, um2nc.GRID_END_GAME)
+    ]
+
+    for lat_coordinate, lon_coordinate, grid_type in coord_sets:
+
+        cube_with_uv_coords = DummyCubeWithCoords(
+            dummy_cube=ua_plev_cube,
+            coords=[lat_coordinate, lon_coordinate]
+        )
+
+        # Checks prior to modifications.
+        assert_coordinates_are_unmodified(lat_coordinate, lon_coordinate)
+
+        um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
+                                D_LAT_N96, D_LON_N96)
+
+        assert lat_coordinate.var_name == um2nc.VAR_NAME_LAT_V
+        assert lon_coordinate.var_name == um2nc.VAR_NAME_LON_U
+
+        assert is_float64(lat_coordinate, lon_coordinate)
+        assert has_bounds(lat_coordinate, lon_coordinate)
+
+
+def test_fix_latlon_coords_standard(ua_plev_cube,
+                                    lat_standard_nd_coord,
+                                    lon_standard_nd_coord,
+                                    lat_standard_eg_coord,
+                                    lon_standard_eg_coord):
+    """
+    Tests of the fix_lat_lon_coords for standard longitude
+    and latitude coordinates on both the New Dynamics and
+    End Game grids.
+    """
+    coord_sets = [
+        (
+            lat_standard_nd_coord,
+            lon_standard_nd_coord,
+            um2nc.GRID_NEW_DYNAMICS
+         ),
+        (
+            lat_standard_eg_coord,
+            lon_standard_eg_coord,
+            um2nc.GRID_END_GAME
+        )
+    ]
+
+    for lat_coordinate, lon_coordinate, grid_type in coord_sets:
+
+        cube_with_uv_coords = DummyCubeWithCoords(
+            dummy_cube=ua_plev_cube,
+            coords=[lat_coordinate, lon_coordinate]
+        )
+
+        # Checks prior to modifications.
+        assert_coordinates_are_unmodified(lat_coordinate, lon_coordinate)
+
+        um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
+                                D_LAT_N96, D_LON_N96)
+
+        assert lat_coordinate.var_name == um2nc.VAR_NAME_LAT_STANDARD
+        assert lon_coordinate.var_name == um2nc.VAR_NAME_LON_STANDARD
+
+        assert is_float64(lat_coordinate, lon_coordinate)
+        assert has_bounds(lat_coordinate, lon_coordinate)
+
+
+def test_fix_latlon_coords_single_point(ua_plev_cube):
+    """
+    Test that single point longitude and latitude coordinates
+    are provided with global bounds.
+    """
+
+    # Expected values after modification
+    expected_lat_bounds = um2nc.GLOBAL_COORD_BOUNDS[um2nc.LATITUDE]
+    expected_lon_bounds = um2nc.GLOBAL_COORD_BOUNDS[um2nc.LONGITUDE]
+
+    lat_coord_single = iris.coords.DimCoord(points=np.array([0]),
+                                            standard_name=um2nc.LATITUDE)
+    lon_coord_single = iris.coords.DimCoord(points=np.array([0]),
+                                            standard_name=um2nc.LONGITUDE)
+
+    cube_with_uv_coords = DummyCubeWithCoords(
+        dummy_cube=ua_plev_cube,
+        coords=[lat_coord_single, lon_coord_single]
+    )
+
+    assert not has_bounds(lat_coord_single, lon_coord_single)
+
+    um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
+                            D_LAT_N96, D_LON_N96)
+
+    assert has_bounds(lat_coord_single, lon_coord_single)
+    assert np.array_equal(lat_coord_single.bounds, expected_lat_bounds)
+    assert np.array_equal(lon_coord_single.bounds, expected_lon_bounds)
+
+
+def test_fix_latlon_coords_has_bounds(ua_plev_cube):
+    """
+    Test that existing coordinate bounds are not modified by
+    fix_latlon_coords.
+    """
+
+    # Expected values after modification
+    lon_bounds = np.array([[0, 1]])
+    lat_bounds = np.array([[10, 25]])
+
+    lat_coord = iris.coords.DimCoord(points=np.array([0]),
+                                     standard_name=um2nc.LATITUDE,
+                                     bounds=lat_bounds.copy())
+    lon_coord = iris.coords.DimCoord(points=np.array([0]),
+                                     standard_name=um2nc.LONGITUDE,
+                                     bounds=lon_bounds.copy())
+
+    cube_with_uv_coords = DummyCubeWithCoords(
+        dummy_cube=ua_plev_cube,
+        coords=[lat_coord, lon_coord]
+    )
+    assert has_bounds(lat_coord, lon_coord)
+
+    um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
+                            D_LAT_N96, D_LON_N96)
+
+    assert np.array_equal(lat_coord.bounds, lat_bounds)
+    assert np.array_equal(lon_coord.bounds, lon_bounds)
+
+
+def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
+    """
+    Test that fix_latlon_coords raises the right type of error when a cube
+    is missing coordinates.
+    """
+    fake_coord = iris.coords.DimCoord(
+            points=np.array([1, 2, 3], dtype="float32"),
+            # Iris requires name to still be valid 'standard name'
+            standard_name="height"
+
+        )
+
+    cube_with_fake_coord = DummyCubeWithCoords(ua_plev_cube, fake_coord)
+
+    with (
+        pytest.raises(um2nc.UnsupportedTimeSeriesError)
+    ):
+        um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS,
+                                D_LAT_N96, D_LON_N96)
 
 
 def test_fix_cell_methods_drop_hours():

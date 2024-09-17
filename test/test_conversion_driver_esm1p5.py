@@ -3,6 +3,7 @@ import umpost.conversion_driver_esm1p5 as esm1p5_convert
 import pytest
 from pathlib import Path
 import unittest.mock as mock
+import umpost.um2netcdf as um2nc
 
 
 def test_get_esm1p5_fields_file_pattern():
@@ -153,11 +154,11 @@ def mock_process(base_mock_process):
 
 @pytest.fixture
 def mock_process_with_exception(mock_process):
-    # Add a generic exception with chosen message to mock_process.
-    # Yield function so that tests of different exception messages
+    # Add a specified exception with chosen message to mock_process.
+    # Yield function so that tests of different exceptions and messages
     # can make use of the same fixture.
-    def _mock_process_with_exception(error_message):
-        mock_process.side_effect = Exception(error_message)
+    def _mock_process_with_exception(error_type, error_message):
+        mock_process.side_effect = error_type(error_message)
 
     yield _mock_process_with_exception
 
@@ -184,13 +185,8 @@ def test_convert_fields_file_list_success(mock_process,
 
 
 def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
-    # Hopefully this test will be unnecessary with um2nc standalone.
-    # Test that the "Variable can not be processed" error arising from time
-    # series inputs is excepted.
-    allowed_error_message = esm1p5_convert.ALLOWED_UM2NC_EXCEPTION_MESSAGES[
-        "TIMESERIES_ERROR"
-    ]
-    mock_process_with_exception(allowed_error_message)
+    mock_process_with_exception(um2nc.UnsupportedTimeSeriesError,
+                                "timeseries error")
     fake_input_output_paths = [(Path("fake_file"), Path("fake_file.nc"))]
 
     _, failed = esm1p5_convert.convert_fields_file_list(
@@ -198,15 +194,12 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
 
     assert failed[0][0] == fake_input_output_paths[0][0]
 
-    # TODO: Testing the exception part of the reported failures will be easier
-    # once um2nc specific exceptions are added.
-
 
 def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
-    # Test that critical exceptions which are not allowed by ALLOWED_UM2NC_EXCEPTION_MESSAGES
+    # Test that critical unexpected exceptions
     # are raised, and hence lead to the conversion crashing.
     generic_error_message = "Test error"
-    mock_process_with_exception(generic_error_message)
+    mock_process_with_exception(Exception, generic_error_message)
     with pytest.raises(Exception) as exc_info:
         esm1p5_convert.convert_fields_file_list(
             [("fake_file", "fake_file.nc")])
