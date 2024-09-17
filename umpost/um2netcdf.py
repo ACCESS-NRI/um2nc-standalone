@@ -126,62 +126,38 @@ def convert_proleptic(time):
     time.units = newunits
 
 
-def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
-    """
-    Add a 'var_name' attribute to a latitude coordinate object
-    based on the grid it lies on.
-
-    NB - Grid spacing dlon only refers to variables on the main
-    horizontal grids, and not the river grid.
-
-    Parameters
-    ----------
-    lat_coordinate: coordinate object from iris cube (edits in place).
-    grid_type: (string) model horizontal grid type.
-    dlat: (float) meridional spacing between latitude grid points.
-    """
-
-    if lat_coordinate.name() != LATITUDE:
-        raise ValueError(
-                f"Wrong coordinate {lat_coordinate.name()} supplied. "
-                f"Expected {LATITUDE}."
-            )
-
-    if is_lat_river_grid(lat_coordinate.points):
-        lat_coordinate.var_name = VAR_NAME_LAT_RIVER
-    elif is_lat_v_grid(lat_coordinate.points, grid_type, dlat):
-        lat_coordinate.var_name = VAR_NAME_LAT_V
+def _fix_horizontal_coord_name(coordinate, grid_type, grid_spacing, 
+                               river_grid_check,
+                               river_grid_name, staggered_grid_check,
+                               staggered_name, base_name):
+    if river_grid_check(coordinate.points):
+        coordinate.var_name = river_grid_name
+    elif staggered_grid_check(coordinate.points, grid_type, grid_spacing):
+        coordinate.var_name = staggered_name
     else:
-        lat_coordinate.var_name = VAR_NAME_LAT_STANDARD
+        coordinate.var_name = base_name
+
+
+def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
+    _fix_horizontal_coord_name(coordinate=lat_coordinate,
+                               grid_type=grid_type,
+                               grid_spacing=dlat,
+                               river_grid_check=is_lat_river_grid,
+                               river_grid_name=VAR_NAME_LAT_RIVER,
+                               staggered_grid_check=is_lat_v_grid,
+                               staggered_name=VAR_NAME_LAT_V,
+                               base_name=VAR_NAME_LAT_STANDARD)
 
 
 def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
-    """
-    Add a 'var_name' attribute to a longitude coordinate object
-    based on the grid it lies on.
-
-    NB - Grid spacing dlon only refers to variables on the main
-    horizontal grids, and not the river grid.
-
-    Parameters
-    ----------
-    lon_coordinate: coordinate object from iris cube (edits in place).
-    grid_type: (string) model horizontal grid type.
-    dlon: (float) zonal spacing between longitude grid points.
-    """
-
-    if lon_coordinate.name() != LONGITUDE:
-        raise ValueError(
-                f"Wrong coordinate {lon_coordinate.name()} supplied. "
-                f"Expected {LATITUDE}."
-            )
-
-    if is_lon_river_grid(lon_coordinate.points):
-        lon_coordinate.var_name = VAR_NAME_LON_RIVER
-    elif is_lon_u_grid(lon_coordinate.points, grid_type, dlon):
-        lon_coordinate.var_name = VAR_NAME_LON_U
-    else:
-        lon_coordinate.var_name = VAR_NAME_LON_STANDARD
+    _fix_horizontal_coord_name(coordinate=lon_coordinate,
+                               grid_type=grid_type,
+                               grid_spacing=dlon,
+                               river_grid_check=is_lon_river_grid,
+                               river_grid_name=VAR_NAME_LON_RIVER,
+                               staggered_grid_check=is_lon_u_grid,
+                               staggered_name=VAR_NAME_LON_U,
+                               base_name=VAR_NAME_LON_STANDARD)
 
 
 def is_lat_river_grid(latitude_points):
