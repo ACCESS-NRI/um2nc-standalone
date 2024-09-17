@@ -263,9 +263,9 @@ def add_latlon_coord_bounds(cube_coordinate):
     coordinate_name = cube_coordinate.name()
     if coordinate_name not in [LONGITUDE, LATITUDE]:
         raise ValueError(
-                f"Wrong coordinate {coordinate_name} supplied. "
-                f"Expected one of {LONGITUDE}, {LATITUDE}."
-            )
+            f"Wrong coordinate {coordinate_name} supplied. "
+            f"Expected one of {LONGITUDE}, {LATITUDE}."
+        )
 
     # Only add bounds if not already present.
     if not cube_coordinate.has_bounds():
