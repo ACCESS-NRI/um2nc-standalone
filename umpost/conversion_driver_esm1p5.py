@@ -181,9 +181,9 @@ def get_ff_date(fields_file_path):
     """
     fields_file_header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
-    year = fields_file_header.t2_year       # pylint: disable=unbalanced-tuple-unpacking
-    month = fields_file_header.t2_month     # pylint: disable=unbalanced-tuple-unpacking
-    day = fields_file_header.t2_day         # pylint: disable=unbalanced-tuple-unpacking
+    year = fields_file_header.t2_year       # pylint: disable=no-member
+    month = fields_file_header.t2_month     # pylint: disable=no-member
+    day = fields_file_header.t2_day         # pylint: disable=no-member
 
     return (year, month, day)
 
