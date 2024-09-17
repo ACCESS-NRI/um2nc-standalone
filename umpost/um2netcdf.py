@@ -225,8 +225,8 @@ def is_lat_v_grid(latitude_points, grid_type, dlat):
         return min_latitude == min_lat_v_eg_grid
     elif grid_type == GRID_NEW_DYNAMICS:
         return np.allclose(min_lat_v_nd_grid, min_latitude)
-    else:
-        return False  # TODO: Is this situation ever valid?
+
+    return False
 
 
 def is_lon_u_grid(longitude_points, grid_type, dlon):
@@ -247,8 +247,8 @@ def is_lon_u_grid(longitude_points, grid_type, dlon):
         return min_longitude == min_lon_u_eg_grid
     elif grid_type == GRID_NEW_DYNAMICS:
         return np.allclose(min_lon_u_nd_grid, min_longitude)
-    else:
-        return False  # TODO: Is this situation ever valid?
+
+    return False
 
 
 def add_latlon_coord_bounds(cube_coordinate):

@@ -14,8 +14,8 @@ import mule.ff
 import iris.cube
 import iris.coords
 
-D_LAT_N96 = 1.25
-D_LON_N96 = 1.875
+D_LAT_N96 = 1.25   # Degrees between latitude points on N96 grid
+D_LON_N96 = 1.875  # Degrees between longitude points on N96 grid
 
 
 @pytest.fixture
@@ -800,7 +800,7 @@ class DummyCubeWithCoords(DummyCube):
             return self.coordinate_dict[coordinate_name]
         except KeyError:
             msg = f"{self.__class__}: lacks coord for '{coordinate_name}'"
-            raise iris.exceptions.CoordinateNotFoundError(msg)
+            raise CoordinateNotFoundError(msg)
 
 
 def assert_coordinates_are_unmodified(lat_coord, lon_coord):
