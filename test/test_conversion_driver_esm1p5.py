@@ -17,38 +17,40 @@ def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
         esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
 
 
-@pytest.mark.parametrize("ff_path,ff_year,ff_month,nc_write_dir,expected",
+@pytest.mark.parametrize("ff_path,ff_date,nc_write_dir,expected",
                          [
                             (
                                 Path("/test/aiihca.paa1feb"),
-                                101,
-                                2,
+                                (101, 2, 1),
                                 Path("/test/netCDF"),
                                 Path("/test/netCDF/aiihca.pa-010102_mon.nc")
                             ),
                             (
                                 Path("aiihca.pe50dec"),
-                                1850,
-                                12,
+                                (1850, 12, 21),
                                 Path("netCDF"),
                                 Path("netCDF/aiihca.pe-185012_dai.nc")
                             ),
                             (
                                 Path("abc/aiihca.pi87jun"),
-                                1887,
-                                6,
+                                (1887, 6, 12),
                                 Path("./netCDF"),
                                 Path("./netCDF/aiihca.pi-188706_3hr.nc")
                             ),
                             (
                                 Path("abc/aiihca.pjc0jan"),
-                                120,
-                                1,
+                                (120, 1, 7),
                                 Path("./netCDF"),
                                 Path("./netCDF/aiihca.pj-012001_6hr.nc")
-                            )
+                            ),
+                            (
+                                Path("abc/aiihca.paa1jan"),
+                                None,
+                                Path("./netCDF"),
+                                Path("./netCDF/aiihca.paa1jan.nc")
+                            ),
                          ])
-def test_get_nc_write_path_recognized_unit(ff_path, ff_year, ff_month,
+def test_get_nc_write_path_recognized_unit(ff_path, ff_date,
                                            nc_write_dir, expected):
     """
     Check that netCDF file naming produces expected file paths for various
@@ -57,7 +59,7 @@ def test_get_nc_write_path_recognized_unit(ff_path, ff_year, ff_month,
     nc_write_path = esm1p5_convert.get_nc_write_path(
                         ff_path,
                         nc_write_dir,
-                        (ff_year, ff_month, 1)
+                        ff_date
                     )
 
     assert nc_write_path == expected
