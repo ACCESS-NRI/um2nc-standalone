@@ -37,7 +37,6 @@ ARG_NAMES = collections.namedtuple(
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
 
-
 # Character in filenames specifying the unit key
 FF_UNIT_INDEX = 8
 # Output file suffix for each type of unit. Assume's
@@ -132,8 +131,8 @@ def get_nc_filename(fields_file_name, date=None):
     Parameters
     ----------
     fields_file_name: name of fields file to be converted.
-    date: tuple of form (year, month, day) associated with fields file data.
-          If no date supplied, ".nc" will concatenated to the original fields
+    date: tuple of form (year, month, day) associated with fields file data,
+          or None. If None, ".nc" will concatenated to the original fields
           file name.
 
     Returns
