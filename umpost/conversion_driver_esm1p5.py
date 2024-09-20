@@ -142,6 +142,8 @@ def get_nc_filename(fields_file_name, date=None):
     if date is None:
         return f"{fields_file_name}.nc"
 
+    # TODO: Use regex to extract stem and unit from filename to improve 
+    # clarity, and for better handling of unexpected filenames.
     stem = fields_file_name[0:FF_UNIT_INDEX + 1]
     unit = fields_file_name[FF_UNIT_INDEX]
 
