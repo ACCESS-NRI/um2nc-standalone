@@ -761,7 +761,8 @@ def test_fix_pressure_levels_no_pressure_coord(get_fake_cube_coords):
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         cube.coord("pressure")  # ensure missing 'pressure' coord
 
-    um2nc.fix_pressure_levels(cube)  # should just exit
+    # fix function should return if there is no pressure coord to modify
+    assert um2nc.fix_pressure_levels(cube) is None  # should just exit
 
 
 def _add_attrs_points(m_plevs: mock.MagicMock, points):
