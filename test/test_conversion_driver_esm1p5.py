@@ -3,6 +3,7 @@ import umpost.conversion_driver_esm1p5 as esm1p5_convert
 import pytest
 from pathlib import Path
 import unittest.mock as mock
+import umpost.um2netcdf as um2nc
 
 
 def test_get_esm1p5_fields_file_pattern():
@@ -17,14 +18,75 @@ def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
         esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
 
 
-def test_get_nc_write_path():
-    fields_file_path = Path("/test/path/fields_123.file")
-    nc_write_dir = Path("/test/path/NetCDF")
+@pytest.mark.parametrize("ff_path,ff_date,nc_write_dir,expected",
+                         [
+                            (
+                                Path("/test/aiihca.paa1feb"),
+                                (101, 2, 1),
+                                Path("/test/netCDF"),
+                                Path("/test/netCDF/aiihca.pa-010102_mon.nc")
+                            ),
+                            (
+                                Path("aiihca.pe50dec"),
+                                (1850, 12, 21),
+                                Path("netCDF"),
+                                Path("netCDF/aiihca.pe-185012_dai.nc")
+                            ),
+                            (
+                                Path("abc/aiihca.pi87jun"),
+                                (1887, 6, 12),
+                                Path("./netCDF"),
+                                Path("./netCDF/aiihca.pi-188706_3hr.nc")
+                            ),
+                            (
+                                Path("abc/aiihca.pjc0jan"),
+                                (120, 1, 7),
+                                Path("./netCDF"),
+                                Path("./netCDF/aiihca.pj-012001_6hr.nc")
+                            ),
+                            (
+                                Path("abc/aiihca.pjc0jan"),
+                                None,
+                                Path("./netCDF"),
+                                Path("./netCDF/aiihca.pjc0jan.nc")
+                            ),
+                         ])
+def test_get_nc_write_path_recognized_unit(ff_path, ff_date,
+                                           nc_write_dir, expected):
+    """
+    Check that netCDF file naming produces expected file paths for various
+    expected unit keys.
+    """
+    nc_write_path = esm1p5_convert.get_nc_write_path(
+                        ff_path,
+                        nc_write_dir,
+                        ff_date
+                    )
+
+    assert nc_write_path == expected
+
+
+def test_get_nc_write_path_unrecognized_unit():
+    """
+    Check that netCDF file naming falls back to simpler naming scheme
+    when unit key in fields file name not recognized.
+    """
+    unknown_key = "w"
+    assert unknown_key not in esm1p5_convert.FF_UNIT_SUFFIX.keys()
+
+    ff_name = f"aiihca.p{unknown_key}abcd"
+    ff_year = 50
+    ff_month = 7
+    nc_write_dir = Path("netCDF")
+    expected_nc_write_path = nc_write_dir / f"aiihca.p{unknown_key}-005007.nc"
 
     nc_write_path = esm1p5_convert.get_nc_write_path(
-        fields_file_path, nc_write_dir)
+                        Path(ff_name),
+                        nc_write_dir,
+                        (ff_year, ff_month, 1)
+                    )
 
-    assert nc_write_path == Path("/test/path/NetCDF/fields_123.file.nc")
+    assert nc_write_path == expected_nc_write_path
 
 
 def test_find_matching_fields_files():
@@ -98,64 +160,55 @@ def mock_process(base_mock_process):
 
 @pytest.fixture
 def mock_process_with_exception(mock_process):
-    # Add a generic exception with chosen message to mock_process.
-    # Yield function so that tests of different exception messages
+    # Add a specified exception with chosen message to mock_process.
+    # Yield function so that tests of different exceptions and messages
     # can make use of the same fixture.
-    def _mock_process_with_exception(error_message):
-        mock_process.side_effect = Exception(error_message)
+    def _mock_process_with_exception(error_type, error_message):
+        mock_process.side_effect = error_type(error_message)
 
     yield _mock_process_with_exception
 
 
 @pytest.mark.parametrize(
-    "input_list", [[], ["fake_file"], [
-        "fake_file_1", "fake_file_2", "fake_file_3"]]
+    "input_output_list", [[],
+                          [("fake_file", "fake_file.nc")],
+                          [("fake_file_1", "fake_file_1.nc"),
+                           ("fake_file_2", "fake_file_2.nc"),
+                           ("fake_file_3", "fake_file_3.nc")]]
 )
 def test_convert_fields_file_list_success(mock_process,
-                                          input_list):
+                                          input_output_list):
     """
     Test that process is called for each input.
     """
-    input_list_paths = [Path(p) for p in input_list]
+    input_output_paths = [(Path(p1), Path(p2)) for p1, p2 in input_output_list]
 
-    succeeded, _ = esm1p5_convert.convert_fields_file_list(
-        input_list_paths, "fake_nc_write_dir")
+    succeeded, _ = esm1p5_convert.convert_fields_file_list(input_output_paths)
 
-    assert mock_process.call_count == len(input_list)
+    assert mock_process.call_count == len(input_output_list)
 
-    successful_input_paths = [successful_path_pair[0] for
-                              successful_path_pair in succeeded]
-
-    assert input_list_paths == successful_input_paths
+    assert succeeded == input_output_paths
 
 
 def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
-    # Hopefully this test will be unnecessary with um2nc standalone.
-    # Test that the "Variable can not be processed" error arising from time
-    # series inputs is excepted.
-    allowed_error_message = esm1p5_convert.ALLOWED_UM2NC_EXCEPTION_MESSAGES[
-        "TIMESERIES_ERROR"
-    ]
-    mock_process_with_exception(allowed_error_message)
-    fake_file_path = Path("fake_file")
+    mock_process_with_exception(um2nc.UnsupportedTimeSeriesError,
+                                "timeseries error")
+    fake_input_output_paths = [(Path("fake_file"), Path("fake_file.nc"))]
 
     _, failed = esm1p5_convert.convert_fields_file_list(
-        [fake_file_path], "fake_nc_write_dir")
+        fake_input_output_paths)
 
-    assert failed[0][0] == fake_file_path
-
-    # TODO: Testing the exception part of the reported failures will be easier
-    # once um2nc specific exceptions are added.
+    assert failed[0][0] == fake_input_output_paths[0][0]
 
 
 def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
-    # Test that critical exceptions which are not allowed by ALLOWED_UM2NC_EXCEPTION_MESSAGES
+    # Test that critical unexpected exceptions
     # are raised, and hence lead to the conversion crashing.
     generic_error_message = "Test error"
-    mock_process_with_exception(generic_error_message)
+    mock_process_with_exception(Exception, generic_error_message)
     with pytest.raises(Exception) as exc_info:
         esm1p5_convert.convert_fields_file_list(
-            ["fake_file"], "fake_nc_write_dir")
+            [("fake_file", "fake_file.nc")])
 
     assert str(exc_info.value) == generic_error_message
 
