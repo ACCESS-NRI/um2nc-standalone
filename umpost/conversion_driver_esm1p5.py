@@ -2,7 +2,7 @@
 """
 ESM1.5 conversion driver
 
-Wrapper script for automated fields file to NetCDF conversion
+Wrapper script for automated fields file to netCDF conversion
 during ESM1.5 simulations. Runs conversion module
 on each atmospheric output in a specified directory.
 
@@ -21,6 +21,7 @@ import argparse
 import errno
 from pathlib import Path
 from umpost import um2netcdf
+import mule
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
@@ -36,6 +37,18 @@ ARG_NAMES = collections.namedtuple(
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
 
 
+# Character in filenames specifying the unit key
+FF_UNIT_INDEX = 8
+# Output file suffix for each type of unit. Assume's
+# ESM1.5's unit definitions are being used.
+FF_UNIT_SUFFIX = {
+    "a": "mon",
+    "e": "dai",
+    "i": "3hr",
+    "j": "6hr",
+}
+
+
 def get_esm1p5_fields_file_pattern(run_id: str):
     """
     Generate regex pattern for finding current experiment's UM outputs.
@@ -46,7 +59,7 @@ def get_esm1p5_fields_file_pattern(run_id: str):
 
     Returns
     -------
-    fields_file_name_pattern: Regex pattern for matching fields file names
+    fields_file_name_pattern: Regex pattern for matching fields file names.
     """
 
     # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
@@ -63,14 +76,15 @@ def get_esm1p5_fields_file_pattern(run_id: str):
     return fields_file_name_pattern
 
 
-def get_nc_write_path(fields_file_path, nc_write_dir):
+def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
     """
-    Get filepath for writing NetCDF to based on fields file name.
+    Get filepath for writing netCDF to based on fields file name and date.
 
     Parameters
     ----------
     fields_file_path : path to single UM fields file to be converted.
-    nc_write_dir : path to target directory for writing NetCDF files.
+    nc_write_dir : path to target directory for writing netCDF files.
+    date : tuple of form (year, month, day) associated with fields file data.
 
     Returns
     -------
@@ -79,11 +93,9 @@ def get_nc_write_path(fields_file_path, nc_write_dir):
     fields_file_path = Path(fields_file_path)
     nc_write_dir = Path(nc_write_dir)
 
-    fields_file_name = fields_file_path.name
-    nc_file_name = fields_file_name + ".nc"
-    nc_file_write_path = nc_write_dir / nc_file_name
+    nc_file_name = get_nc_filename(fields_file_path.name, date)
 
-    return nc_file_write_path
+    return nc_write_dir / nc_file_name
 
 
 def find_matching_fields_files(dir_contents, fields_file_name_pattern):
@@ -110,14 +122,72 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     return fields_file_paths
 
 
-def convert_fields_file_list(fields_file_paths, nc_write_dir):
+def get_nc_filename(fields_file_name, date=None):
     """
-    Convert group of fields files to NetCDF, writing output in nc_write_dir.
+    Format a netCDF output filename based on the input fields file name and
+    its date. Assumes fields_file_name follows ESM1.5's naming convention
+    '{5 char run_id}.pa{unit}{date encoding}`.
 
     Parameters
     ----------
-    fields_file_paths : list of paths to fields files for conversion.
-    nc_write_dir : directory to save NetCDF files into.
+    fields_file_name: name of fields file to be converted.
+    date: tuple of form (year, month, day) associated with fields file data,
+          or None. If None, ".nc" will be concatenated to the original fields
+          file name.
+
+    Returns
+    -------
+    name: formated netCDF filename for writing output.
+    """
+    if date is None:
+        return f"{fields_file_name}.nc"
+
+    # TODO: Use regex to extract stem and unit from filename to improve 
+    # clarity, and for better handling of unexpected filenames.
+    stem = fields_file_name[0:FF_UNIT_INDEX + 1]
+    unit = fields_file_name[FF_UNIT_INDEX]
+
+    try:
+        suffix = f"_{FF_UNIT_SUFFIX[unit]}"
+    except KeyError:
+        warnings.warn(
+            f"Unit code '{unit}' from filename f{fields_file_name} "
+            "not recognized. Frequency information will not be added "
+            "to the netCDF filename."
+        )
+        suffix = ""
+
+    year, month, _ = date
+    return f"{stem}-{year:04d}{month:02d}{suffix}.nc"
+
+
+def get_ff_date(fields_file_path):
+    """
+    Get the date from a fields file. To be used for naming output files.
+
+    Parameters
+    ----------
+    fields_file_path : path to single fields file.
+
+    Returns
+    -------
+    date_tuple : tuple of integers (yyyy,mm,dd) containing the fields
+                 file's date.
+    """
+    header = mule.FixedLengthHeader.from_file(
+                                            str(fields_file_path))
+
+    return header.t2_year, header.t2_month, header.t2_day  # pylint: disable=no-member
+
+
+def convert_fields_file_list(input_output_paths):
+    """
+    Convert group of fields files to netCDF, writing output in nc_write_dir.
+
+    Parameters
+    ----------
+    input_output_paths : list of tuples of form (input_path, output_path). Fields file
+                         at input_path will be written to netCDF at ouput_path.
 
     Returns
     -------
@@ -129,18 +199,13 @@ def convert_fields_file_list(fields_file_paths, nc_write_dir):
     succeeded = []
     failed = []
 
-    fields_file_paths = [Path(p) for p in fields_file_paths]
-
-    for fields_file_path in fields_file_paths:
-
-        nc_write_path = get_nc_write_path(fields_file_path, nc_write_dir)
-
+    for ff_path, nc_path in input_output_paths:
         try:
-            um2netcdf.process(fields_file_path, nc_write_path, ARG_VALS)
-            succeeded.append((fields_file_path, nc_write_path))
+            um2netcdf.process(ff_path, nc_path, ARG_VALS)
+            succeeded.append((ff_path, nc_path))
 
         except um2netcdf.UnsupportedTimeSeriesError as exc:
-            failed.append((fields_file_path, exc))
+            failed.append((ff_path, exc))
 
         # Any unexpected errors will be raised
 
@@ -211,7 +276,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     ----------
     esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
             Fields files in the "atmosphere" subdirectory will be
-            converted to NetCDF.
+            converted to netCDF.
 
     Returns
     -------
@@ -230,8 +295,8 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
             errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir
         )
 
-    # Create a directory for writing NetCDF files
-    nc_write_dir = current_atm_output_dir / "NetCDF"
+    # Create a directory for writing netCDF files
+    nc_write_dir = current_atm_output_dir / "netCDF"
     nc_write_dir.mkdir(exist_ok=True)
 
     # Find fields file outputs to be converted
@@ -249,15 +314,15 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
         warnings.warn(
             f"No files matching pattern '{fields_file_name_pattern}' "
             f"found in {current_atm_output_dir.resolve()}. No files will be "
-            "converted to NetCDF."
+            "converted to netCDF."
         )
 
         return [], []  # Don't try to run the conversion
 
-    succeeded, failed = convert_fields_file_list(
-        atm_dir_fields_files,
-        nc_write_dir
-    )
+    output_paths = [get_nc_write_path(path, nc_write_dir, get_ff_date(path)) for path in atm_dir_fields_files]
+    input_output_pairs = zip(atm_dir_fields_files, output_paths)
+
+    succeeded, failed = convert_fields_file_list(input_output_pairs)
 
     return succeeded, failed
 
