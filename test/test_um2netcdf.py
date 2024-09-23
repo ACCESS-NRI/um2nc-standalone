@@ -1,8 +1,8 @@
 import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
-import numpy as np
 from iris.exceptions import CoordinateNotFoundError
+import operator
 
 import umpost.um2netcdf as um2nc
 
@@ -13,6 +13,7 @@ import mule
 import mule.ff
 import iris.cube
 import iris.coords
+import iris.exceptions
 
 D_LAT_N96 = 1.25   # Degrees between latitude points on N96 grid
 D_LON_N96 = 1.875  # Degrees between longitude points on N96 grid
@@ -403,11 +404,13 @@ class DummyCube:
         self.units = None or units
         self.standard_name = None
         self.long_name = None
-
+        self.data = None
+        
     def coord(self, _):
         raise NotImplementedError(
             "coord() method not implemented on DummyCube"
         )
+
 
     def name(self):
         # mimic iris API
@@ -1038,3 +1041,92 @@ def test_fix_cell_methods_keep_weeks():
     assert mod.method == cm.method
     assert mod.coord_names == cm.coord_names
     assert mod.intervals[0] == "week"
+
+
+@pytest.fixture
+def level_heights():
+    # NB: sourced from z_sea_theta_data fixture. This "array" is cropped as
+    #     fix_level_coords() only accesses height array[0]
+    return [20.0003377]
+
+@pytest.fixture
+def level_coords(level_heights):
+    return {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
+            um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(level_heights),
+            um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+
+@pytest.fixture
+def get_fake_cube_coords(level_coords):
+
+    @dataclass
+    class FakeCubeCoords:
+        """Test object to represent a cube with a coords() access function."""
+
+        def coord(self, key):
+            return level_coords[key]
+
+    # return class for instantiation in tests
+    return FakeCubeCoords
+
+
+def test_fix_level_coord_modify_cube_with_rho(level_heights,
+                                              get_fake_cube_coords,
+                                              z_sea_rho_data,
+                                              z_sea_theta_data):
+    # verify cube renaming with appropriate z_rho data
+    cube = get_fake_cube_coords()
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name is None
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name is None
+    assert cube.coord(um2nc.SIGMA).var_name is None
+
+
+    rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
+    um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
+
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_rho_level_number"
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "rho_level_height"
+    assert cube.coord(um2nc.SIGMA).var_name == "sigma_rho"
+
+
+def test_fix_level_coord_modify_cube_with_theta(level_heights,
+                                                get_fake_cube_coords,
+                                                z_sea_rho_data,
+                                                z_sea_theta_data):
+    # verify cube renaming with appropriate z_theta data
+    cube = get_fake_cube_coords()
+    um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
+
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_theta_level_number"
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "theta_level_height"
+    assert cube.coord(um2nc.SIGMA).var_name == "sigma_theta"
+
+
+def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
+    # ensures level fixes are skipped if the cube lacks model levels, sigma etc
+    m_cube = mock.Mock(iris.cube.Cube)
+    m_cube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
+    um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
+
+
+# int64 to int32 data conversion tests
+# NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
+@pytest.mark.parametrize("array,_operator,bound",
+                         [([100, 10, 1, 0, -10], None, None),
+                          ([3000000000], operator.gt, np.iinfo(np.int32).max),
+                          ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
+def test_convert_32_bit(ua_plev_cube, array, _operator, bound):
+    ua_plev_cube.data = np.array(array, dtype=np.int64)
+    um2nc.convert_32_bit(ua_plev_cube)
+
+    if _operator:
+        assert _operator(array[0], bound)
+
+    assert ua_plev_cube.data.dtype == np.int32
+
+
+# test float conversion separately, otherwise parametrize block is ugly
+def test_convert_32_bit_with_float64(ua_plev_cube):
+    array = np.array([300.33, 30.456, 3.04, 0.0, -30.667], dtype=np.float64)
+    ua_plev_cube.data = array
+    um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.float32
