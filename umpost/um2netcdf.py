@@ -757,6 +757,7 @@ def fix_pressure_levels(cube, decimals=5):
     if pressure.points[0] < pressure.points[-1]:
         # Flip to get pressure decreasing as per CMIP6 standard
         # NOTE: returns a new cube!
+        # TODO: add an iris.util.monotonic() check here?
         return iris.util.reverse(cube, 'pressure')
 
 
