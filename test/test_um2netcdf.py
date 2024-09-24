@@ -778,7 +778,8 @@ def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
     extra = {"pressure": m_pressure}
     cube = get_fake_cube_coords(extra)
 
-    um2nc.fix_pressure_levels(cube)
+    # ensure no cube is returned if Cube not modified in fix_pressure_levels()
+    assert um2nc.fix_pressure_levels(cube) is None
 
     # TODO: test flaw, this verifies pressure coord but ignores fix_pressure_levels()
     #       returning a new cube if the pressure is reversed. This is verified
