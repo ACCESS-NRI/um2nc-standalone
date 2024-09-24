@@ -321,17 +321,8 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
-    try:
-        plevs = cube.coord('pressure')
-        plevs.attributes['positive'] = 'down'
-        plevs.convert_units('Pa')
-        # Otherwise they're off by 1e-10 which looks odd in ncdump
-        plevs.points = np.round(plevs.points, 5)
-        if plevs.points[0] < plevs.points[-1]:
-            # Flip to get pressure decreasing as in CMIP6 standard
-            cube = iris.util.reverse(cube, 'pressure')
-    except iris.exceptions.CoordinateNotFoundError:
-        pass
+    # TODO: move into process() AND if a new cube is returned, swap into filtered cube list
+    cube = fix_pressure_levels(cube) or cube  # NB: use new cube if pressure points are modified
 
     # TODO: flag warnings as an error for the driver script?
     if not use64bit:
@@ -900,6 +891,42 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
                 c_lev.var_name = 'model_theta_level_number'
                 c_height.var_name = 'theta_level_height'
                 c_sigma.var_name = 'sigma_theta'
+
+
+def fix_pressure_levels(cube, decimals=5):
+    """
+    Reformat pressure level data for NetCDF output.
+
+    This converts units, rounds small fractional errors & ensures pressure is
+    decreasing (following the CMIP6 standard).
+
+    Parameters
+    ----------
+    cube : iris Cube (modifies in place)
+    decimals : number of decimals to round to
+
+    Returns
+    -------
+    None if cube lacks pressure coord or is modified in place, otherwise a new
+    cube if the pressure levels are reversed.
+    """
+    try:
+        pressure = cube.coord('pressure')
+    except iris.exceptions.CoordinateNotFoundError:
+        return
+
+    # update existing cube metadata in place
+    pressure.attributes['positive'] = 'down'
+    pressure.convert_units('Pa')
+
+    # Round small fractions otherwise coordinates are off by 1e-10 in ncdump output
+    pressure.points = np.round(pressure.points, decimals)
+
+    if pressure.points[0] < pressure.points[-1]:
+        # Flip to get pressure decreasing as per CMIP6 standard
+        # NOTE: returns a new cube!
+        # TODO: add an iris.util.monotonic() check here?
+        return iris.util.reverse(cube, 'pressure')
 
 
 MAX_NP_INT32 = np.iinfo(np.int32).max

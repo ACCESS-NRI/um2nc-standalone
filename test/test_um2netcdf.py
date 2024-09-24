@@ -1049,11 +1049,13 @@ def level_heights():
     #     fix_level_coords() only accesses height array[0]
     return [20.0003377]
 
+
 @pytest.fixture
 def level_coords(level_heights):
     return {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
             um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(level_heights),
             um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+
 
 @pytest.fixture
 def get_fake_cube_coords(level_coords):
@@ -1062,8 +1064,16 @@ def get_fake_cube_coords(level_coords):
     class FakeCubeCoords:
         """Test object to represent a cube with a coords() access function."""
 
+        def __init__(self, custom_coord: dict = None):
+            if custom_coord:
+                level_coords.update(custom_coord)
+
         def coord(self, key):
-            return level_coords[key]
+            if key in level_coords:
+                return level_coords[key]
+
+            msg = f"{self.__class__}: lacks coord for '{key}'"
+            raise iris.exceptions.CoordinateNotFoundError(msg)
 
     # return class for instantiation in tests
     return FakeCubeCoords
@@ -1078,7 +1088,6 @@ def test_fix_level_coord_modify_cube_with_rho(level_heights,
     assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name is None
     assert cube.coord(um2nc.LEVEL_HEIGHT).var_name is None
     assert cube.coord(um2nc.SIGMA).var_name is None
-
 
     rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
     um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
@@ -1106,6 +1115,74 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
     m_cube = mock.Mock(iris.cube.Cube)
     m_cube.coord.side_effect = iris.exceptions.CoordinateNotFoundError
     um2nc.fix_level_coord(m_cube, z_sea_rho_data, z_sea_theta_data)
+
+
+# tests - fix pressure level data
+
+def test_fix_pressure_levels_no_pressure_coord(get_fake_cube_coords):
+    cube = get_fake_cube_coords()
+
+    with pytest.raises(iris.exceptions.CoordinateNotFoundError):
+        cube.coord("pressure")  # ensure missing 'pressure' coord
+
+    # fix function should return if there is no pressure coord to modify
+    assert um2nc.fix_pressure_levels(cube) is None  # should just exit
+
+
+def _add_attrs_points(m_plevs: mock.MagicMock, points):
+    # NB: iris attributes appear to be added via mixins, so it's easier but
+    #     less desirable to rely on mock attrs here
+    setattr(m_plevs, "attributes", {"positive": None})
+    setattr(m_plevs, "points", points)
+
+
+def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
+    m_pressure = mock.Mock()
+    _add_attrs_points(m_pressure, [1.000001, 0.000001])
+    extra = {"pressure": m_pressure}
+    cube = get_fake_cube_coords(extra)
+
+    # ensure no cube is returned if Cube not modified in fix_pressure_levels()
+    assert um2nc.fix_pressure_levels(cube) is None
+
+    c_pressure = cube.coord('pressure')
+    assert c_pressure.attributes["positive"] == "down"
+    assert all(c_pressure.points == [1.0, 0.0])
+
+
+@pytest.mark.skip
+def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
+    # TODO: test is broken due to fiddly mocking problems (see below)
+
+    m_pressure = mock.Mock()
+    # m_pressure.ndim = 1
+    _add_attrs_points(m_pressure, [0.000001, 1.000001])
+    extra = {"pressure": m_pressure}
+    cube = get_fake_cube_coords(extra)
+    # cube.ndim = 3
+
+    # TODO: testing gets odd here at the um2nc & iris "boundary":
+    #   * A mock reverse() needs to flip pressure.points & return a modified cube.
+    #     Creating a mock to verifying these attributes is unproductive.
+    #   * Using the real reverse() requires several additional cube attributes
+    #     (see commented out ndim etc above). It requires __getitem__() for
+    #     https://github.com/SciTools/iris/blob/main/lib/iris/util.py#L612
+    #
+    # TODO: this leaves a few options:
+    #    * ignore unit testing this branch (rely on integration testing?)
+    #    * replace iris with an adapter?
+    #    * fix/refactor the function later?
+    #
+    # The test is disabled awaiting a solution...
+
+    with mock.patch("iris.util.reverse"):
+        mod_cube = um2nc.fix_pressure_levels(cube)
+
+    assert mod_cube is not None
+    assert mod_cube != cube
+    c_pressure = mod_cube.coord('pressure')
+    assert c_pressure.attributes["positive"] == "down"
+    assert all(c_pressure.points == [1.0, 0.0])
 
 
 # int64 to int32 data conversion tests
