@@ -788,9 +788,7 @@ def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
 
 @pytest.mark.skip
 def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
-    # TODO: test is broken, it verifies the pressure coord but doesn't handle
-    #       the real fix_pressure_levels() returning a new cube when the pressure
-    #       is reversed.
+    # TODO: test is broken due to fiddly mocking problems (see below)
 
     m_pressure = mock.Mock()
     # m_pressure.ndim = 1
