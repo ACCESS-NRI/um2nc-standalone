@@ -397,7 +397,8 @@ class DummyCube:
     Imitation iris Cube for unit testing.
     """
 
-    def __init__(self, item_code, var_name=None, attributes=None, units=None):
+    def __init__(self, item_code, var_name=None, attributes=None,
+                 units=None, coords=None):
         self.item_code = item_code
         self.var_name = var_name or "unknown_var"
         self.attributes = attributes
@@ -405,16 +406,20 @@ class DummyCube:
         self.standard_name = None
         self.long_name = None
         self.data = None
-        
-    def coord(self, _):
-        raise NotImplementedError(
-            "coord() method not implemented on DummyCube"
-        )
 
+        # Mimic a coordinate dictionary keys for iris coordinate names. This
+        # ensures the access key for coord() matches the coordinate's name
+        self._coordinates = {c.name(): c for c in coords} if coords else {}
 
     def name(self):
-        # mimic iris API
         return self.var_name
+
+    def coord(self, name):
+        try:
+            return self._coordinates[name]
+        except KeyError:
+            msg = f"{self.__class__}: lacks coord for '{name}'"
+            raise CoordinateNotFoundError(msg)
 
 
 def test_set_item_codes_avoid_overwrite():
@@ -778,34 +783,6 @@ def lon_standard_eg_coord():
     return lon_points, um2nc.LONGITUDE
 
 
-class DummyCubeWithCoords(DummyCube):
-    # DummyCube with coordinates, which can be filled with
-    # iris.DimCoord objects for testing.
-    def __init__(self, dummy_cube, coords=None):
-        super().__init__(dummy_cube.item_code,
-                         dummy_cube.var_name,
-                         dummy_cube.attributes,
-                         dummy_cube.units)
-
-        # Set up coordinate dictionary to hold each dummy coordinate, with keys
-        # given by the coordinate names. This ensures that the key used to
-        # access a coordinate via the coord method matches the
-        # coordinate's name.
-        if coords is not None:
-            self.coordinate_dict = {
-                coord.name(): coord for coord in coords
-            }
-        else:
-            self.coordinate_dict = {}
-
-    def coord(self, coordinate_name):
-        try:
-            return self.coordinate_dict[coordinate_name]
-        except KeyError:
-            msg = f"{self.__class__}: lacks coord for '{coordinate_name}'"
-            raise CoordinateNotFoundError(msg)
-
-
 def assert_coordinates_are_unmodified(lat_coord, lon_coord):
     """
     Helper function to check that a coordinate's attributes match
@@ -837,10 +814,11 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     Tests of the fix_lat_lon_coords function on river grid coordinates.
     """
 
-    cube_with_river_coords = DummyCubeWithCoords(
-        dummy_cube=ua_plev_cube,
-        coords=[lat_river_coord, lon_river_coord]
-    )
+    cube_with_river_coords = DummyCube(
+        ua_plev_cube.item_code,
+        ua_plev_cube.var_name,
+        ua_plev_cube.attributes,
+        coords=[lat_river_coord, lon_river_coord])
 
     cube_lat_coord = cube_with_river_coords.coord(um2nc.LATITUDE)
     cube_lon_coord = cube_with_river_coords.coord(um2nc.LONGITUDE)
@@ -863,8 +841,7 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
                               lat_v_nd_coord,
                               lon_u_nd_coord,
                               lat_v_eg_coord,
-                              lon_u_eg_coord,
-                              ):
+                              lon_u_eg_coord):
     """
     Tests of the fix_lat_lon_coords for longitude u and latitude v
     coordinates on both the New Dynamics and End Game grids.
@@ -875,13 +852,11 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
+        cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+                                        ua_plev_cube.var_name,
+                                        coords=[lat_coordinate, lon_coordinate])
 
-        cube_with_uv_coords = DummyCubeWithCoords(
-            dummy_cube=ua_plev_cube,
-            coords=[lat_coordinate, lon_coordinate]
-        )
-
-        # Checks prior to modifications.
+        # Checks prior to modifications
         assert_coordinates_are_unmodified(lat_coordinate, lon_coordinate)
 
         um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
@@ -918,11 +893,9 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
-
-        cube_with_uv_coords = DummyCubeWithCoords(
-            dummy_cube=ua_plev_cube,
-            coords=[lat_coordinate, lon_coordinate]
-        )
+        cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+                                        ua_plev_cube.var_name,
+                                        coords=[lat_coordinate, lon_coordinate])
 
         # Checks prior to modifications.
         assert_coordinates_are_unmodified(lat_coordinate, lon_coordinate)
@@ -952,10 +925,9 @@ def test_fix_latlon_coords_single_point(ua_plev_cube):
     lon_coord_single = iris.coords.DimCoord(points=np.array([0]),
                                             standard_name=um2nc.LONGITUDE)
 
-    cube_with_uv_coords = DummyCubeWithCoords(
-        dummy_cube=ua_plev_cube,
-        coords=[lat_coord_single, lon_coord_single]
-    )
+    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+                                    ua_plev_cube.var_name,
+                                    coords=[lat_coord_single, lon_coord_single])
 
     assert not has_bounds(lat_coord_single, lon_coord_single)
 
@@ -984,10 +956,9 @@ def test_fix_latlon_coords_has_bounds(ua_plev_cube):
                                      standard_name=um2nc.LONGITUDE,
                                      bounds=lon_bounds.copy())
 
-    cube_with_uv_coords = DummyCubeWithCoords(
-        dummy_cube=ua_plev_cube,
-        coords=[lat_coord, lon_coord]
-    )
+    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+                                    ua_plev_cube.var_name,
+                                    coords=[lat_coord, lon_coord])
     assert has_bounds(lat_coord, lon_coord)
 
     um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
@@ -1003,17 +974,14 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
     is missing coordinates.
     """
     fake_coord = iris.coords.DimCoord(
-            points=np.array([1, 2, 3], dtype="float32"),
-            # Iris requires name to still be valid 'standard name'
-            standard_name="height"
+        points=np.array([1, 2, 3], dtype="float32"),
+        # Iris requires name to still be valid 'standard name'
+        standard_name="height"
+    )
 
-        )
+    cube_with_fake_coord = DummyCube(ua_plev_cube.item_code, coords=fake_coord)
 
-    cube_with_fake_coord = DummyCubeWithCoords(ua_plev_cube, fake_coord)
-
-    with (
-        pytest.raises(um2nc.UnsupportedTimeSeriesError)
-    ):
+    with pytest.raises(um2nc.UnsupportedTimeSeriesError):
         um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS,
                                 D_LAT_N96, D_LON_N96)
 
