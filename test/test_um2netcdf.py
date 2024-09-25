@@ -70,46 +70,28 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
-def set_default_attrs(cube, item_code: int, var_name: str):
-    """Add subset of default attributes to flesh out cube like objects."""
-    cube.__dict__.update({"item_code": item_code,
-                          "var_name": var_name,
-                          "long_name": "",
-                          "coord": {"latitude": 0.0,  # TODO: real val = ?
-                                    "longitude": 0.0},  # TODO: real val
-                          "cell_methods": [],
-                          "data": None,
-                          })
-
-    section, item = um2nc.to_stash_code(item_code)
-    cube.attributes = {um2nc.STASH: DummyStash(section, item)}
+@pytest.fixture
+def air_temp_cube(lat_river_coord, lon_river_coord):
+    # details copied from aiihca.paa1jan.subset file
+    air_temp = DummyCube(30204, "air_temperature",
+                         coords=[lat_river_coord, lon_river_coord])
+    return air_temp
 
 
 @pytest.fixture
-def air_temp_cube():
-    # data copied from aiihca.paa1jan.subset file
-    name = "air_temperature"
-    m_air_temp = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
-    set_default_attrs(m_air_temp, 30204, name)
-    return m_air_temp
-
-
-@pytest.fixture
-def precipitation_flux_cube():
+def precipitation_flux_cube(lat_river_coord, lon_river_coord):
     # copied from aiihca.paa1jan.subset file
-    name = "precipitation_flux"
-    m_flux = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
-    set_default_attrs(m_flux, 5216, name)
-    return m_flux
+    precipitation_flux = DummyCube(5216, "precipitation_flux",
+                                   coords=[lat_river_coord, lon_river_coord])
+    return precipitation_flux
 
 
 # create cube requiring heaviside_t masking
 @pytest.fixture
-def geo_potential_cube():
-    name = "geopotential_height"
-    m_geo_potential = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
-    set_default_attrs(m_geo_potential, 30297, name)
-    return m_geo_potential
+def geo_potential_cube(lat_river_coord, lon_river_coord):
+    geo_potential = DummyCube(30297, "geopotential_height",
+                              coords=[lat_river_coord, lon_river_coord])
+    return geo_potential
 
 
 @pytest.fixture
@@ -151,14 +133,8 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         # use mocks to prevent mule data extraction file I/O
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
-        # TODO: lat/long & level coord fixes require more internal data attrs
-        #       skip temporarily to manage test complexity
-        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
@@ -193,7 +169,6 @@ def test_process_all_cubes_filtered(air_temp_cube, geo_potential_cube,
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
     ):
@@ -213,11 +188,8 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -253,12 +225,8 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
-        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
@@ -368,22 +336,13 @@ def add_stash(cube, stash):
     setattr(cube, "attributes", d)
 
 
-@dataclass()
-class PartialCube:
-    # work around mocks & DummyCube having item_code attr
-    var_name: str
-    attributes: dict
-    standard_name: str = None
-    long_name: str = None
-
-
 def test_set_item_codes():
-    cube0 = PartialCube("d0", {um2nc.STASH: DummyStash(1, 2)})
-    cube1 = PartialCube("d1", {um2nc.STASH: DummyStash(3, 4)})
+    cube0 = DummyCube(1002, "d0", {um2nc.STASH: DummyStash(1, 2)})
+    cube1 = DummyCube(3004, "d1", {um2nc.STASH: DummyStash(3, 4)})
     cubes = [cube0, cube1]
 
     for cube in cubes:
-        assert not hasattr(cube, um2nc.ITEM_CODE)
+        assert hasattr(cube, um2nc.ITEM_CODE)
 
     um2nc.set_item_codes(cubes)
     c0, c1 = cubes
@@ -404,21 +363,25 @@ class DummyCube:
         self.attributes = attributes
         self.units = units
         self.standard_name = None
-        self.long_name = None
+        self.long_name = ""
+        self.cell_methods = []
         self.data = None
 
         # Mimic a coordinate dictionary keys for iris coordinate names. This
         # ensures the access key for coord() matches the coordinate's name
         self._coordinates = {c.name(): c for c in coords} if coords else {}
 
+        section, item = um2nc.to_stash_code(item_code)
+        self.attributes = {um2nc.STASH: DummyStash(section, item)}
+
     def name(self):
         return self.var_name
 
-    def coord(self, name):
+    def coord(self, _name):
         try:
-            return self._coordinates[name]
+            return self._coordinates[_name]
         except KeyError:
-            msg = f"{self.__class__}: lacks coord for '{name}'"
+            msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
             raise CoordinateNotFoundError(msg)
 
 
@@ -438,18 +401,21 @@ def ua_plev_cube():
 
 
 @pytest.fixture
-def heaviside_uv_cube():
-    return DummyCube(30301, "heaviside_uv")
+def heaviside_uv_cube(lat_river_coord, lon_river_coord):
+    return DummyCube(30301, "heaviside_uv",
+                     coords=[lat_river_coord, lon_river_coord])
 
 
 @pytest.fixture
-def ta_plev_cube():
-    return DummyCube(30294, "ta_plev")
+def ta_plev_cube(lat_river_coord, lon_river_coord):
+    return DummyCube(30294, "ta_plev",
+                     coords=[lat_river_coord, lon_river_coord])
 
 
 @pytest.fixture
-def heaviside_t_cube():
-    return DummyCube(30304, "heaviside_t")
+def heaviside_t_cube(lat_river_coord, lon_river_coord):
+    return DummyCube(30304, "heaviside_t",
+                     coords=[lat_river_coord, lon_river_coord])
 
 
 # cube filtering tests
@@ -486,13 +452,11 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
 # cube variable renaming tests
 @pytest.fixture
 def x_wind_cube():
-    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "x_wind")
-    fake_cube.cell_methods = []
-    return fake_cube
-
-
-# UMStash = namedtuple("UMStash",
-#                      "long_name, name, units, standard_name, uniquename")
+    x_wind_cube = DummyCube(2, var_name="var_name",
+                          attributes={'STASH': DummyStash(0, 2)})
+    x_wind_cube.standard_name = "x_wind"
+    x_wind_cube.cell_methods = []
+    return x_wind_cube
 
 
 CellMethod = namedtuple("CellMethod", "method")
@@ -553,7 +517,8 @@ def test_fix_standard_name_update_x_wind(x_wind_cube):
 def test_fix_standard_name_update_y_wind():
     # test cube wind renaming block only
     # use empty std name to bypass renaming logic
-    m_cube = PartialCube("var_name", {'STASH': DummyStash(0, 3)}, "y_wind")
+    m_cube = DummyCube(3, attributes={'STASH': DummyStash(0, 3)})
+    m_cube.standard_name = "y_wind"
     m_cube.cell_methods = []
 
     um2nc.fix_standard_name(m_cube, "", verbose=False)
