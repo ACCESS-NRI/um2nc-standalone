@@ -70,6 +70,8 @@ MODEL_LEVEL_NUM = "model_level_number"
 LEVEL_HEIGHT = "level_height"
 SIGMA = "sigma"
 
+DEFAULT_FILL_VAL_FLOAT = 1.e20
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -319,6 +321,31 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
 
 
+def fix_fill_value(cube, custom_fill_val=None):
+    """
+    Set a cube's missing_value attribute based on its data's dtype.
+
+    Parameters
+    ----------
+    cube: Iris cube object (modified in place).
+    custom_fill_val: Optional custom fill value. Type should match
+        the cube data's type.
+    """
+    if custom_fill_val:
+        # TODO: How should missmatch between supplied fill val
+        # and cube's data types be handled?
+        fill_value = custom_fill_val
+    elif cube.data.dtype.kind == 'f':
+        fill_value = DEFAULT_FILL_VAL_FLOAT
+    else:
+        fill_value = default_fillvals[
+            f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"
+        ]
+
+    # Use an array to force the type to match the data type
+    cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
+
+
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
     # TODO: move into process() AND if a new cube is returned, swap into filtered cube list
@@ -328,15 +355,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     if not use64bit:
         convert_32_bit(cube)
 
-    # Set the missing_value attribute. Use an array to force the type to match
-    # the data type
-    if cube.data.dtype.kind == 'f':
-        fill_value = 1.e20
-    else:
-        # Use netCDF defaults
-        fill_value = default_fillvals['%s%1d' % (cube.data.dtype.kind, cube.data.dtype.itemsize)]
-
-    cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
+    fix_fill_value(cube)
 
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days

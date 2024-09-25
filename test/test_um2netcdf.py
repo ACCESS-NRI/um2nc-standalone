@@ -15,6 +15,8 @@ import iris.cube
 import iris.coords
 import iris.exceptions
 
+from netCDF4 import default_fillvals
+
 D_LAT_N96 = 1.25   # Degrees between latitude points on N96 grid
 D_LON_N96 = 1.875  # Degrees between longitude points on N96 grid
 
@@ -1207,3 +1209,38 @@ def test_convert_32_bit_with_float64(ua_plev_cube):
     ua_plev_cube.data = array
     um2nc.convert_32_bit(ua_plev_cube)
     assert ua_plev_cube.data.dtype == np.float32
+
+
+@pytest.mark.parametrize(
+    "cube_data, custom_fill_val, expected_fill_val",
+    [
+        (np.array([1.1, 2.1], dtype=np.dtype("float32")),
+         None,
+         np.array(um2nc.DEFAULT_FILL_VAL_FLOAT, dtype=np.dtype("float32"))),
+        (np.array([1.1, 2.1], dtype=np.dtype("float64")),
+         None,
+         np.array(um2nc.DEFAULT_FILL_VAL_FLOAT, dtype=np.dtype("float64"))),
+        (np.array([1.1, 2.1], dtype=np.dtype("complex64")),
+         None,
+         np.array(default_fillvals["c8"], dtype=np.dtype("complex64"))),
+        (np.array([1, 2], dtype=np.dtype("int32")),
+         None,
+         np.array(default_fillvals["i4"], dtype=np.dtype("int32"))),
+        (np.array([1, 2], dtype=np.dtype("int64")),
+         None,
+         np.array(default_fillvals["i8"], dtype=np.dtype("int64"))),
+        (np.array([1, 2], dtype=np.dtype("int64")),
+         -12345,
+         np.array(-12345, dtype=np.dtype("int64")))
+    ]
+)
+def test_fix_fill_value(cube_data, custom_fill_val, expected_fill_val):
+    fake_cube = DummyCube(12345, "fake_var", attributes={})
+    fake_cube.data = cube_data
+
+    um2nc.fix_fill_value(fake_cube, custom_fill_val)
+
+    cube_fill_val = fake_cube.attributes["missing_value"]
+
+    assert np.equal(cube_fill_val, expected_fill_val)
+    assert cube_fill_val.dtype == expected_fill_val.dtype
