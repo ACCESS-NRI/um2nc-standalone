@@ -1041,15 +1041,7 @@ def test_fix_pressure_levels_no_pressure_coord(level_coords_cube):
     assert um2nc.fix_pressure_levels(cube) is None  # should just exit
 
 
-def _add_attrs_points(m_plevs: mock.MagicMock, points):
-    # NB: iris attributes appear to be added via mixins, so it's easier but
-    #     less desirable to rely on mock attrs here
-    setattr(m_plevs, "attributes", {"positive": None})
-    setattr(m_plevs, "points", points)
-
-
 def test_fix_pressure_levels_do_rounding():
-    # init pressure coordinate
     pressure = iris.coords.DimCoord([1.000001, 0.000001],
                                     var_name="pressure",
                                     units="Pa",
@@ -1066,15 +1058,15 @@ def test_fix_pressure_levels_do_rounding():
 
 
 @pytest.mark.skip
-def test_fix_pressure_levels_reverse_pressure(level_coords_cube):
+def test_fix_pressure_levels_reverse_pressure():
     # TODO: test is broken due to fiddly mocking problems (see below)
+    pressure = iris.coords.DimCoord([0.000001, 1.000001],
+                                    var_name="pressure",
+                                    units="Pa",
+                                    attributes={"positive": None})
 
-    m_pressure = mock.Mock()
-    # m_pressure.ndim = 1
-    _add_attrs_points(m_pressure, [0.000001, 1.000001])
-    extra = {"pressure": m_pressure}
-    cube = get_fake_cube_coords(extra)
-    # cube.ndim = 3
+    cube = DummyCube(1, coords=[pressure])
+    cube.ndim = 3
 
     # TODO: testing gets odd here at the um2nc & iris "boundary":
     #   * A mock reverse() needs to flip pressure.points & return a modified cube.
@@ -1090,8 +1082,10 @@ def test_fix_pressure_levels_reverse_pressure(level_coords_cube):
     #
     # The test is disabled awaiting a solution...
 
-    with mock.patch("iris.util.reverse"):
-        mod_cube = um2nc.fix_pressure_levels(cube)
+    # with mock.patch("iris.util.reverse"):
+    #     mod_cube = um2nc.fix_pressure_levels(cube)
+
+    mod_cube = um2nc.fix_pressure_levels(cube)  # breaks on missing __getitem__
 
     assert mod_cube is not None
     assert mod_cube != cube
