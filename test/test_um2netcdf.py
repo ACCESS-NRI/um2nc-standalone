@@ -975,48 +975,31 @@ def test_fix_cell_methods_keep_weeks():
 def level_heights():
     # NB: sourced from z_sea_theta_data fixture. This "array" is cropped as
     #     fix_level_coords() only accesses height array[0]
-    return [20.0003377]
+    return [20.0003377]  # TODO: add points to make data slightly more realistic?
 
 
 @pytest.fixture
 def level_coords(level_heights):
-    return {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
-            um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(level_heights),
-            um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+    return [iris.coords.DimCoord(range(1, 39), var_name=um2nc.MODEL_LEVEL_NUM),
+            iris.coords.DimCoord(level_heights, var_name=um2nc.LEVEL_HEIGHT),
+            iris.coords.AuxCoord(np.array([0.99771646]), var_name=um2nc.SIGMA)]
 
 
-# TODO: replace this with a DummyCube
 @pytest.fixture
-def get_fake_cube_coords(level_coords):
-
-    @dataclass
-    class FakeCubeCoords:
-        """Test object to represent a cube with a coords() access function."""
-
-        def __init__(self, custom_coord: dict = None):
-            if custom_coord:
-                level_coords.update(custom_coord)
-
-        def coord(self, key):
-            if key in level_coords:
-                return level_coords[key]
-
-            msg = f"{self.__class__}: lacks coord for '{key}'"
-            raise iris.exceptions.CoordinateNotFoundError(msg)
-
-    # return class for instantiation in tests
-    return FakeCubeCoords
+def level_coords_cube(level_coords):
+    return DummyCube(0, coords=level_coords)
 
 
-def test_fix_level_coord_modify_cube_with_rho(level_heights,
-                                              get_fake_cube_coords,
+def test_fix_level_coord_modify_cube_with_rho(level_coords_cube,
+                                              level_heights,
                                               z_sea_rho_data,
                                               z_sea_theta_data):
     # verify cube renaming with appropriate z_rho data
-    cube = get_fake_cube_coords()
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name is None
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name is None
-    assert cube.coord(um2nc.SIGMA).var_name is None
+    cube = level_coords_cube
+
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name != "model_rho_level_number"
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name != "rho_level_height"
+    assert cube.coord(um2nc.SIGMA).var_name != "sigma_rho"
 
     rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
     um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
@@ -1027,11 +1010,11 @@ def test_fix_level_coord_modify_cube_with_rho(level_heights,
 
 
 def test_fix_level_coord_modify_cube_with_theta(level_heights,
-                                                get_fake_cube_coords,
+                                                level_coords_cube,
                                                 z_sea_rho_data,
                                                 z_sea_theta_data):
     # verify cube renaming with appropriate z_theta data
-    cube = get_fake_cube_coords()
+    cube = level_coords_cube
     um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
 
     assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_theta_level_number"
@@ -1048,8 +1031,8 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
 
 # tests - fix pressure level data
 
-def test_fix_pressure_levels_no_pressure_coord(get_fake_cube_coords):
-    cube = get_fake_cube_coords()
+def test_fix_pressure_levels_no_pressure_coord(level_coords_cube):
+    cube = level_coords_cube
 
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         cube.coord("pressure")  # ensure missing 'pressure' coord
@@ -1065,11 +1048,14 @@ def _add_attrs_points(m_plevs: mock.MagicMock, points):
     setattr(m_plevs, "points", points)
 
 
-def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
-    m_pressure = mock.Mock()
-    _add_attrs_points(m_pressure, [1.000001, 0.000001])
-    extra = {"pressure": m_pressure}
-    cube = get_fake_cube_coords(extra)
+def test_fix_pressure_levels_do_rounding():
+    # init pressure coordinate
+    pressure = iris.coords.DimCoord([1.000001, 0.000001],
+                                    var_name="pressure",
+                                    units="Pa",
+                                    attributes={"positive": None})
+
+    cube = DummyCube(1, coords=[pressure])
 
     # ensure no cube is returned if Cube not modified in fix_pressure_levels()
     assert um2nc.fix_pressure_levels(cube) is None
@@ -1080,7 +1066,7 @@ def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
 
 
 @pytest.mark.skip
-def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
+def test_fix_pressure_levels_reverse_pressure(level_coords_cube):
     # TODO: test is broken due to fiddly mocking problems (see below)
 
     m_pressure = mock.Mock()
