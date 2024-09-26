@@ -200,13 +200,6 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
         cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
                  heaviside_uv_cube, heaviside_t_cube]
 
-        # TODO: convert heaviside cubes to NonCallableMagicMock like other fixtures?
-        for c in [heaviside_uv_cube, heaviside_t_cube]:
-            # add attrs to mimic real cubes
-            attrs = {um2nc.STASH: DummyStash(*um2nc.to_stash_code(c.item_code))}
-            c.attributes = attrs
-            c.cell_methods = []
-
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
 
