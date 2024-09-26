@@ -402,7 +402,7 @@ class DummyCube:
         self.item_code = item_code
         self.var_name = var_name or "unknown_var"
         self.attributes = attributes
-        self.units = None or units
+        self.units = units
         self.standard_name = None
         self.long_name = None
         self.data = None
@@ -979,7 +979,9 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
         standard_name="height"
     )
 
-    cube_with_fake_coord = DummyCube(ua_plev_cube.item_code, coords=fake_coord)
+    cube_with_fake_coord = DummyCube(ua_plev_cube.item_code,
+                                     ua_plev_cube.var_name,
+                                     coords=fake_coord)
 
     with pytest.raises(um2nc.UnsupportedTimeSeriesError):
         um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS,
