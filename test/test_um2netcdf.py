@@ -86,9 +86,9 @@ def precipitation_flux_cube(lat_river_coord, lon_river_coord):
     return precipitation_flux
 
 
-# create cube requiring heaviside_t masking
 @pytest.fixture
 def geo_potential_cube(lat_river_coord, lon_river_coord):
+    """Return new cube requiring heaviside_t masking"""
     geo_potential = DummyCube(30297, "geopotential_height",
                               coords=[lat_river_coord, lon_river_coord])
     return geo_potential
@@ -120,15 +120,15 @@ def fake_out_path():
     return "/tmp-does-not-exist/fake_input_fields_file.nc"
 
 
+# FIXME: the convoluted setup in test_process_...() is a code smell
+#        use the following tests to gradually refactor process()
+# TODO: evolve towards design where input & output file I/O is extracted from
+#       process() & the function only takes *raw data only* (is highly testable)
+
 def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
                                          geo_potential_cube, mule_vars, std_args,
                                          fake_in_path, fake_out_path):
     """Attempt end-to-end process() test, dropping cubes requiring masking."""
-
-    # FIXME: this convoluted setup is a code smell
-    #        use these tests to gradually refactor process()
-    # TODO: move towards a design where input & output I/O is extracted from process()
-    #       process() should eventually operate on *data only* args
     with (
         # use mocks to prevent mule data extraction file I/O
         mock.patch("mule.load_umfile"),
@@ -367,8 +367,8 @@ class DummyCube:
         self.cell_methods = []
         self.data = None
 
-        # Mimic a coordinate dictionary keys for iris coordinate names. This
-        # ensures the access key for coord() matches the coordinate's name
+        # Mimic a coordinate dictionary with iris coordinate names as keys to
+        # ensure the coord() access key matches the coordinate's name
         self._coordinates = {c.name(): c for c in coords} if coords else {}
 
         section, item = um2nc.to_stash_code(item_code)
@@ -419,7 +419,7 @@ def heaviside_t_cube(lat_river_coord, lon_river_coord):
 
 
 # cube filtering tests
-# use wrap results in tuples to capture generator output in sequence
+# NB: wrap results in tuples to capture generator output in sequences
 
 def test_cube_filtering_mutually_exclusive(ua_plev_cube, heaviside_uv_cube):
     include = [30201]
@@ -992,6 +992,7 @@ def level_coords(level_heights):
             um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
 
 
+# TODO: replace this with a DummyCube
 @pytest.fixture
 def get_fake_cube_coords(level_coords):
 
