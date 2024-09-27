@@ -1202,7 +1202,7 @@ def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         forecast_cube.coord(um2nc.FORECAST_REFERENCE_TIME)
 
-    um2nc.fix_forecast_reference_time(forecast_cube)
+    assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
 
 def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
@@ -1212,4 +1212,4 @@ def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         forecast_cube.coord(um2nc.TIME)
 
-    um2nc.fix_forecast_reference_time(forecast_cube)
+    assert um2nc.fix_forecast_reference_time(forecast_cube) is None
