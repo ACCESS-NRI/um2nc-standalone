@@ -406,10 +406,10 @@ class DummyCube:
         self.standard_name = None
         self.long_name = None
         self.data = None
+        self._coordinates = {}
 
-        # Mimic a coordinate dictionary keys for iris coordinate names. This
-        # ensures the access key for coord() matches the coordinate's name
-        self._coordinates = {c.name(): c for c in coords} if coords else {}
+        if coords:
+            self.update_coords(coords)
 
     def name(self):
         return self.var_name
@@ -420,6 +420,11 @@ class DummyCube:
         except KeyError:
             msg = f"{self.__class__}: lacks coord for '{name}'"
             raise CoordinateNotFoundError(msg)
+
+    def update_coords(self, coords):
+        # Mimic a coordinate dictionary keys for iris coordinate names. This
+        # ensures the access key for coord() matches the coordinate's name
+        self._coordinates = {c.name(): c for c in coords} if coords else {}
 
 
 def test_set_item_codes_avoid_overwrite():
