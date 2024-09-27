@@ -123,8 +123,7 @@ def fake_out_path():
 # FIXME: the convoluted setup in test_process_...() is a code smell
 #        use the following tests to gradually refactor process()
 # TODO: evolve towards design where input & output file I/O is extracted from
-#       process() & the function only takes *raw data only* (is highly testable)
-
+#       process() & the function takes *raw data only* (is highly testable)
 def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
                                          geo_potential_cube, mule_vars, std_args,
                                          fake_in_path, fake_out_path):
@@ -446,7 +445,7 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
 @pytest.fixture
 def x_wind_cube():
     x_wind_cube = DummyCube(2, var_name="var_name",
-                          attributes={'STASH': DummyStash(0, 2)})
+                            attributes={'STASH': DummyStash(0, 2)})
     x_wind_cube.standard_name = "x_wind"
     x_wind_cube.cell_methods = []
     return x_wind_cube
@@ -980,6 +979,7 @@ def level_heights():
 
 @pytest.fixture
 def level_coords(level_heights):
+    # data likely extracted from aiihca.subset
     return [iris.coords.DimCoord(range(1, 39), var_name=um2nc.MODEL_LEVEL_NUM),
             iris.coords.DimCoord(level_heights, var_name=um2nc.LEVEL_HEIGHT),
             iris.coords.AuxCoord(np.array([0.99771646]), var_name=um2nc.SIGMA)]
