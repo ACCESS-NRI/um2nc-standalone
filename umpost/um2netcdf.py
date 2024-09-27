@@ -106,34 +106,6 @@ def pg_calendar(self):
 PPField.calendar = pg_calendar
 
 
-# TODO: rename time to avoid clash with builtin time module
-def convert_proleptic(time):
-    # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
-    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
-    tbnds = np.array(time.bounds) if time.bounds is not None else None
-
-    for i in range(len(time.points)):
-        date = time.units.num2date(tvals[i])
-        newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                    date.hour, date.minute, date.second)
-        tvals[i] = newunits.date2num(newdate)
-
-        if tbnds is not None:  # Fields with instantaneous data don't have bounds
-            for j in range(2):
-                date = time.units.num2date(tbnds[i][j])
-                newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                            date.hour, date.minute, date.second)
-                tbnds[i][j] = newunits.date2num(newdate)
-
-    time.points = tvals
-
-    if tbnds is not None:
-        time.bounds = tbnds
-
-    time.units = newunits
-
-
 def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     """
     Add a 'var_name' attribute to a latitude coordinate object
@@ -412,6 +384,34 @@ def fix_forecast_reference_time(cube):
     except iris.exceptions.CoordinateNotFoundError:
         # Dump files don't have forecast_reference_time
         pass
+
+
+# TODO: rename time to avoid clash with builtin time module
+def convert_proleptic(time):
+    # Convert units from hours to days and shift origin from 1970 to 0001
+    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
+    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
+    tbnds = np.array(time.bounds) if time.bounds is not None else None
+
+    for i in range(len(time.points)):
+        date = time.units.num2date(tvals[i])
+        newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
+                                                    date.hour, date.minute, date.second)
+        tvals[i] = newunits.date2num(newdate)
+
+        if tbnds is not None:  # Fields with instantaneous data don't have bounds
+            for j in range(2):
+                date = time.units.num2date(tbnds[i][j])
+                newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
+                                                            date.hour, date.minute, date.second)
+                tbnds[i][j] = newunits.date2num(newdate)
+
+    time.points = tvals
+
+    if tbnds is not None:
+        time.bounds = tbnds
+
+    time.units = newunits
 
 
 def fix_cell_methods(cell_methods):
