@@ -338,33 +338,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 
     cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
 
-    # If reference date is before 1600 use proleptic gregorian
-    # calendar and change units from hours to days
-    try:
-        reftime = cube.coord('forecast_reference_time')
-        time = cube.coord('time')
-        refdate = reftime.units.num2date(reftime.points[0])
-        assert time.units.origin == 'hours since 1970-01-01 00:00:00'
-
-        if time.units.calendar == 'proleptic_gregorian' and refdate.year < 1600:
-            convert_proleptic(time)
-        else:
-            if time.units.calendar == 'gregorian':
-                new_calendar = 'proleptic_gregorian'
-            else:
-                new_calendar = time.units.calendar
-
-            time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
-            time.points = time.points/24.
-
-            if time.bounds is not None:
-                time.bounds = time.bounds/24.
-
-        cube.remove_coord('forecast_period')
-        cube.remove_coord('forecast_reference_time')
-    except iris.exceptions.CoordinateNotFoundError:
-        # Dump files don't have forecast_reference_time
-        pass
+    fix_forecast_reference_time(cube)
 
     # Check whether any of the coordinates is a pseudo-dimension with integer values and
     # if so, reset to int32 to prevent problems with possible later conversion to netCDF3
@@ -404,6 +378,36 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     except iris.exceptions.CoordinateNotFoundError:
         # No time dimension (probably ancillary file)
         sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
+
+
+def fix_forecast_reference_time(cube):
+    # If reference date is before 1600 use proleptic gregorian
+    # calendar and change units from hours to days
+    try:
+        reftime = cube.coord('forecast_reference_time')
+        time = cube.coord('time')
+        refdate = reftime.units.num2date(reftime.points[0])
+        assert time.units.origin == 'hours since 1970-01-01 00:00:00'
+
+        if time.units.calendar == 'proleptic_gregorian' and refdate.year < 1600:
+            convert_proleptic(time)
+        else:
+            if time.units.calendar == 'gregorian':
+                new_calendar = 'proleptic_gregorian'
+            else:
+                new_calendar = time.units.calendar
+
+            time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
+            time.points = time.points / 24.
+
+            if time.bounds is not None:
+                time.bounds = time.bounds / 24.
+
+        cube.remove_coord('forecast_period')
+        cube.remove_coord('forecast_reference_time')
+    except iris.exceptions.CoordinateNotFoundError:
+        # Dump files don't have forecast_reference_time
+        pass
 
 
 def fix_cell_methods(cell_methods):
