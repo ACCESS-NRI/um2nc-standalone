@@ -428,6 +428,9 @@ class DummyCube:
         # ensures the access key for coord() matches the coordinate's name
         self._coordinates = {c.name(): c for c in coords} if coords else {}
 
+    def remove_coord(self, coord):
+        del self._coordinates[coord]
+
 
 def test_set_item_codes_avoid_overwrite():
     item_code = 1007
@@ -1230,3 +1233,33 @@ def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
         forecast_cube.coord(um2nc.TIME)
 
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
+
+
+def test_fix_forecast_reference_time_standard(forecast_cube,
+                                              forecast_ref_time_coord,
+                                              time_coord):
+
+    forecast_period = iris.coords.DimCoord([372.0],
+                                           standard_name=um2nc.FORECAST_PERIOD)
+
+    forecast_cube.update_coords([forecast_ref_time_coord,
+                                 time_coord,
+                                 forecast_period])
+
+    assert um2nc.fix_forecast_reference_time(forecast_cube) is None
+
+
+@pytest.mark.skip
+def test_fix_forecast_reference_time_gregorian(forecast_cube,
+                                               forecast_ref_time_coord,
+                                               time_coord):
+    msg = "Is time.units.calendar == 'gregorian' branch & testing required?"
+    raise NotImplementedError(msg)
+
+
+@pytest.mark.skip
+def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube,
+                                                         forecast_ref_time_coord,
+                                                         time_coord):
+    msg = "Is time.units.calendar == 'proleptic_gregorian' branch & testing required?"
+    raise NotImplementedError(msg)
