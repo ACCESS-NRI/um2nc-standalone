@@ -67,8 +67,16 @@ NC_FORMATS = {
 }
 
 MODEL_LEVEL_NUM = "model_level_number"
+MODEL_RHO_LEVEL = "model_rho_level_number"
+MODEL_THETA_LEVEL_NUM = "model_theta_level_number"
+
 LEVEL_HEIGHT = "level_height"
+THETA_LEVEL_HEIGHT = "theta_level_height"
+RHO_LEVEL_HEIGHT = "rho_level_height"
+
 SIGMA = "sigma"
+SIGMA_THETA = "sigma_theta"
+SIGMA_RHO = "sigma_rho"
 
 
 class PostProcessingError(Exception):
