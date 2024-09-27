@@ -997,16 +997,16 @@ def test_fix_level_coord_modify_cube_with_rho(level_coords_cube,
     # verify cube renaming with appropriate z_rho data
     cube = level_coords_cube
 
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name != "model_rho_level_number"
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name != "rho_level_height"
-    assert cube.coord(um2nc.SIGMA).var_name != "sigma_rho"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name != um2nc.MODEL_RHO_LEVEL
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name != um2nc.RHO_LEVEL_HEIGHT
+    assert cube.coord(um2nc.SIGMA).var_name != um2nc.SIGMA_RHO
 
     rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
     um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
 
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_rho_level_number"
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "rho_level_height"
-    assert cube.coord(um2nc.SIGMA).var_name == "sigma_rho"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == um2nc.MODEL_RHO_LEVEL
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == um2nc.RHO_LEVEL_HEIGHT
+    assert cube.coord(um2nc.SIGMA).var_name == um2nc.SIGMA_RHO
 
 
 def test_fix_level_coord_modify_cube_with_theta(level_heights,
@@ -1017,9 +1017,9 @@ def test_fix_level_coord_modify_cube_with_theta(level_heights,
     cube = level_coords_cube
     um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
 
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_theta_level_number"
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "theta_level_height"
-    assert cube.coord(um2nc.SIGMA).var_name == "sigma_theta"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == um2nc.MODEL_THETA_LEVEL_NUM
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == um2nc.THETA_LEVEL_HEIGHT
+    assert cube.coord(um2nc.SIGMA).var_name == um2nc.SIGMA_THETA
 
 
 def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
