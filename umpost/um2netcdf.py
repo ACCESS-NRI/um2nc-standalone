@@ -70,6 +70,10 @@ MODEL_LEVEL_NUM = "model_level_number"
 LEVEL_HEIGHT = "level_height"
 SIGMA = "sigma"
 
+# forecast reference time constants
+FORECAST_REFERENCE_TIME = "forecast_reference_time"
+TIME = "time"
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
