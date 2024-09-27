@@ -323,7 +323,7 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
 
 def fix_fill_value(cube, custom_fill_val=None):
     """
-    Set a cube's missing_value attribute based on its data's dtype.
+    Set a cube's missing_value attribute according to the data's dtype.
 
     Parameters
     ----------
@@ -332,9 +332,13 @@ def fix_fill_value(cube, custom_fill_val=None):
         the cube data's type.
     """
     if custom_fill_val:
-        # TODO: How should missmatch between supplied fill val
-        # and cube's data types be handled?
-        fill_value = custom_fill_val
+        if type(custom_fill_val) == cube.data.dtype:
+            fill_value = custom_fill_val
+        else:
+            msg = (f"custom_fill_val type {type(custom_fill_val)} does not "
+                   f"match cube {cube.name()} data type {cube.data.dtype}.")
+            raise TypeError(msg)
+
     elif cube.data.dtype.kind == 'f':
         fill_value = DEFAULT_FILL_VAL_FLOAT
     else:
