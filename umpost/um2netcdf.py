@@ -73,6 +73,9 @@ SIGMA = "sigma"
 # forecast reference time constants
 FORECAST_REFERENCE_TIME = "forecast_reference_time"
 TIME = "time"
+PROLEPTIC_GREGORIAN = "proleptic_gregorian"
+GREGORIAN = "gregorian"
+FORECAST_PERIOD = "forecast_period"
 
 
 class PostProcessingError(Exception):

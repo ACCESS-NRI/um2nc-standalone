@@ -1,6 +1,8 @@
 import unittest.mock as mock
 from dataclasses import dataclass
 from collections import namedtuple
+
+import cf_units
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
@@ -1192,10 +1194,25 @@ def forecast_cube():
 
 @pytest.fixture
 def forecast_ref_time_coord():
-    # data ripped from aiihca data file
-    ref_time = iris.coords.DimCoord([-16383336.],
-                                    standard_name=um2nc.FORECAST_REFERENCE_TIME)
-    return ref_time
+    # units data ripped from aiihca data file
+    unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
+    assert unit.calendar == "standard"
+
+    return iris.coords.DimCoord([-16383336.],
+                                standard_name=um2nc.FORECAST_REFERENCE_TIME,
+                                units=unit)
+
+
+@pytest.fixture
+def time_coord():
+    # units data ripped from aiihca data file
+    unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00",
+                         calendar=um2nc.GREGORIAN)
+    assert unit.calendar == "standard"
+
+    return iris.coords.DimCoord([-16382964.],
+                                standard_name=um2nc.TIME,
+                                units=unit)
 
 
 def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
