@@ -1196,7 +1196,7 @@ def forecast_cube():
 def forecast_ref_time_coord():
     # units data ripped from aiihca data file
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
-    assert unit.calendar == "standard"
+    assert unit.calendar == um2nc.STANDARD
 
     return iris.coords.DimCoord([-16383336.],
                                 standard_name=um2nc.FORECAST_REFERENCE_TIME,
@@ -1208,7 +1208,7 @@ def time_coord():
     # units data ripped from aiihca data file
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00",
                          calendar=um2nc.GREGORIAN)
-    assert unit.calendar == "standard"
+    assert unit.calendar == um2nc.STANDARD
 
     return iris.coords.DimCoord([-16382964.],
                                 standard_name=um2nc.TIME,

@@ -76,6 +76,7 @@ TIME = "time"
 PROLEPTIC_GREGORIAN = "proleptic_gregorian"
 GREGORIAN = "gregorian"
 FORECAST_PERIOD = "forecast_period"
+STANDARD = "standard"
 
 
 class PostProcessingError(Exception):
