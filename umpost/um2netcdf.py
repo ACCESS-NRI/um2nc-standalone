@@ -331,7 +331,7 @@ def fix_fill_value(cube, custom_fill_val=None):
     custom_fill_val: Optional custom fill value. Type should match
         the cube data's type.
     """
-    if custom_fill_val:
+    if custom_fill_val is not None:
         if type(custom_fill_val) == cube.data.dtype:
             fill_value = custom_fill_val
         else:
