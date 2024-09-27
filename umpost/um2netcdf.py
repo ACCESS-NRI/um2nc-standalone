@@ -349,6 +349,8 @@ def fix_fill_value(cube, custom_fill_val=None):
     # Use an array to force the type to match the data type
     cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
 
+    return fill_value
+
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
 def cubewrite(cube, sman, compression, use64bit, verbose):
@@ -359,7 +361,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     if not use64bit:
         convert_32_bit(cube)
 
-    fix_fill_value(cube)
+    fill_value = fix_fill_value(cube)
 
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days

@@ -1212,29 +1212,30 @@ def test_convert_32_bit_with_float64(ua_plev_cube):
 
 
 @pytest.mark.parametrize(
-    "cube_data, custom_fill_val, expected_fill_val",
+    "cube_data, custom_fill_val, expected_fill_value",
     [
         (np.array([1.1, 2.1], dtype="float32"),
          None,
-         np.float32(um2nc.DEFAULT_FILL_VAL_FLOAT)),
+         um2nc.DEFAULT_FILL_VAL_FLOAT),
         (np.array([1.1, 2.1], dtype="float64"),
          None,
-         np.float64(um2nc.DEFAULT_FILL_VAL_FLOAT)),
+         um2nc.DEFAULT_FILL_VAL_FLOAT),
         (np.array([1.1, 2.1], dtype="complex64"),
          None,
-         np.complex64(default_fillvals["c8"])),
+         default_fillvals["c8"]),
         (np.array([1, 2], dtype="int32"),
          None,
-         np.int32(default_fillvals["i4"])),
+         default_fillvals["i4"]),
         (np.array([1, 2], dtype=np.dtype("int64")),
          None,
-         np.int64(default_fillvals["i8"])),
+         default_fillvals["i8"]),
         (np.array([1, 2], dtype=np.dtype("int64")),
          -12345,
-         np.int64(-12345))
+         -12345)
     ]
 )
-def test_fix_fill_value(cube_data, custom_fill_val, expected_fill_val):
+def test_fix_fill_value(cube_data, custom_fill_val,
+                        expected_fill_value):
     """
     Check that correct default and custom fill values are added based
     on a cube's data's type.
@@ -1242,13 +1243,13 @@ def test_fix_fill_value(cube_data, custom_fill_val, expected_fill_val):
     fake_cube = DummyCube(12345, "fake_var", attributes={})
     fake_cube.data = cube_data
 
-    um2nc.fix_fill_value(fake_cube, custom_fill_val)
+    fill_value = um2nc.fix_fill_value(fake_cube, custom_fill_val)
+    assert fill_value == expected_fill_value
 
-    cube_fill_val = fake_cube.attributes["missing_value"]
+    cube_fill_val_attr = fake_cube.attributes["missing_value"]
 
-    assert cube_fill_val[0] == expected_fill_val
-    # Check new fill value type matches cube's data's type
-    assert cube_fill_val.dtype == cube_data.dtype
+    # Check new fill value attribute type matches cube data's type
+    assert cube_fill_val_attr.dtype == cube_data.dtype
 
 
 def test_fix_fill_value_wrong_type():
