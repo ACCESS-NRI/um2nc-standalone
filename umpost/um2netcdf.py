@@ -321,33 +321,50 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     fix_lon_coord_name(longitude_coordinate, grid_type, dlon)
 
 
-def fix_fill_value(cube, custom_fill_val=None):
+def get_default_fill_value(cube):
     """
-    Set a cube's missing_value attribute according to the data's dtype.
+    Get the default fill value for a cube's data's type.
 
     Parameters
     ----------
-    cube: Iris cube object (modified in place).
-    custom_fill_val: Optional custom fill value. Type should match
-        the cube data's type.
-    """
-    if custom_fill_val is not None:
-        if type(custom_fill_val) == cube.data.dtype:
-            fill_value = custom_fill_val
-        else:
-            msg = (f"custom_fill_val type {type(custom_fill_val)} does not "
-                   f"match cube {cube.name()} data type {cube.data.dtype}.")
-            raise TypeError(msg)
+    cube: Iris cube object.
 
-    elif cube.data.dtype.kind == 'f':
+    Returns
+    -------
+    fill_value: numpy scalar with type matching cube.data
+    """
+    if cube.data.dtype.kind == 'f':
         fill_value = DEFAULT_FILL_VAL_FLOAT
+
     else:
         fill_value = default_fillvals[
             f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"
         ]
 
-    # Use an array to force the type to match the data type
-    cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
+    # TODO: Is there a less hacky way to do this?
+    return np.array([fill_value], dtype=cube.data.dtype)[0]
+
+
+def fix_fill_val_attribute(cube, fill_value):
+    """
+    Set a cube's missing_value attribute.
+
+    Parameters
+    ----------
+    cube: Iris cube object (modified in place).
+    fill_val: Fill value to use. Type should match cube data's type.
+    """
+    if type(fill_value) == cube.data.dtype:
+        # TODO: Is placing the fill value in an array still necessary,
+        # given the added fill value checks?
+
+        # Use an array to force the type to match the data type
+        cube.attributes['missing_value'] = np.array([fill_value],
+                                                    cube.data.dtype)
+    else:
+        msg = (f"custom_fill_val type {type(fill_value)} does not "
+               f"match cube {cube.name()} data type {cube.data.dtype}.")
+        raise TypeError(msg)
 
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
@@ -359,7 +376,8 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     if not use64bit:
         convert_32_bit(cube)
 
-    fix_fill_value(cube)
+    fill_value = get_default_fill_value(cube)
+    fix_fill_val_attribute(cube, fill_value)
 
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days
