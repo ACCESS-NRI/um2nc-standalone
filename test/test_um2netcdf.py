@@ -314,20 +314,6 @@ def test_stash_code_to_item_code_conversion():
     assert result == 30255
 
 
-@dataclass(frozen=True)
-class DummyStash:
-    """
-    Partial Stash representation for testing.
-    """
-    section: int
-    item: int
-
-
-def add_stash(cube, stash):
-    d = {um2nc.STASH: stash}
-    setattr(cube, "attributes", d)
-
-
 def test_set_item_codes():
     cube0 = DummyCube(1002, "d0", {um2nc.STASH: DummyStash(1, 2)})
     cube1 = DummyCube(3004, "d1", {um2nc.STASH: DummyStash(3, 4)})
@@ -341,6 +327,31 @@ def test_set_item_codes():
 
     assert c0.item_code == 1002
     assert c1.item_code == 3004
+
+
+def test_set_item_codes_avoid_overwrite():
+    item_code = 1007
+    item_code2 = 51006
+
+    cubes = [DummyCube(item_code, "fake_var"), DummyCube(item_code2, "fake_var2")]
+    um2nc.set_item_codes(cubes)
+    assert cubes[0].item_code == item_code
+    assert cubes[1].item_code == item_code2
+
+
+@dataclass(frozen=True)
+class DummyStash:
+    """
+    Partial Stash representation for testing.
+    """
+    section: int
+    item: int
+
+
+def add_stash(cube, stash):
+    d = {um2nc.STASH: stash}
+    setattr(cube, "attributes", d)
+
 
 
 class DummyCube:
@@ -375,16 +386,6 @@ class DummyCube:
         except KeyError:
             msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
             raise CoordinateNotFoundError(msg)
-
-
-def test_set_item_codes_avoid_overwrite():
-    item_code = 1007
-    item_code2 = 51006
-
-    cubes = [DummyCube(item_code, "fake_var"), DummyCube(item_code2, "fake_var2")]
-    um2nc.set_item_codes(cubes)
-    assert cubes[0].item_code == item_code
-    assert cubes[1].item_code == item_code2
 
 
 @pytest.fixture
