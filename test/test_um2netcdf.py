@@ -445,10 +445,8 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
 # cube variable renaming tests
 @pytest.fixture
 def x_wind_cube():
-    x_wind_cube = DummyCube(2, var_name="var_name",
-                            attributes={'STASH': DummyStash(0, 2)})
+    x_wind_cube = DummyCube(2, var_name="var_name")
     x_wind_cube.standard_name = "x_wind"
-    x_wind_cube.cell_methods = []
     return x_wind_cube
 
 
@@ -510,9 +508,8 @@ def test_fix_standard_name_update_x_wind(x_wind_cube):
 def test_fix_standard_name_update_y_wind():
     # test cube wind renaming block only
     # use empty std name to bypass renaming logic
-    m_cube = DummyCube(3, attributes={'STASH': DummyStash(0, 3)})
+    m_cube = DummyCube(3)
     m_cube.standard_name = "y_wind"
-    m_cube.cell_methods = []
 
     um2nc.fix_standard_name(m_cube, "", verbose=False)
     assert m_cube.standard_name == "northward_wind"
