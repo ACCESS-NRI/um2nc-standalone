@@ -71,14 +71,6 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
 
 
 @pytest.fixture
-def air_temp_cube(lat_river_coord, lon_river_coord):
-    # details copied from aiihca.paa1jan.subset file
-    air_temp = DummyCube(30204, "air_temperature",
-                         coords=[lat_river_coord, lon_river_coord])
-    return air_temp
-
-
-@pytest.fixture
 def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
     # copied from aiihca.paa1jan.subset file
     precipitation_flux = DummyCube(5216, "precipitation_flux",
@@ -124,7 +116,7 @@ def fake_out_path():
 #        use the following tests to gradually refactor process()
 # TODO: evolve towards design where input & output file I/O is extracted from
 #       process() & the function takes *raw data only* (is highly testable)
-def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
+def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
                                          geo_potential_cube, mule_vars, std_args,
                                          fake_in_path, fake_out_path):
     """Attempt end-to-end process() test, dropping cubes requiring masking."""
@@ -140,7 +132,7 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
 
         # include cubes requiring both heaviside uv & t cubes to filter, to
         # ensure both uv/t dependent cubes are dropped
-        cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube]
+        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -161,7 +153,7 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         assert cube.data is None  # masking wasn't called/nothing changed
 
 
-def test_process_all_cubes_filtered(air_temp_cube, geo_potential_cube,
+def test_process_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
                                     mule_vars, std_args,
                                     fake_in_path, fake_out_path):
     """Ensure process() exits early if all cubes are removed in filtering."""
@@ -172,14 +164,14 @@ def test_process_all_cubes_filtered(air_temp_cube, geo_potential_cube,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
     ):
         m_mule_vars.return_value = mule_vars
-        m_iris_load.return_value = [air_temp_cube, geo_potential_cube]
+        m_iris_load.return_value = [ta_plev_cube, geo_potential_cube]
         m_saver().__enter__ = mock.Mock(name="mock_sman")
 
         # all cubes should be dropped
         assert um2nc.process(fake_in_path, fake_out_path, std_args) == []
 
 
-def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
+def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
                                      heaviside_uv_cube, heaviside_t_cube,
                                      geo_potential_cube, mule_vars,
                                      std_args, fake_in_path, fake_out_path):
@@ -196,7 +188,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
 
         # air temp requires heaviside_uv & geo_potential_cube requires heaviside_t
         # masking, include both to enable code execution for both masks
-        cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
+        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube,
                  heaviside_uv_cube, heaviside_t_cube]
 
         m_iris_load.return_value = cubes
@@ -210,7 +202,7 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
             assert pc in cubes
 
 
-def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cube,
+def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube,
                                            geo_potential_cube, mule_vars, std_args,
                                            fake_in_path, fake_out_path):
     """Run process() with masking off, ensuring all cubes are kept & modified."""
@@ -224,7 +216,7 @@ def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cub
         m_mule_vars.return_value = mule_vars
 
         # air temp and geo potential would need heaviside uv & t respectively
-        cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube]
+        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -351,7 +343,6 @@ class DummyStash:
 def add_stash(cube, stash):
     d = {um2nc.STASH: stash}
     setattr(cube, "attributes", d)
-
 
 
 class DummyCube:
