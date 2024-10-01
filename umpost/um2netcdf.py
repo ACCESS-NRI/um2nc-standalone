@@ -648,13 +648,19 @@ def to_stash_code(item_code: int):
 
 
 def set_item_codes(cubes):
-    for cube in cubes:
-        if hasattr(cube, ITEM_CODE):
-            msg = f"Cube {cube.var_name} already has 'item_code' attribute, skipping."
-            warnings.warn(msg)
-            continue
+    """
+    Add item code attribute to given cubes.
 
-        # hack: manually store item_code in cubes
+    Iris cube objects lack a item_code attribute, a single integer value
+    representing the combined stash/section code. This function converts the
+    cube's own stash/section code and stores as an "item_code" attribute. This
+    function is hacky from dynamically modifying the cube interface at runtime,
+    """
+    # TODO: should this be _set_item_codes() to flag as an internal detail?
+    for cube in cubes:
+        # NB: expanding the interface at runtime is somewhat hacky, however iris
+        # cube objects are defined in a 3rd party project. The alternative is
+        # passing primitives or additional data structures in process().
         item_code = to_item_code(cube.attributes[STASH])
         setattr(cube, ITEM_CODE, item_code)
 

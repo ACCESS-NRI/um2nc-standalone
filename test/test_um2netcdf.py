@@ -377,31 +377,6 @@ def test_stash_code_to_item_code_conversion():
     assert result == 30255
 
 
-def test_set_item_codes():
-    cube0 = DummyCube(1002, "d0", {um2nc.STASH: DummyStash(1, 2)})
-    cube1 = DummyCube(3004, "d1", {um2nc.STASH: DummyStash(3, 4)})
-    cubes = [cube0, cube1]
-
-    for cube in cubes:
-        assert hasattr(cube, um2nc.ITEM_CODE)
-
-    um2nc.set_item_codes(cubes)
-    c0, c1 = cubes
-
-    assert c0.item_code == 1002
-    assert c1.item_code == 3004
-
-
-def test_set_item_codes_avoid_overwrite():
-    item_code = 1007
-    item_code2 = 51006
-
-    cubes = [DummyCube(item_code, "fake_var"), DummyCube(item_code2, "fake_var2")]
-    um2nc.set_item_codes(cubes)
-    assert cubes[0].item_code == item_code
-    assert cubes[1].item_code == item_code2
-
-
 def add_stash(cube, stash):
     d = {um2nc.STASH: stash}
     setattr(cube, "attributes", d)
