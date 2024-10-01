@@ -87,6 +87,29 @@ def geo_potential_cube(lat_v_nd_coord, lon_u_nd_coord):
 
 
 @pytest.fixture
+def ua_plev_cube():
+    return DummyCube(30201, "ua_plev")
+
+
+@pytest.fixture
+def heaviside_uv_cube(lat_v_nd_coord, lon_u_nd_coord):
+    return DummyCube(30301, "heaviside_uv",
+                     coords=[lat_v_nd_coord, lon_u_nd_coord])
+
+
+@pytest.fixture
+def ta_plev_cube(lat_v_nd_coord, lon_u_nd_coord):
+    return DummyCube(30204, "ta_plev",
+                     coords=[lat_v_nd_coord, lon_u_nd_coord])
+
+
+@pytest.fixture
+def heaviside_t_cube(lat_standard_eg_coord, lon_standard_eg_coord):
+    return DummyCube(30304, "heaviside_t",
+                     coords=[lat_standard_eg_coord, lon_standard_eg_coord])
+
+
+@pytest.fixture
 def std_args():
     # TODO: make args namedtuple?
     args = mock.Mock()
@@ -377,29 +400,6 @@ class DummyCube:
         except KeyError:
             msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
             raise CoordinateNotFoundError(msg)
-
-
-@pytest.fixture
-def ua_plev_cube():
-    return DummyCube(30201, "ua_plev")
-
-
-@pytest.fixture
-def heaviside_uv_cube(lat_v_nd_coord, lon_u_nd_coord):
-    return DummyCube(30301, "heaviside_uv",
-                     coords=[lat_v_nd_coord, lon_u_nd_coord])
-
-
-@pytest.fixture
-def ta_plev_cube(lat_v_nd_coord, lon_u_nd_coord):
-    return DummyCube(30204, "ta_plev",
-                     coords=[lat_v_nd_coord, lon_u_nd_coord])
-
-
-@pytest.fixture
-def heaviside_t_cube(lat_standard_eg_coord, lon_standard_eg_coord):
-    return DummyCube(30304, "heaviside_t",
-                     coords=[lat_standard_eg_coord, lon_standard_eg_coord])
 
 
 # cube filtering tests
