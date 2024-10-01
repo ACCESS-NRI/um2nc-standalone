@@ -70,6 +70,49 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
+@dataclass(frozen=True)
+class DummyStash:
+    """
+    Partial Stash representation for testing.
+    """
+    section: int
+    item: int
+
+
+class DummyCube:
+    """
+    Imitation iris Cube for unit testing.
+    """
+
+    def __init__(self, item_code, var_name=None, attributes=None,
+                 units=None, coords=None):
+        self.item_code = item_code
+        self.var_name = var_name or "unknown_var"
+        self.attributes = attributes
+        self.units = units
+        self.standard_name = None
+        self.long_name = ""
+        self.cell_methods = []
+        self.data = None
+
+        # Mimic a coordinate dictionary with iris coordinate names as keys to
+        # ensure the coord() access key matches the coordinate's name
+        self._coordinates = {c.name(): c for c in coords} if coords else {}
+
+        section, item = um2nc.to_stash_code(item_code)
+        self.attributes = {um2nc.STASH: DummyStash(section, item)}
+
+    def name(self):
+        return self.var_name
+
+    def coord(self, _name):
+        try:
+            return self._coordinates[_name]
+        except KeyError:
+            msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
+            raise CoordinateNotFoundError(msg)
+
+
 @pytest.fixture
 def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
     # copied from aiihca.paa1jan.subset file
@@ -354,52 +397,9 @@ def test_set_item_codes_avoid_overwrite():
     assert cubes[1].item_code == item_code2
 
 
-@dataclass(frozen=True)
-class DummyStash:
-    """
-    Partial Stash representation for testing.
-    """
-    section: int
-    item: int
-
-
 def add_stash(cube, stash):
     d = {um2nc.STASH: stash}
     setattr(cube, "attributes", d)
-
-
-class DummyCube:
-    """
-    Imitation iris Cube for unit testing.
-    """
-
-    def __init__(self, item_code, var_name=None, attributes=None,
-                 units=None, coords=None):
-        self.item_code = item_code
-        self.var_name = var_name or "unknown_var"
-        self.attributes = attributes
-        self.units = units
-        self.standard_name = None
-        self.long_name = ""
-        self.cell_methods = []
-        self.data = None
-
-        # Mimic a coordinate dictionary with iris coordinate names as keys to
-        # ensure the coord() access key matches the coordinate's name
-        self._coordinates = {c.name(): c for c in coords} if coords else {}
-
-        section, item = um2nc.to_stash_code(item_code)
-        self.attributes = {um2nc.STASH: DummyStash(section, item)}
-
-    def name(self):
-        return self.var_name
-
-    def coord(self, _name):
-        try:
-            return self._coordinates[_name]
-        except KeyError:
-            msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
-            raise CoordinateNotFoundError(msg)
 
 
 # cube filtering tests
