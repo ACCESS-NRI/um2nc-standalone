@@ -79,18 +79,18 @@ def air_temp_cube(lat_river_coord, lon_river_coord):
 
 
 @pytest.fixture
-def precipitation_flux_cube(lat_river_coord, lon_river_coord):
+def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
     # copied from aiihca.paa1jan.subset file
     precipitation_flux = DummyCube(5216, "precipitation_flux",
-                                   coords=[lat_river_coord, lon_river_coord])
+                                   coords=[lat_standard_nd_coord, lon_standard_nd_coord])
     return precipitation_flux
 
 
 @pytest.fixture
-def geo_potential_cube(lat_river_coord, lon_river_coord):
+def geo_potential_cube(lat_v_nd_coord, lon_u_nd_coord):
     """Return new cube requiring heaviside_t masking"""
-    geo_potential = DummyCube(30297, "geopotential_height",
-                              coords=[lat_river_coord, lon_river_coord])
+    geo_potential = DummyCube(30207, "geopotential_height",
+                              coords=[lat_v_nd_coord, lon_u_nd_coord])
     return geo_potential
 
 
@@ -394,21 +394,21 @@ def ua_plev_cube():
 
 
 @pytest.fixture
-def heaviside_uv_cube(lat_river_coord, lon_river_coord):
+def heaviside_uv_cube(lat_v_nd_coord, lon_u_nd_coord):
     return DummyCube(30301, "heaviside_uv",
-                     coords=[lat_river_coord, lon_river_coord])
+                     coords=[lat_v_nd_coord, lon_u_nd_coord])
 
 
 @pytest.fixture
-def ta_plev_cube(lat_river_coord, lon_river_coord):
-    return DummyCube(30294, "ta_plev",
-                     coords=[lat_river_coord, lon_river_coord])
+def ta_plev_cube(lat_v_nd_coord, lon_u_nd_coord):
+    return DummyCube(30204, "ta_plev",
+                     coords=[lat_v_nd_coord, lon_u_nd_coord])
 
 
 @pytest.fixture
-def heaviside_t_cube(lat_river_coord, lon_river_coord):
+def heaviside_t_cube(lat_standard_eg_coord, lon_standard_eg_coord):
     return DummyCube(30304, "heaviside_t",
-                     coords=[lat_river_coord, lon_river_coord])
+                     coords=[lat_standard_eg_coord, lon_standard_eg_coord])
 
 
 # cube filtering tests
