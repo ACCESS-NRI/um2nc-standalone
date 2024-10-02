@@ -1192,28 +1192,38 @@ def test_convert_32_bit_with_float64(ua_plev_cube):
 # fix forecast reference time tests
 @pytest.fixture
 def forecast_cube():
+    # NB: using a non-existent item code for fake forecast cube
     return DummyCube(item_code=999)
 
 
 @pytest.fixture
-def forecast_ref_time_coord():
-    # units data ripped from aiihca data file
+def time_points():
+    """Use for cube.coord('time').points attribute."""
+    return [-16382964.]
+
+
+@pytest.fixture
+def forecast_ref_time_coord(time_points):
+    # units & point data ripped from aiihca.paa1jan data file:
+    # cubes = iris.load("aiihca.paa1jan")
+    # cubes[0].long_name --> 'atmosphere_optical_thickness_due_to_sulphate_ambient_aerosol'
+    # cubes[0].coord("time").points --> array([-16382964.])
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
     assert unit.calendar == um2nc.STANDARD
 
-    return iris.coords.DimCoord([-16383336.],
+    return iris.coords.DimCoord(time_points,
                                 standard_name=um2nc.FORECAST_REFERENCE_TIME,
                                 units=unit)
 
 
 @pytest.fixture
-def time_coord():
+def time_coord(time_points):
     # units data ripped from aiihca data file
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00",
                          calendar=um2nc.GREGORIAN)
     assert unit.calendar == um2nc.STANDARD
 
-    return iris.coords.DimCoord([-16382964.],
+    return iris.coords.DimCoord(time_points,
                                 standard_name=um2nc.TIME,
                                 units=unit)
 
