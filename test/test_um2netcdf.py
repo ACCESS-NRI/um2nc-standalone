@@ -88,7 +88,7 @@ class DummyCube:
                  units=None, coords=None):
         self.item_code = item_code
         self.var_name = var_name or "unknown_var"
-        self.attributes = attributes
+        self.attributes = attributes or {}
         self.units = units
         self.standard_name = None
         self.long_name = ""
@@ -99,8 +99,9 @@ class DummyCube:
         # ensure the coord() access key matches the coordinate's name
         self._coordinates = {c.name(): c for c in coords} if coords else {}
 
+        # update to prevent overwriting attributes set in __init__()
         section, item = um2nc.to_stash_code(item_code)
-        self.attributes = {um2nc.STASH: DummyStash(section, item)}
+        self.attributes.update({um2nc.STASH: DummyStash(section, item)})
 
     def name(self):
         return self.var_name
