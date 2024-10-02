@@ -89,9 +89,9 @@ class DummyCube:
         self.item_code = item_code  # NB: um2nc adds this at runtime
         self.var_name = var_name or "unknown_var"
         self.standard_name = None
-        self.long_name = ""
+        self.long_name = None  # cube names appear to default to None
 
-        self.attributes = attributes or {}  # needs dict for coord()
+        self.attributes = attributes or {}  # needs dict for update()
         self.cell_methods = []
         self.units = units
         self.data = None
@@ -101,6 +101,8 @@ class DummyCube:
         self._coordinates = {c.name(): c for c in coords} if coords else {}
 
         # update() retains attributes set in __init__()
+        # NB: this is unlike cubes which convert section & item to the stash code
+        # these tests reverse this for expediency
         section, item = um2nc.to_stash_code(item_code)
         self.attributes.update({um2nc.STASH: DummyStash(section, item)})
 
