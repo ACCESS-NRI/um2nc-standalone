@@ -361,16 +361,16 @@ def fix_forecast_reference_time(cube):
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days
     try:
-        reftime = cube.coord('forecast_reference_time')
-        time = cube.coord('time')
+        reftime = cube.coord(FORECAST_REFERENCE_TIME)
+        time = cube.coord(TIME)
         refdate = reftime.units.num2date(reftime.points[0])
         assert time.units.origin == 'hours since 1970-01-01 00:00:00'
 
-        if time.units.calendar == 'proleptic_gregorian' and refdate.year < 1600:
+        if time.units.calendar == cf_units.CALENDAR_PROLEPTIC_GREGORIAN and refdate.year < 1600:
             convert_proleptic(time)
         else:
-            if time.units.calendar == 'gregorian':
-                new_calendar = 'proleptic_gregorian'
+            if time.units.calendar == cf_units.CALENDAR_GREGORIAN:
+                new_calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
             else:
                 new_calendar = time.units.calendar
 
@@ -380,8 +380,8 @@ def fix_forecast_reference_time(cube):
             if time.bounds is not None:
                 time.bounds = time.bounds / 24.
 
-        cube.remove_coord('forecast_period')
-        cube.remove_coord('forecast_reference_time')
+        cube.remove_coord(FORECAST_PERIOD)
+        cube.remove_coord(FORECAST_REFERENCE_TIME)
     except iris.exceptions.CoordinateNotFoundError:
         # Dump files don't have forecast_reference_time
         pass
@@ -390,7 +390,8 @@ def fix_forecast_reference_time(cube):
 # TODO: rename time to avoid clash with builtin time module
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
+    newunits = cf_units.Unit("days since 0001-01-01 00:00",
+                             calendar=cf_units.CALENDAR_PROLEPTIC_GREGORIAN)
     tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
     tbnds = np.array(time.bounds) if time.bounds is not None else None
 
