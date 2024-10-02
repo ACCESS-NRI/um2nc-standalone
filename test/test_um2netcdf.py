@@ -113,6 +113,11 @@ class DummyCube:
             raise CoordinateNotFoundError(msg)
 
 
+# NB: these cube fixtures have been chosen to mimic cubes for testing key parts
+# of the process() workflow. Some cubes require pressure level masking with the
+# heaviside_uv/t cubes. These cubes facilitate different testing configurations.
+# Modifying them has the potential to reduce test coverage!
+
 @pytest.fixture
 def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
     # copied from aiihca.paa1jan.subset file
@@ -124,7 +129,7 @@ def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
 @pytest.fixture
 def geo_potential_cube(lat_v_nd_coord, lon_u_nd_coord):
     """Return new cube requiring heaviside_t masking"""
-    geo_potential = DummyCube(30207, "geopotential_height",
+    geo_potential = DummyCube(30297, "geopotential_height",
                               coords=[lat_v_nd_coord, lon_u_nd_coord])
     return geo_potential
 
