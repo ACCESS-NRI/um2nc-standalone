@@ -1209,7 +1209,7 @@ def forecast_ref_time_coord(time_points):
     # cubes[0].long_name --> 'atmosphere_optical_thickness_due_to_sulphate_ambient_aerosol'
     # cubes[0].coord("time").points --> array([-16382964.])
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
-    assert unit.calendar == um2nc.STANDARD
+    assert unit.calendar == cf_units.CALENDAR_STANDARD
 
     return iris.coords.DimCoord(time_points,
                                 standard_name=um2nc.FORECAST_REFERENCE_TIME,
@@ -1220,8 +1220,8 @@ def forecast_ref_time_coord(time_points):
 def time_coord(time_points):
     # units data ripped from aiihca data file
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00",
-                         calendar=um2nc.GREGORIAN)
-    assert unit.calendar == um2nc.STANDARD
+                         calendar=cf_units.CALENDAR_GREGORIAN)
+    assert unit.calendar == cf_units.CALENDAR_STANDARD
 
     return iris.coords.DimCoord(time_points,
                                 standard_name=um2nc.TIME,
