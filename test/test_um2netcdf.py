@@ -86,21 +86,23 @@ class DummyCube:
 
     def __init__(self, item_code, var_name=None, attributes=None,
                  units=None, coords=None):
-        self.item_code = item_code
+        self.item_code = item_code  # NB: um2nc adds this at runtime
         self.var_name = var_name or "unknown_var"
-        self.attributes = attributes
-        self.units = units
         self.standard_name = None
         self.long_name = ""
+
+        self.attributes = attributes or {}  # needs dict for coord()
         self.cell_methods = []
+        self.units = units
         self.data = None
 
         # Mimic a coordinate dictionary with iris coordinate names as keys to
         # ensure the coord() access key matches the coordinate's name
         self._coordinates = {c.name(): c for c in coords} if coords else {}
 
+        # update() retains attributes set in __init__()
         section, item = um2nc.to_stash_code(item_code)
-        self.attributes = {um2nc.STASH: DummyStash(section, item)}
+        self.attributes.update({um2nc.STASH: DummyStash(section, item)})
 
     def name(self):
         return self.var_name
