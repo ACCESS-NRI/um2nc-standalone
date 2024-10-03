@@ -341,6 +341,12 @@ def get_default_fill_value(cube):
             f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"
         ]
 
+    # NB: the `_FillValue` attribute appears to be converted to match the
+    # cube data's type externally (likely in the netCDF4 library). It's not
+    # strictly necessary to do the conversion here. However, we need
+    # the separate `missing_value` attribute to have the correct type
+    # and so it's cleaner to set the type for both here.
+
     # TODO: We want to ensure the fill value matches the type of the
     # cube's data. DEFAULT_FILL_VAL_FLOAT and netCDF4.default_fillvals
     # use standard python floats and ints. Is there a cleaner
