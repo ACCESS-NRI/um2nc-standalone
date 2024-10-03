@@ -348,15 +348,21 @@ def get_default_fill_value(cube):
     return np.array([fill_value], dtype=cube.data.dtype)[0]
 
 
-def fix_missing_val_attribute(cube, fill_value):
+def fix_fill_value(cube, custom_fill_value=None):
     """
     Set a cube's missing_value attribute.
 
     Parameters
     ----------
     cube: Iris cube object (modified in place).
-    fill_val: Fill value to use. Type should match cube data's type.
+    custom_fill_val: Fill value to use in place of defaults.
+    Type must match cube data's type.
     """
+    if custom_fill_value is not None:
+        fill_value = custom_fill_value
+    else:
+        fill_value = get_default_fill_value(cube)
+
     if type(fill_value) == cube.data.dtype:
         # TODO: Is placing the fill value in an array still necessary,
         # given the added fill value checks?
@@ -364,12 +370,12 @@ def fix_missing_val_attribute(cube, fill_value):
         # Use an array to force the type to match the data type
         cube.attributes['missing_value'] = np.array([fill_value],
                                                     cube.data.dtype)
+        return fill_value
+
     else:
         msg = (f"fill_val type {type(fill_value)} does not "
                f"match cube {cube.name()} data type {cube.data.dtype}.")
         raise TypeError(msg)
-
-    return fill_value
 
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
@@ -381,8 +387,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     if not use64bit:
         convert_32_bit(cube)
 
-    fill_value = get_default_fill_value(cube)
-    fix_missing_val_attribute(cube, fill_value)
+    fill_value = fix_fill_value(cube)
 
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days
