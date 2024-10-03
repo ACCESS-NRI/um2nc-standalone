@@ -341,11 +341,14 @@ def get_default_fill_value(cube):
             f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"
         ]
 
-    # TODO: Is there a less hacky way to do this?
+    # TODO: We want to ensure the fill value matches the type of the
+    # cube's data. DEFAULT_FILL_VAL_FLOAT and netCDF4.default_fillvals
+    # use standard python floats and ints. Is there a cleaner
+    # way do do the following conversion?
     return np.array([fill_value], dtype=cube.data.dtype)[0]
 
 
-def fix_fill_val_attribute(cube, fill_value):
+def fix_missing_val_attribute(cube, fill_value):
     """
     Set a cube's missing_value attribute.
 
@@ -362,7 +365,7 @@ def fix_fill_val_attribute(cube, fill_value):
         cube.attributes['missing_value'] = np.array([fill_value],
                                                     cube.data.dtype)
     else:
-        msg = (f"custom_fill_val type {type(fill_value)} does not "
+        msg = (f"fill_val type {type(fill_value)} does not "
                f"match cube {cube.name()} data type {cube.data.dtype}.")
         raise TypeError(msg)
 
@@ -377,7 +380,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         convert_32_bit(cube)
 
     fill_value = get_default_fill_value(cube)
-    fix_fill_val_attribute(cube, fill_value)
+    fix_missing_val_attribute(cube, fill_value)
 
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days
