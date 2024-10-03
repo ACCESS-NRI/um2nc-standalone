@@ -1257,7 +1257,7 @@ def test_fix_fill_value_custom():
     # Check that the custom fill value is returned
     assert fill_value == custom_val
 
-    # Check that missing value attribute set to the custom fill_value
+    # Check that missing value attribute set to the custom fill value
     assert fake_cube.attributes["missing_value"][0] == custom_val
 
 

@@ -355,7 +355,7 @@ def fix_fill_value(cube, custom_fill_value=None):
     Parameters
     ----------
     cube: Iris cube object (modified in place).
-    custom_fill_val: Fill value to use in place of defaults.
+    custom_fill_value: Fill value to use in place of defaults.
     Type must match cube data's type.
     """
     if custom_fill_value is not None:
