@@ -347,10 +347,7 @@ def get_default_fill_value(cube):
     # the separate `missing_value` attribute to have the correct type
     # and so it's cleaner to set the type for both here.
 
-    # TODO: We want to ensure the fill value matches the type of the
-    # cube's data. DEFAULT_FILL_VAL_FLOAT and netCDF4.default_fillvals
-    # use standard python floats and ints. Is there a cleaner
-    # way do do the following conversion?
+    # TODO: Is there a cleaner way do do the following conversion?
     return np.array([fill_value], dtype=cube.data.dtype)[0]
 
 
