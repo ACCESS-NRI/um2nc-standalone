@@ -1071,6 +1071,7 @@ def test_fix_pressure_levels_reverse_pressure():
 # NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
 
 def test_convert_32_bit_safe(ua_plev_cube):
+    # simple baseline test of down conversion int64 to int32 without warnings
     data = [1e6, 200, 100, 10, 1, 0, -10]
     ua_plev_cube.data = np.array(data, dtype=np.int64)
     um2nc.convert_32_bit(ua_plev_cube)
@@ -1082,13 +1083,15 @@ def test_convert_32_bit_safe(ua_plev_cube):
                          [([3000000000], operator.gt, np.iinfo(np.int32).max),
                           ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
 def test_convert_32_bit_overflow_warning(ua_plev_cube, array, _operator, bound):
+    # ensure overflow covered for large positive & negative int64s
     ua_plev_cube.data = np.array(array, dtype=np.int64)
 
     with pytest.warns(RuntimeWarning) as record:
         um2nc.convert_32_bit(ua_plev_cube)
 
         if not record:
-            pytest.fail(f"No overflow warning emitted with {array} {_operator} {bound}")
+            msg = f"No overflow warning with {array} {_operator} {bound}"
+            pytest.fail(msg)
 
     if _operator:
         assert _operator(array[0], bound)
