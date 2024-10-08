@@ -1084,6 +1084,9 @@ def test_convert_32_bit_safe(ua_plev_cube):
                           ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
 def test_convert_32_bit_overflow_warning(ua_plev_cube, array, _operator, bound):
     # ensure overflow covered for large positive & negative int64s
+    msg = f"Over/underflow impossible with {array[0]} {_operator} {bound}"
+    assert _operator(array[0], bound), msg
+
     ua_plev_cube.data = np.array(array, dtype=np.int64)
 
     with pytest.warns(RuntimeWarning) as record:
@@ -1092,9 +1095,6 @@ def test_convert_32_bit_overflow_warning(ua_plev_cube, array, _operator, bound):
         if not record:
             msg = f"No overflow warning with {array} {_operator} {bound}"
             pytest.fail(msg)
-
-    if _operator:
-        assert _operator(array[0], bound)
 
     assert ua_plev_cube.data.dtype == np.int32
 
