@@ -217,7 +217,9 @@ def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
-        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        with pytest.warns(RuntimeWarning):
+            processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+
         assert len(processed) == 1
         cube = processed[0]
 
