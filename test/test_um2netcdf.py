@@ -1069,6 +1069,15 @@ def test_fix_pressure_levels_reverse_pressure():
 
 # int64 to int32 data conversion tests
 # NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
+
+def test_convert_32_bit_safe(ua_plev_cube):
+    data = [1e6, 200, 100, 10, 1, 0, -10]
+    ua_plev_cube.data = np.array(data, dtype=np.int64)
+    um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.int32
+    assert np.all(ua_plev_cube.data == data)
+
+
 @pytest.mark.parametrize("array,_operator,bound",
                          [([3000000000], operator.gt, np.iinfo(np.int32).max),
                           ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
