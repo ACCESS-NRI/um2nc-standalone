@@ -55,22 +55,22 @@ mask_path=$UM2NC_TEST_DATA/mask.nc
 
 # execute nomask variant, pressure masking is turned OFF & all cubes are kept
 # TODO: capture error condition if conversion does not complete
-rm -f $nomask_path  # remove previous data
-python3 $UM2NC_PROJ/umpost/um2netcdf.py --verbose \
+rm -f "$nomask_path"  # remove previous data
+python3 "$UM2NC_PROJ"/umpost/um2netcdf.py --verbose \
                                         --nohist \
                                         --nomask \
-                                        $subset_path \
-                                        $nomask_path
+                                        "$subset_path" \
+                                        "$nomask_path"
 
-diff_warn $subset_nomask_nc_path  $nomask_path
+diff_warn "$subset_nomask_nc_path"  "$nomask_path"
 echo
 
 # execute pressure masking variant: cubes which cannot be pressure masked are dropped
 # TODO: capture error condition if conversion does not complete
-rm -f $mask_path  # remove previous data
-python3 $UM2NC_PROJ/umpost/um2netcdf.py --verbose \
+rm -f "$mask_path"  # remove previous data
+python3 "$UM2NC_PROJ"/umpost/um2netcdf.py --verbose \
                                         --nohist \
-                                        $subset_path \
-                                        $mask_path
+                                        "$subset_path" \
+                                        "$mask_path"
 
-diff_warn $subset_mask_nc_path  $mask_path
+diff_warn "$subset_mask_nc_path"  "$mask_path"
