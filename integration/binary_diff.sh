@@ -6,11 +6,22 @@
 # between Martix Dix's base script & changes introduced by the
 # um2nc-standalone development effort.
 #
+# TODO: add larger inputs with more vars to the testing?
+#
+#
+# Terminal session setup
+# $ export UM2NC_PROJ=<um2nc-standalone git dir>
+# $ export UM2NC_TEST_DATA=<dir with test netCDFs>
+#
+# Usage:
+# cd <um2nc-standalone git dir>
+# ./integration/binary_diff.sh
+#
 # NB: will display some um2nc output
 #
-# This script warns if there is a binary difference comparing netCDF files
-#
-# TODO: add larger inputs with more vars to the testing?
+# Script warns if there is a binary difference comparing netCDF files
+# If debugging a diff, the original source netCDF & the um2nc dev netCDF
+# can be converted to text with `ncks` & compared with a diff tool.
 
 echo "Binary equivalence/backwards compatibility diff for um2nc-standalone"
 
