@@ -465,7 +465,14 @@ def apply_mask(c, heaviside, hcrit):
 
 
 def process(infile, outfile, args):
-    ff = mule.load_umfile(str(infile))
+
+    with warnings.catch_warnings():
+        # NB: Information from STASHmaster file is not required by `process`.
+        # Hence supress missing STASHmaster warnings.
+        warnings.filterwarnings(action="ignore", category=UserWarning,
+                                message=r"\sUnable to load STASHmaster")
+        ff = mule.load_umfile(str(infile))
+
     mv = process_mule_vars(ff)
 
     cubes = iris.load(infile)
