@@ -220,6 +220,48 @@ def test_convert_esm1p5_output_dir_error():
         )
 
 
+@pytest.mark.parametrize(
+    "input_output_pairs, expected_pairs",
+    [(   # input_output_pairs
+        [(Path("/output000/atmosphere/aiihca.pea1120"),
+          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
+         (Path("/output000/atmosphere/aiihca.pea1130"),
+          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
+         (Path("/output000/atmosphere/aiihca.pea1140"),
+          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
+         (Path("/output000/atmosphere/aiihca.pea1150"),
+          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
+         (Path("/output000/atmosphere/aiihca.aiihca.paa1jan"),
+          Path("/output000/atmosphere/netCDF/aiihca.pa-010101_mon.nc")),
+         (Path("/output000/atmosphere/aiihca.aiihca.paa1feb"),
+          Path("/output000/atmosphere/netCDF/aiihca.pa-010102_mon.nc"))],
+        # Expected pairs
+        [(Path("/output000/atmosphere/aiihca.aiihca.paa1jan"),
+          Path("/output000/atmosphere/netCDF/aiihca.pa-010101_mon.nc")),
+         (Path("/output000/atmosphere/aiihca.aiihca.paa1feb"),
+          Path("/output000/atmosphere/netCDF/aiihca.pa-010102_mon.nc"))]
+     ),
+     (   # input_output_pairs
+        [(Path("/output000/atmosphere/aiihca.pea1120"),
+          Path("/dir_1/dir_2/../aiihca.pe-010101_dai.nc")),
+         (Path("/output000/atmosphere/aiihca.pea1130"),
+          Path("/dir_1/aiihca.pe-010101_dai.nc"))],
+        # Expected pairs
+        []
+     )]
+)
+def test_filter_naming_collisions(input_output_pairs, expected_pairs):
+    """
+    Test that inputs with overlapping output paths are removed.
+    """
+    with pytest.warns(match="Multiple inputs have same output path"):
+        filtered_paths = list(
+            esm1p5_convert.filter_name_collisions(input_output_pairs)
+        )
+
+    assert filtered_paths == expected_pairs
+
+
 def test_format_successes():
     succeeded_inputs = [
         Path("dir_1/fake_file_1"),
