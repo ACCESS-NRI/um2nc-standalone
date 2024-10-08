@@ -738,12 +738,14 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
             if verbose:
-                warnings.warn(msg.format("heaviside_uv", c.name()))
+                warnings.warn(msg.format("heaviside_uv", c.name()),
+                              category=RuntimeWarning)
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
             if verbose:
-                warnings.warn(msg.format("heaviside_t", c.name()))
+                warnings.warn(msg.format("heaviside_t", c.name()),
+                              category=RuntimeWarning)
             continue
 
         yield c
