@@ -380,33 +380,13 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         if coord.points.dtype == np.int64:
             coord.points = coord.points.astype(np.int32)
 
-    try:
-        # If time is a dimension but not a coordinate dimension, coord_dims('time') returns empty tuple
-        if tdim := cube.coord_dims('time'):
-            # For fields with a pseudo-level, time may not be the first dimension
-            if tdim != (0,):
-                tdim = tdim[0]
-                neworder = list(range(cube.ndim))
-                neworder.remove(tdim)
-                neworder.insert(0, tdim)
+    cube, unlimited_dimension = fix_time_coord(cube, verbose)
 
-                if verbose > 1:
-                    print("Incorrect dimension order", cube)
-                    print("Transpose to", neworder)
-
-                cube.transpose(neworder)
-        else:
-            cube = iris.util.new_axis(cube, cube.coord('time'))
-
-        sman.write(cube,
-                   zlib=True,
-                   complevel=compression,
-                   unlimited_dimensions=['time'],
-                   fill_value=fill_value)
-
-    except iris.exceptions.CoordinateNotFoundError:
-        # No time dimension (probably ancillary file)
-        sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
+    sman.write(cube,
+               zlib=True,
+               complevel=compression,
+               unlimited_dimensions=unlimited_dimension,
+               fill_value=fill_value)
 
 
 def fix_cell_methods(cell_methods):
@@ -979,6 +959,34 @@ def convert_32_bit(cube):
             warnings.warn(msg, category=RuntimeWarning)
 
         cube.data = cube.data.astype(np.int32)
+
+
+def fix_time_coord(cube, verbose):
+    try:
+        # If time is a dimension but not a coordinate dimension, coord_dims('time') returns empty tuple
+        if tdim := cube.coord_dims('time'):
+            # For fields with a pseudo-level, time may not be the first dimension
+            if tdim != (0,):
+                tdim = tdim[0]
+                neworder = list(range(cube.ndim))
+                neworder.remove(tdim)
+                neworder.insert(0, tdim)
+
+                if verbose > 1:
+                    print("Incorrect dimension order", cube)
+                    print("Transpose to", neworder)
+
+                cube.transpose(neworder)
+        else:
+            cube = iris.util.new_axis(cube, cube.coord('time'))
+
+        unlimited_dimensions = ['time']
+
+    except iris.exceptions.CoordinateNotFoundError:
+        # No time dimension (probably ancillary file)
+        unlimited_dimensions = None
+
+    return cube, unlimited_dimensions
 
 
 def parse_args():
