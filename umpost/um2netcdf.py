@@ -382,6 +382,9 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 
     cube, unlimited_dimension = fix_time_coord(cube, verbose)
 
+    # TODO: refactor & move to end of process()
+    # TODO: refactor cubewrite() to return (cube, unlimited dims, fill value)
+    #       then move above steps into process() / remove cubewrite()
     sman.write(cube,
                zlib=True,
                complevel=compression,
