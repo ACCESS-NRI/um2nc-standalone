@@ -395,19 +395,14 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
                     print("Transpose to", neworder)
 
                 cube.transpose(neworder)
-
-            sman.write(cube,
-                       zlib=True,
-                       complevel=compression,
-                       unlimited_dimensions=['time'],
-                       fill_value=fill_value)
         else:
-            tmp = iris.util.new_axis(cube, cube.coord('time'))
-            sman.write(tmp,
-                       zlib=True,
-                       complevel=compression,
-                       unlimited_dimensions=['time'],
-                       fill_value=fill_value)
+            cube = iris.util.new_axis(cube, cube.coord('time'))
+
+        sman.write(cube,
+                   zlib=True,
+                   complevel=compression,
+                   unlimited_dimensions=['time'],
+                   fill_value=fill_value)
 
     except iris.exceptions.CoordinateNotFoundError:
         # No time dimension (probably ancillary file)
