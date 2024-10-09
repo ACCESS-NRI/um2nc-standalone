@@ -42,7 +42,8 @@ fi
 
 function diff_warn {
   # compare & warn if binary args don't match
-  diff -q "$1" "$2" | grep -E "^Files [a-zA-Z0-9. ]+differ"
+  # TODO: this needs to be checked against typical versions of grep
+  diff -q "$1" "$2" | grep -E "^Files .+ differ"
 }
 
 # input paths
