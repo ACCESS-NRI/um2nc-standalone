@@ -67,8 +67,16 @@ NC_FORMATS = {
 }
 
 MODEL_LEVEL_NUM = "model_level_number"
+MODEL_RHO_LEVEL = "model_rho_level_number"
+MODEL_THETA_LEVEL_NUM = "model_theta_level_number"
+
 LEVEL_HEIGHT = "level_height"
+THETA_LEVEL_HEIGHT = "theta_level_height"
+RHO_LEVEL_HEIGHT = "rho_level_height"
+
 SIGMA = "sigma"
+SIGMA_THETA = "sigma_theta"
+SIGMA_RHO = "sigma_rho"
 
 # forecast reference time constants
 FORECAST_REFERENCE_TIME = "forecast_reference_time"
@@ -467,7 +475,14 @@ def apply_mask(c, heaviside, hcrit):
 
 
 def process(infile, outfile, args):
-    ff = mule.load_umfile(str(infile))
+
+    with warnings.catch_warnings():
+        # NB: Information from STASHmaster file is not required by `process`.
+        # Hence supress missing STASHmaster warnings.
+        warnings.filterwarnings(action="ignore", category=UserWarning,
+                                message=r"\sUnable to load STASHmaster")
+        ff = mule.load_umfile(str(infile))
+
     mv = process_mule_vars(ff)
 
     cubes = iris.load(infile)
@@ -650,13 +665,19 @@ def to_stash_code(item_code: int):
 
 
 def set_item_codes(cubes):
-    for cube in cubes:
-        if hasattr(cube, ITEM_CODE):
-            msg = f"Cube {cube.var_name} already has 'item_code' attribute, skipping."
-            warnings.warn(msg)
-            continue
+    """
+    Add item code attribute to given cubes.
 
-        # hack: manually store item_code in cubes
+    Iris cube objects lack a item_code attribute, a single integer value
+    representing the combined stash/section code. This function converts the
+    cube's own stash/section code and stores as an "item_code" attribute. This
+    function is hacky from dynamically modifying the cube interface at runtime,
+    """
+    # TODO: should this be _set_item_codes() to flag as an internal detail?
+    for cube in cubes:
+        # NB: expanding the interface at runtime is somewhat hacky, however iris
+        # cube objects are defined in a 3rd party project. The alternative is
+        # passing primitives or additional data structures in process().
         item_code = to_item_code(cube.attributes[STASH])
         setattr(cube, ITEM_CODE, item_code)
 
@@ -727,12 +748,14 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
             if verbose:
-                warnings.warn(msg.format("heaviside_uv", c.name()))
+                warnings.warn(msg.format("heaviside_uv", c.name()),
+                              category=RuntimeWarning)
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
             if verbose:
-                warnings.warn(msg.format("heaviside_t", c.name()))
+                warnings.warn(msg.format("heaviside_t", c.name()),
+                              category=RuntimeWarning)
             continue
 
         yield c

@@ -72,46 +72,103 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
     return um2nc.MuleVars(um2nc.GRID_NEW_DYNAMICS, d_lat, d_lon, z_sea_rho_data, z_sea_theta_data)
 
 
-def set_default_attrs(cube, item_code: int, var_name: str):
-    """Add subset of default attributes to flesh out cube like objects."""
-    cube.__dict__.update({"item_code": item_code,
-                          "var_name": var_name,
-                          "long_name": "",
-                          "coord": {"latitude": 0.0,  # TODO: real val = ?
-                                    "longitude": 0.0},  # TODO: real val
-                          "cell_methods": [],
-                          "data": None,
-                          })
+@dataclass(frozen=True)
+class DummyStash:
+    """
+    Partial Stash representation for testing.
+    """
+    section: int
+    item: int
 
-    section, item = um2nc.to_stash_code(item_code)
-    cube.attributes = {um2nc.STASH: DummyStash(section, item)}
 
+class DummyCube:
+    """
+    Imitation iris Cube for unit testing.
+    """
+
+    def __init__(self, item_code, var_name=None, attributes=None,
+                 units=None, coords=None):
+        self.item_code = item_code  # NB: um2nc adds this at runtime
+        self.var_name = var_name or "unknown_var"
+        self.standard_name = None
+        self.long_name = None  # cube names appear to default to None
+
+        self.attributes = attributes or {}  # needs dict for update()
+        self.cell_methods = []
+        self.units = units
+        self.data = None
+
+        # Mimic a coordinate dictionary with iris coordinate names as keys to
+        # ensure the coord() access key matches the coordinate's name
+        self._coordinates = {c.name(): c for c in coords} if coords else {}
+
+        # update() retains attributes set in __init__()
+        # NB: this is unlike cubes which convert section & item to the stash code
+        # these tests reverse this for expediency
+        section, item = um2nc.to_stash_code(item_code)
+        self.attributes.update({um2nc.STASH: DummyStash(section, item)})
+
+    def name(self):
+        return self.var_name
+
+    def coord(self, _name):
+        try:
+            return self._coordinates[_name]
+        except KeyError:
+            msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
+            raise CoordinateNotFoundError(msg)
+
+    def update_coords(self, coords):
+        # Mimic a coordinate dictionary keys for iris coordinate names. This
+        # ensures the access key for coord() matches the coordinate's name
+        self._coordinates = {c.name(): c for c in coords} if coords else {}
+
+    def remove_coord(self, coord):
+        del self._coordinates[coord]
+
+
+# NB: these cube fixtures have been chosen to mimic cubes for testing key parts
+# of the process() workflow. Some cubes require pressure level masking with the
+# heaviside_uv/t cubes. These cubes facilitate different testing configurations.
+# Modifying them has the potential to reduce test coverage!
 
 @pytest.fixture
-def air_temp_cube():
-    # data copied from aiihca.paa1jan.subset file
-    name = "air_temperature"
-    m_air_temp = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
-    set_default_attrs(m_air_temp, 30204, name)
-    return m_air_temp
-
-
-@pytest.fixture
-def precipitation_flux_cube():
+def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
     # copied from aiihca.paa1jan.subset file
-    name = "precipitation_flux"
-    m_flux = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
-    set_default_attrs(m_flux, 5216, name)
-    return m_flux
+    precipitation_flux = DummyCube(5216, "precipitation_flux",
+                                   coords=[lat_standard_nd_coord, lon_standard_nd_coord])
+    return precipitation_flux
 
 
-# create cube requiring heaviside_t masking
 @pytest.fixture
-def geo_potential_cube():
-    name = "geopotential_height"
-    m_geo_potential = mock.NonCallableMagicMock(spec=iris.cube.Cube, name=name)
-    set_default_attrs(m_geo_potential, 30297, name)
-    return m_geo_potential
+def geo_potential_cube(lat_standard_eg_coord, lon_standard_eg_coord):
+    """Return new cube requiring heaviside_t masking"""
+    geo_potential = DummyCube(30297, "geopotential_height",
+                              coords=[lat_standard_eg_coord, lon_standard_eg_coord])
+    return geo_potential
+
+
+@pytest.fixture
+def ua_plev_cube():
+    return DummyCube(30201, "ua_plev")
+
+
+@pytest.fixture
+def heaviside_uv_cube(lat_v_nd_coord, lon_u_nd_coord):
+    return DummyCube(30301, "heaviside_uv",
+                     coords=[lat_v_nd_coord, lon_u_nd_coord])
+
+
+@pytest.fixture
+def ta_plev_cube(lat_v_nd_coord, lon_u_nd_coord):
+    return DummyCube(30204, "ta_plev",
+                     coords=[lat_v_nd_coord, lon_u_nd_coord])
+
+
+@pytest.fixture
+def heaviside_t_cube(lat_standard_eg_coord, lon_standard_eg_coord):
+    return DummyCube(30304, "heaviside_t",
+                     coords=[lat_standard_eg_coord, lon_standard_eg_coord])
 
 
 @pytest.fixture
@@ -140,34 +197,27 @@ def fake_out_path():
     return "/tmp-does-not-exist/fake_input_fields_file.nc"
 
 
-def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
+# FIXME: the convoluted setup in test_process_...() is a code smell
+#        use the following tests to gradually refactor process()
+# TODO: evolve towards design where input & output file I/O is extracted from
+#       process() & the function takes *raw data only* (is highly testable)
+def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
                                          geo_potential_cube, mule_vars, std_args,
                                          fake_in_path, fake_out_path):
     """Attempt end-to-end process() test, dropping cubes requiring masking."""
-
-    # FIXME: this convoluted setup is a code smell
-    #        use these tests to gradually refactor process()
-    # TODO: move towards a design where input & output I/O is extracted from process()
-    #       process() should eventually operate on *data only* args
     with (
         # use mocks to prevent mule data extraction file I/O
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
-        # TODO: lat/long & level coord fixes require more internal data attrs
-        #       skip temporarily to manage test complexity
-        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
 
         # include cubes requiring both heaviside uv & t cubes to filter, to
         # ensure both uv/t dependent cubes are dropped
-        cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube]
+        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -177,7 +227,9 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
-        processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+        with pytest.warns(RuntimeWarning):
+            processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+
         assert len(processed) == 1
         cube = processed[0]
 
@@ -188,26 +240,25 @@ def test_process_no_heaviside_drop_cubes(air_temp_cube, precipitation_flux_cube,
         assert cube.data is None  # masking wasn't called/nothing changed
 
 
-def test_process_all_cubes_filtered(air_temp_cube, geo_potential_cube,
+def test_process_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
                                     mule_vars, std_args,
                                     fake_in_path, fake_out_path):
     """Ensure process() exits early if all cubes are removed in filtering."""
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
     ):
         m_mule_vars.return_value = mule_vars
-        m_iris_load.return_value = [air_temp_cube, geo_potential_cube]
+        m_iris_load.return_value = [ta_plev_cube, geo_potential_cube]
         m_saver().__enter__ = mock.Mock(name="mock_sman")
 
         # all cubes should be dropped
         assert um2nc.process(fake_in_path, fake_out_path, std_args) == []
 
 
-def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
+def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
                                      heaviside_uv_cube, heaviside_t_cube,
                                      geo_potential_cube, mule_vars,
                                      std_args, fake_in_path, fake_out_path):
@@ -215,11 +266,8 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
@@ -227,15 +275,8 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
 
         # air temp requires heaviside_uv & geo_potential_cube requires heaviside_t
         # masking, include both to enable code execution for both masks
-        cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube,
+        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube,
                  heaviside_uv_cube, heaviside_t_cube]
-
-        # TODO: convert heaviside cubes to NonCallableMagicMock like other fixtures?
-        for c in [heaviside_uv_cube, heaviside_t_cube]:
-            # add attrs to mimic real cubes
-            attrs = {um2nc.STASH: DummyStash(*um2nc.to_stash_code(c.item_code))}
-            c.attributes = attrs
-            c.cell_methods = []
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -248,25 +289,21 @@ def test_process_mask_with_heaviside(air_temp_cube, precipitation_flux_cube,
             assert pc in cubes
 
 
-def test_process_no_masking_keep_all_cubes(air_temp_cube, precipitation_flux_cube,
+def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube,
                                            geo_potential_cube, mule_vars, std_args,
                                            fake_in_path, fake_out_path):
     """Run process() with masking off, ensuring all cubes are kept & modified."""
     with (
         mock.patch("mule.load_umfile"),
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-
-        mock.patch("umpost.um2netcdf.fix_latlon_coords"),
-        mock.patch("umpost.um2netcdf.fix_level_coord"),
         mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
 
         # air temp and geo potential would need heaviside uv & t respectively
-        cubes = [air_temp_cube, precipitation_flux_cube, geo_potential_cube]
+        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -356,114 +393,13 @@ def test_stash_code_to_item_code_conversion():
     assert result == 30255
 
 
-@dataclass(frozen=True)
-class DummyStash:
-    """
-    Partial Stash representation for testing.
-    """
-    section: int
-    item: int
-
-
 def add_stash(cube, stash):
     d = {um2nc.STASH: stash}
     setattr(cube, "attributes", d)
 
 
-@dataclass()
-class PartialCube:
-    # work around mocks & DummyCube having item_code attr
-    var_name: str
-    attributes: dict
-    standard_name: str = None
-    long_name: str = None
-
-
-def test_set_item_codes():
-    cube0 = PartialCube("d0", {um2nc.STASH: DummyStash(1, 2)})
-    cube1 = PartialCube("d1", {um2nc.STASH: DummyStash(3, 4)})
-    cubes = [cube0, cube1]
-
-    for cube in cubes:
-        assert not hasattr(cube, um2nc.ITEM_CODE)
-
-    um2nc.set_item_codes(cubes)
-    c0, c1 = cubes
-
-    assert c0.item_code == 1002
-    assert c1.item_code == 3004
-
-
-class DummyCube:
-    """
-    Imitation iris Cube for unit testing.
-    """
-
-    def __init__(self, item_code, var_name=None, attributes=None,
-                 units=None, coords=None):
-        self.item_code = item_code
-        self.var_name = var_name or "unknown_var"
-        self.attributes = attributes
-        self.units = units
-        self.standard_name = None
-        self.long_name = None
-        self.data = None
-        self._coordinates = {}
-
-        if coords:
-            self.update_coords(coords)
-
-    def name(self):
-        return self.var_name
-
-    def coord(self, name):
-        try:
-            return self._coordinates[name]
-        except KeyError:
-            msg = f"{self.__class__}: lacks coord for '{name}'"
-            raise CoordinateNotFoundError(msg)
-
-    def update_coords(self, coords):
-        # Mimic a coordinate dictionary keys for iris coordinate names. This
-        # ensures the access key for coord() matches the coordinate's name
-        self._coordinates = {c.name(): c for c in coords} if coords else {}
-
-    def remove_coord(self, coord):
-        del self._coordinates[coord]
-
-
-def test_set_item_codes_avoid_overwrite():
-    item_code = 1007
-    item_code2 = 51006
-
-    cubes = [DummyCube(item_code, "fake_var"), DummyCube(item_code2, "fake_var2")]
-    um2nc.set_item_codes(cubes)
-    assert cubes[0].item_code == item_code
-    assert cubes[1].item_code == item_code2
-
-
-@pytest.fixture
-def ua_plev_cube():
-    return DummyCube(30201, "ua_plev")
-
-
-@pytest.fixture
-def heaviside_uv_cube():
-    return DummyCube(30301, "heaviside_uv")
-
-
-@pytest.fixture
-def ta_plev_cube():
-    return DummyCube(30294, "ta_plev")
-
-
-@pytest.fixture
-def heaviside_t_cube():
-    return DummyCube(30304, "heaviside_t")
-
-
 # cube filtering tests
-# use wrap results in tuples to capture generator output in sequence
+# NB: wrap results in tuples to capture generator output in sequences
 
 def test_cube_filtering_mutually_exclusive(ua_plev_cube, heaviside_uv_cube):
     include = [30201]
@@ -496,13 +432,9 @@ def test_cube_filtering_no_include_exclude(ua_plev_cube, heaviside_uv_cube):
 # cube variable renaming tests
 @pytest.fixture
 def x_wind_cube():
-    fake_cube = PartialCube("var_name", {'STASH': DummyStash(0, 2)}, "x_wind")
-    fake_cube.cell_methods = []
-    return fake_cube
-
-
-# UMStash = namedtuple("UMStash",
-#                      "long_name, name, units, standard_name, uniquename")
+    x_wind_cube = DummyCube(2, var_name="var_name")
+    x_wind_cube.standard_name = "x_wind"
+    return x_wind_cube
 
 
 CellMethod = namedtuple("CellMethod", "method")
@@ -563,8 +495,8 @@ def test_fix_standard_name_update_x_wind(x_wind_cube):
 def test_fix_standard_name_update_y_wind():
     # test cube wind renaming block only
     # use empty std name to bypass renaming logic
-    m_cube = PartialCube("var_name", {'STASH': DummyStash(0, 3)}, "y_wind")
-    m_cube.cell_methods = []
+    m_cube = DummyCube(3)
+    m_cube.standard_name = "y_wind"
 
     um2nc.fix_standard_name(m_cube, "", verbose=False)
     assert m_cube.standard_name == "northward_wind"
@@ -1027,67 +959,52 @@ def test_fix_cell_methods_keep_weeks():
 def level_heights():
     # NB: sourced from z_sea_theta_data fixture. This "array" is cropped as
     #     fix_level_coords() only accesses height array[0]
-    return [20.0003377]
+    return [20.0003377]  # TODO: add points to make data slightly more realistic?
 
 
 @pytest.fixture
 def level_coords(level_heights):
-    return {um2nc.MODEL_LEVEL_NUM: iris.coords.DimCoord(range(1, 39)),
-            um2nc.LEVEL_HEIGHT: iris.coords.DimCoord(level_heights),
-            um2nc.SIGMA: iris.coords.AuxCoord(np.array([0.99771646]))}
+    # data likely extracted from aiihca.subset
+    return [iris.coords.DimCoord(range(1, 39), var_name=um2nc.MODEL_LEVEL_NUM),
+            iris.coords.DimCoord(level_heights, var_name=um2nc.LEVEL_HEIGHT),
+            iris.coords.AuxCoord(np.array([0.99771646]), var_name=um2nc.SIGMA)]
 
 
 @pytest.fixture
-def get_fake_cube_coords(level_coords):
-
-    @dataclass
-    class FakeCubeCoords:
-        """Test object to represent a cube with a coords() access function."""
-
-        def __init__(self, custom_coord: dict = None):
-            if custom_coord:
-                level_coords.update(custom_coord)
-
-        def coord(self, key):
-            if key in level_coords:
-                return level_coords[key]
-
-            msg = f"{self.__class__}: lacks coord for '{key}'"
-            raise iris.exceptions.CoordinateNotFoundError(msg)
-
-    # return class for instantiation in tests
-    return FakeCubeCoords
+def level_coords_cube(level_coords):
+    return DummyCube(0, coords=level_coords)
 
 
-def test_fix_level_coord_modify_cube_with_rho(level_heights,
-                                              get_fake_cube_coords,
+def test_fix_level_coord_modify_cube_with_rho(level_coords_cube,
+                                              level_heights,
                                               z_sea_rho_data,
                                               z_sea_theta_data):
     # verify cube renaming with appropriate z_rho data
-    cube = get_fake_cube_coords()
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name is None
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name is None
-    assert cube.coord(um2nc.SIGMA).var_name is None
+    cube = level_coords_cube
+
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name != um2nc.MODEL_RHO_LEVEL
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name != um2nc.RHO_LEVEL_HEIGHT
+    assert cube.coord(um2nc.SIGMA).var_name != um2nc.SIGMA_RHO
 
     rho = np.ones(z_sea_theta_data.shape) * level_heights[0]
     um2nc.fix_level_coord(cube, rho, z_sea_theta_data)
 
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_rho_level_number"
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "rho_level_height"
-    assert cube.coord(um2nc.SIGMA).var_name == "sigma_rho"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == um2nc.MODEL_RHO_LEVEL
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == um2nc.RHO_LEVEL_HEIGHT
+    assert cube.coord(um2nc.SIGMA).var_name == um2nc.SIGMA_RHO
 
 
 def test_fix_level_coord_modify_cube_with_theta(level_heights,
-                                                get_fake_cube_coords,
+                                                level_coords_cube,
                                                 z_sea_rho_data,
                                                 z_sea_theta_data):
     # verify cube renaming with appropriate z_theta data
-    cube = get_fake_cube_coords()
+    cube = level_coords_cube
     um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
 
-    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == "model_theta_level_number"
-    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == "theta_level_height"
-    assert cube.coord(um2nc.SIGMA).var_name == "sigma_theta"
+    assert cube.coord(um2nc.MODEL_LEVEL_NUM).var_name == um2nc.MODEL_THETA_LEVEL_NUM
+    assert cube.coord(um2nc.LEVEL_HEIGHT).var_name == um2nc.THETA_LEVEL_HEIGHT
+    assert cube.coord(um2nc.SIGMA).var_name == um2nc.SIGMA_THETA
 
 
 def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
@@ -1099,8 +1016,8 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
 
 # tests - fix pressure level data
 
-def test_fix_pressure_levels_no_pressure_coord(get_fake_cube_coords):
-    cube = get_fake_cube_coords()
+def test_fix_pressure_levels_no_pressure_coord(level_coords_cube):
+    cube = level_coords_cube
 
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         cube.coord("pressure")  # ensure missing 'pressure' coord
@@ -1109,18 +1026,13 @@ def test_fix_pressure_levels_no_pressure_coord(get_fake_cube_coords):
     assert um2nc.fix_pressure_levels(cube) is None  # should just exit
 
 
-def _add_attrs_points(m_plevs: mock.MagicMock, points):
-    # NB: iris attributes appear to be added via mixins, so it's easier but
-    #     less desirable to rely on mock attrs here
-    setattr(m_plevs, "attributes", {"positive": None})
-    setattr(m_plevs, "points", points)
+def test_fix_pressure_levels_do_rounding():
+    pressure = iris.coords.DimCoord([1.000001, 0.000001],
+                                    var_name="pressure",
+                                    units="Pa",
+                                    attributes={"positive": None})
 
-
-def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
-    m_pressure = mock.Mock()
-    _add_attrs_points(m_pressure, [1.000001, 0.000001])
-    extra = {"pressure": m_pressure}
-    cube = get_fake_cube_coords(extra)
+    cube = DummyCube(1, coords=[pressure])
 
     # ensure no cube is returned if Cube not modified in fix_pressure_levels()
     assert um2nc.fix_pressure_levels(cube) is None
@@ -1131,15 +1043,15 @@ def test_fix_pressure_levels_do_rounding(get_fake_cube_coords):
 
 
 @pytest.mark.skip
-def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
+def test_fix_pressure_levels_reverse_pressure():
     # TODO: test is broken due to fiddly mocking problems (see below)
+    pressure = iris.coords.DimCoord([0.000001, 1.000001],
+                                    var_name="pressure",
+                                    units="Pa",
+                                    attributes={"positive": None})
 
-    m_pressure = mock.Mock()
-    # m_pressure.ndim = 1
-    _add_attrs_points(m_pressure, [0.000001, 1.000001])
-    extra = {"pressure": m_pressure}
-    cube = get_fake_cube_coords(extra)
-    # cube.ndim = 3
+    cube = DummyCube(1, coords=[pressure])
+    cube.ndim = 3
 
     # TODO: testing gets odd here at the um2nc & iris "boundary":
     #   * A mock reverse() needs to flip pressure.points & return a modified cube.
@@ -1155,8 +1067,10 @@ def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
     #
     # The test is disabled awaiting a solution...
 
-    with mock.patch("iris.util.reverse"):
-        mod_cube = um2nc.fix_pressure_levels(cube)
+    # with mock.patch("iris.util.reverse"):
+    #     mod_cube = um2nc.fix_pressure_levels(cube)
+
+    mod_cube = um2nc.fix_pressure_levels(cube)  # breaks on missing __getitem__
 
     assert mod_cube is not None
     assert mod_cube != cube
@@ -1167,16 +1081,32 @@ def test_fix_pressure_levels_reverse_pressure(get_fake_cube_coords):
 
 # int64 to int32 data conversion tests
 # NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
-@pytest.mark.parametrize("array,_operator,bound",
-                         [([100, 10, 1, 0, -10], None, None),
-                          ([3000000000], operator.gt, np.iinfo(np.int32).max),
-                          ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
-def test_convert_32_bit(ua_plev_cube, array, _operator, bound):
-    ua_plev_cube.data = np.array(array, dtype=np.int64)
-    um2nc.convert_32_bit(ua_plev_cube)
 
-    if _operator:
-        assert _operator(array[0], bound)
+def test_convert_32_bit_safe(ua_plev_cube):
+    # simple baseline test of down conversion int64 to int32 without warnings
+    data = [1e6, 200, 100, 10, 1, 0, -10]
+    ua_plev_cube.data = np.array(data, dtype=np.int64)
+    um2nc.convert_32_bit(ua_plev_cube)
+    assert ua_plev_cube.data.dtype == np.int32
+    assert np.all(ua_plev_cube.data == data)
+
+
+@pytest.mark.parametrize("array,_operator,bound",
+                         [([3000000000], operator.gt, np.iinfo(np.int32).max),
+                          ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
+def test_convert_32_bit_overflow_warning(ua_plev_cube, array, _operator, bound):
+    # ensure overflow covered for large positive & negative int64s
+    msg = f"Over/underflow impossible with {array[0]} {_operator} {bound}"
+    assert _operator(array[0], bound), msg
+
+    ua_plev_cube.data = np.array(array, dtype=np.int64)
+
+    with pytest.warns(RuntimeWarning) as record:
+        um2nc.convert_32_bit(ua_plev_cube)
+
+        if not record:
+            msg = f"No overflow warning with {array} {_operator} {bound}"
+            pytest.fail(msg)
 
     assert ua_plev_cube.data.dtype == np.int32
 
