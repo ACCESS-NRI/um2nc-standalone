@@ -153,7 +153,7 @@ def get_nc_filename(fields_file_name, date=None):
         warnings.warn(
             f"Unit code '{unit}' from filename f{fields_file_name} "
             "not recognized. Frequency information will not be added "
-            "to the netCDF filename."
+            "to the netCDF filename.", RuntimeWarning
         )
         suffix = ""
 

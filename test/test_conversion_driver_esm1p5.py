@@ -80,11 +80,16 @@ def test_get_nc_write_path_unrecognized_unit():
     nc_write_dir = Path("netCDF")
     expected_nc_write_path = nc_write_dir / f"aiihca.p{unknown_key}-005007.nc"
 
-    nc_write_path = esm1p5_convert.get_nc_write_path(
-                        Path(ff_name),
-                        nc_write_dir,
-                        (ff_year, ff_month, 1)
-                    )
+    with pytest.warns(RuntimeWarning) as record:
+        nc_write_path = esm1p5_convert.get_nc_write_path(
+                            Path(ff_name),
+                            nc_write_dir,
+                            (ff_year, ff_month, 1)
+                        )
+        if not record:
+            msg = ("No warning with unknown filename key "
+                   f"'{unknown_key}' in '{ff_name}'")
+            pytest.fail(msg)
 
     assert nc_write_path == expected_nc_write_path
 
