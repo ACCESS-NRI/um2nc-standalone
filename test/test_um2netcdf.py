@@ -1,6 +1,9 @@
 import unittest.mock as mock
+import warnings
 from dataclasses import dataclass
 from collections import namedtuple
+
+import cf_units
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
@@ -79,6 +82,7 @@ class DummyStash:
     item: int
 
 
+# TODO: would making this a dataclass provide any benefit?
 class DummyCube:
     """
     Imitation iris Cube for unit testing.
@@ -115,6 +119,20 @@ class DummyCube:
         except KeyError:
             msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
             raise CoordinateNotFoundError(msg)
+
+    def remove_coord(self, coord):
+        del self._coordinates[coord]
+
+    # Auxiliary methods
+    # These methods DO NOT exist in the iris cube API, these are helper methods
+    # to configure DummyCubes for testing.
+    #
+    # All methods should see an `aux_` prefix
+
+    def aux_update_coords(self, coords):
+        # Mimic a coordinate dictionary keys for iris coordinate names. This
+        # ensures the access key for coord() matches the coordinate's name
+        self._coordinates = {c.name(): c for c in coords} if coords else {}
 
 
 # NB: these cube fixtures have been chosen to mimic cubes for testing key parts
@@ -1107,3 +1125,109 @@ def test_convert_32_bit_with_float64(ua_plev_cube):
     ua_plev_cube.data = array
     um2nc.convert_32_bit(ua_plev_cube)
     assert ua_plev_cube.data.dtype == np.float32
+
+
+# fix forecast reference time tests
+@pytest.fixture
+def forecast_cube():
+    # NB: using a non-existent item code for fake forecast cube
+    return DummyCube(item_code=999)
+
+
+@pytest.fixture
+def time_points():
+    """Use for cube.coord('time').points attribute."""
+    return [-16382964.]
+
+
+@pytest.fixture
+def forecast_ref_time_points():
+    """Use for cube.coord('forecast_reference_time').points attribute."""
+    return [-16383336.]
+
+
+# FIXME: unit.calendar needs updating as per:
+#  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118#issuecomment-2404034473
+@pytest.fixture
+def forecast_ref_time_coord(forecast_ref_time_points):
+    # units & point data ripped from aiihca.paa1jan data file:
+    # cubes = iris.load("aiihca.paa1jan")
+    # cubes[0].long_name --> 'atmosphere_optical_thickness_due_to_sulphate_ambient_aerosol'
+    # cubes[0].coord("time").points --> array([-16382964.])
+    unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
+    assert unit.calendar == cf_units.CALENDAR_STANDARD
+
+    return iris.coords.DimCoord(forecast_ref_time_points,
+                                standard_name=um2nc.FORECAST_REFERENCE_TIME,
+                                units=unit)
+
+
+# FIXME: unit.calendar needs updating as per:
+#  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118#issuecomment-2404034473
+@pytest.fixture
+def time_coord(time_points):
+    # units data ripped from aiihca data file
+    unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00",
+                         calendar=cf_units.CALENDAR_GREGORIAN)
+    assert unit.calendar == cf_units.CALENDAR_STANDARD
+
+    return iris.coords.DimCoord(time_points,
+                                standard_name=um2nc.TIME,
+                                units=unit)
+
+
+def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
+    # verify fix_forecast_ref_time() exits early if the coord is missing
+    with pytest.raises(iris.exceptions.CoordinateNotFoundError):
+        forecast_cube.coord(um2nc.FORECAST_REFERENCE_TIME)
+
+    # TODO: fails to assert the cube is unmodified
+    # TODO: is this test even needed?
+    assert um2nc.fix_forecast_reference_time(forecast_cube) is None
+
+
+def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
+                                                          forecast_ref_time_coord):
+    # verify fix_forecast_ref_time() exits early if the coord is missing
+    forecast_cube.aux_update_coords([forecast_ref_time_coord])
+
+    with pytest.raises(iris.exceptions.CoordinateNotFoundError):
+        forecast_cube.coord(um2nc.TIME)
+
+    # TODO: fails to assert the cube is unmodified
+    # TODO: is this test even needed?
+    assert um2nc.fix_forecast_reference_time(forecast_cube) is None
+
+
+def test_fix_forecast_reference_time_standard(forecast_cube,
+                                              forecast_ref_time_coord,
+                                              time_coord):
+    # TODO: executes part of the ref time fix code
+    # TODO: needs to assert the changes!
+    forecast_period = iris.coords.DimCoord([372.0],
+                                           standard_name=um2nc.FORECAST_PERIOD)
+
+    forecast_cube.aux_update_coords([forecast_ref_time_coord,
+                                     time_coord,
+                                     forecast_period])
+
+    assert um2nc.fix_forecast_reference_time(forecast_cube) is None
+
+    # TODO: add assertions here
+    warnings.warn("test_fix_forecast_reference_time_standard asserts nothing")
+
+
+@pytest.mark.skip
+def test_fix_forecast_reference_time_gregorian(forecast_cube,
+                                               forecast_ref_time_coord,
+                                               time_coord):
+    msg = "Is time.units.calendar == 'gregorian' branch & testing required?"
+    raise NotImplementedError(msg)
+
+
+@pytest.mark.skip
+def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube,
+                                                         forecast_ref_time_coord,
+                                                         time_coord):
+    msg = "Is time.units.calendar == 'proleptic_gregorian' branch & testing required?"
+    raise NotImplementedError(msg)

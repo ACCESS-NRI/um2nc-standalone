@@ -78,6 +78,11 @@ SIGMA = "sigma"
 SIGMA_THETA = "sigma_theta"
 SIGMA_RHO = "sigma_rho"
 
+# forecast reference time constants
+FORECAST_REFERENCE_TIME = "forecast_reference_time"
+FORECAST_PERIOD = "forecast_period"
+TIME = "time"
+
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
@@ -108,34 +113,6 @@ def pg_calendar(self):
 
 # TODO: Is dynamically overwriting PPField acceptable?
 PPField.calendar = pg_calendar
-
-
-# TODO: rename time to avoid clash with builtin time module
-def convert_proleptic(time):
-    # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar='proleptic_gregorian')
-    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
-    tbnds = np.array(time.bounds) if time.bounds is not None else None
-
-    for i in range(len(time.points)):
-        date = time.units.num2date(tvals[i])
-        newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                    date.hour, date.minute, date.second)
-        tvals[i] = newunits.date2num(newdate)
-
-        if tbnds is not None:  # Fields with instantaneous data don't have bounds
-            for j in range(2):
-                date = time.units.num2date(tbnds[i][j])
-                newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                            date.hour, date.minute, date.second)
-                tbnds[i][j] = newunits.date2num(newdate)
-
-    time.points = tvals
-
-    if tbnds is not None:
-        time.bounds = tbnds
-
-    time.units = newunits
 
 
 def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
@@ -346,33 +323,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 
     cube.attributes['missing_value'] = np.array([fill_value], cube.data.dtype)
 
-    # If reference date is before 1600 use proleptic gregorian
-    # calendar and change units from hours to days
-    try:
-        reftime = cube.coord('forecast_reference_time')
-        time = cube.coord('time')
-        refdate = reftime.units.num2date(reftime.points[0])
-        assert time.units.origin == 'hours since 1970-01-01 00:00:00'
-
-        if time.units.calendar == 'proleptic_gregorian' and refdate.year < 1600:
-            convert_proleptic(time)
-        else:
-            if time.units.calendar == 'gregorian':
-                new_calendar = 'proleptic_gregorian'
-            else:
-                new_calendar = time.units.calendar
-
-            time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
-            time.points = time.points/24.
-
-            if time.bounds is not None:
-                time.bounds = time.bounds/24.
-
-        cube.remove_coord('forecast_period')
-        cube.remove_coord('forecast_reference_time')
-    except iris.exceptions.CoordinateNotFoundError:
-        # Dump files don't have forecast_reference_time
-        pass
+    fix_forecast_reference_time(cube)
 
     # Check whether any of the coordinates is a pseudo-dimension with integer values and
     # if so, reset to int32 to prevent problems with possible later conversion to netCDF3
@@ -412,6 +363,90 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     except iris.exceptions.CoordinateNotFoundError:
         # No time dimension (probably ancillary file)
         sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
+
+
+# TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
+#     indicates these time functions can be simplified. Suggestion: modularise
+#     functionality to simplify logic:
+#   * Extract origin time shift to a function?
+#   * Extract hours to days conversion to a function?
+def fix_forecast_reference_time(cube):
+    # If reference date is before 1600 use proleptic gregorian
+    # calendar and change units from hours to days
+
+    # TODO: constrain the exception handler to the first 2 coord lookups?
+    # TODO: detect dump files & exit early (look up all coords early)
+    try:
+        reftime = cube.coord(FORECAST_REFERENCE_TIME)
+        time = cube.coord(TIME)
+        refdate = reftime.units.num2date(reftime.points[0])
+
+        # TODO: replace with `if` check to prevent assert vanishing in optimised Python mode
+        assert time.units.origin == 'hours since 1970-01-01 00:00:00'
+
+        # TODO: add reference year as a configurable arg?
+        # TODO: determine if the start year should be changed from 1600
+        #  see https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1792886613
+        if time.units.calendar == cf_units.CALENDAR_PROLEPTIC_GREGORIAN and refdate.year < 1600:
+            convert_proleptic(time)
+        else:
+            if time.units.calendar == cf_units.CALENDAR_GREGORIAN:
+                new_calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
+            else:
+                new_calendar = time.units.calendar
+
+            time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
+            time.points = time.points / 24.
+
+            if time.bounds is not None:
+                time.bounds = time.bounds / 24.
+
+        # TODO: remove_coord() calls the coord() lookup, which raises
+        #       CoordinateNotFoundError if the forecast period is missing, this
+        #       ties remove_coords() to the exception handler below
+        #
+        # TODO: if removing the forecast period fails, forecast reference time is
+        #       NOT removed. What is the desired behaviour?
+        cube.remove_coord(FORECAST_PERIOD)
+        cube.remove_coord(FORECAST_REFERENCE_TIME)
+    except iris.exceptions.CoordinateNotFoundError:
+        # Dump files don't have forecast_reference_time
+        pass
+
+
+# TODO: rename time arg to pre-emptively avoid a clash with builtin time module
+# TODO: refactor to add a calendar arg here, see
+#       https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794321677
+def convert_proleptic(time):
+    # Convert units from hours to days and shift origin from 1970 to 0001
+    newunits = cf_units.Unit("days since 0001-01-01 00:00",
+                             calendar=cf_units.CALENDAR_PROLEPTIC_GREGORIAN)
+    tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
+    tbnds = np.array(time.bounds) if time.bounds is not None else None
+
+    # TODO: refactor manual looping with pythonic iteration
+    #
+    # TODO: limit the looping as per this review suggestion:
+    #  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794315128
+    for i in range(len(time.points)):
+        date = time.units.num2date(tvals[i])
+        newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
+                                                    date.hour, date.minute, date.second)
+        tvals[i] = newunits.date2num(newdate)
+
+        if tbnds is not None:  # Fields with instantaneous data don't have bounds
+            for j in range(2):
+                date = time.units.num2date(tbnds[i][j])
+                newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
+                                                            date.hour, date.minute, date.second)
+                tbnds[i][j] = newunits.date2num(newdate)
+
+    time.points = tvals
+
+    if tbnds is not None:
+        time.bounds = tbnds
+
+    time.units = newunits
 
 
 def fix_cell_methods(cell_methods):
