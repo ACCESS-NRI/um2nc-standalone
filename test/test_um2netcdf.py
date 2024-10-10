@@ -1238,39 +1238,7 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
 
     assert fill_value == expected_fill_val
     # Check new fill value type matches cube's data's type
-    assert type(fill_value) == cube_data.dtype
+    assert fill_value.dtype == cube_data.dtype
 
     # Check that missing value attribute set to expected fill_value
     assert fake_cube.attributes["missing_value"][0] == expected_fill_val
-
-
-def test_fix_fill_value_custom():
-    """
-    Check that custom fill values overwrite the defaults.
-    """
-    fake_cube = DummyCube(12345, "fake_var", attributes={})
-    fake_cube.data = np.array([1.1, 2.2], dtype="float64")
-    custom_val = np.float64(123.456)
-
-    fill_value = um2nc.fix_fill_value(fake_cube, custom_fill_value=custom_val)
-
-    # Check that the custom fill value is returned
-    assert fill_value == custom_val
-
-    # Check that missing value attribute set to the custom fill value
-    assert fake_cube.attributes["missing_value"][0] == custom_val
-
-
-def test_fix_fill_value_wrong_type():
-    """
-    Check that an error is raised when supplied fill value's
-    type does not match the cube's data's type.
-    """
-    fake_cube = DummyCube(12345, "fake_var", attributes={})
-    fake_cube.data = np.array([1, 2, 3], dtype="int32")
-    custom_val = np.float32(151.11)
-
-    assert fake_cube.data.dtype != custom_val.dtype
-
-    with pytest.raises(TypeError):
-        um2nc.fix_fill_value(fake_cube, custom_fill_value=custom_val)

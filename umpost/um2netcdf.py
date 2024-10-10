@@ -22,7 +22,7 @@ import mule
 import numpy as np
 import cftime
 import cf_units
-from netCDF4 import default_fillvals
+import netCDF4
 
 import iris.util
 import iris.exceptions
@@ -337,7 +337,7 @@ def get_default_fill_value(cube):
         fill_value = DEFAULT_FILL_VAL_FLOAT
 
     else:
-        fill_value = default_fillvals[
+        fill_value = netCDF4.default_fillvals[
             f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"
         ]
 
@@ -347,38 +347,42 @@ def get_default_fill_value(cube):
     # the separate `missing_value` attribute to have the correct type
     # and so it's cleaner to set the type for both here.
 
-    # TODO: Is there a cleaner way do do the following conversion?
+    # NB: The following type conversion approach is similar to the netCDF4
+    # package:
+    # https://github.com/Unidata/netcdf4-python/blob/5ccb3bb67ebf2cc803744707ff654b17ac506d99/src/netCDF4/_netCDF4.pyx#L4413
+    # Update if a cleaner method is found.
     return np.array([fill_value], dtype=cube.data.dtype)[0]
 
 
 def fix_fill_value(cube, custom_fill_value=None):
     """
-    Set a cube's missing_value attribute.
+    Set a cube's missing_value attribute and return the value
+    for later use.
 
     Parameters
     ----------
     cube: Iris cube object (modified in place).
-    custom_fill_value: Fill value to use in place of defaults.
-    Type must match cube data's type.
+    custom_fill_value: Fill value to use in place of
+        defaults (not implemented).
+
+    Returns
+    -------
+    fill_value: Fill value to use when writing to netCDF.
     """
     if custom_fill_value is not None:
-        fill_value = custom_fill_value
-    else:
-        fill_value = get_default_fill_value(cube)
+        msg = "Custom fill values are not currently implemented."
+        raise NotImplementedError(msg)
 
-    if type(fill_value) == cube.data.dtype:
-        # TODO: Is placing the fill value in an array still necessary,
-        # given the added fill value checks?
+        # NB: If custom fill values are added, we should check that
+        # their type matches the cube.data.dtype
 
-        # Use an array to force the type to match the data type
-        cube.attributes['missing_value'] = np.array([fill_value],
-                                                    cube.data.dtype)
-        return fill_value
+    fill_value = get_default_fill_value(cube)
 
-    else:
-        msg = (f"fill_val type {type(fill_value)} does not "
-               f"match cube {cube.name()} data type {cube.data.dtype}.")
-        raise TypeError(msg)
+    # TODO: Is placing the fill value in an array still necessary,
+    # given the type conversion in get_default_fill_value()
+    cube.attributes['missing_value'] = np.array([fill_value],
+                                                cube.data.dtype)
+    return fill_value
 
 
 # TODO: split cube ops into functions, this will likely increase process() workflow steps
