@@ -1,4 +1,5 @@
 import unittest.mock as mock
+import warnings
 from dataclasses import dataclass
 from collections import namedtuple
 
@@ -1159,26 +1160,33 @@ def time_coord(time_points):
 
 
 def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
+    # verify fix_forecast_ref_time() exits early if the coord is missing
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         forecast_cube.coord(um2nc.FORECAST_REFERENCE_TIME)
 
+    # TODO: fails to assert the cube is unmodified
+    # TODO: is this test even needed?
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
 
 def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
                                                           forecast_ref_time_coord):
+    # verify fix_forecast_ref_time() exits early if the coord is missing
     forecast_cube.update_coords([forecast_ref_time_coord])
 
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         forecast_cube.coord(um2nc.TIME)
 
+    # TODO: fails to assert the cube is unmodified
+    # TODO: is this test even needed?
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
 
 def test_fix_forecast_reference_time_standard(forecast_cube,
                                               forecast_ref_time_coord,
                                               time_coord):
-
+    # TODO: executes part of the ref time fix code
+    # TODO: needs to assert the changes!
     forecast_period = iris.coords.DimCoord([372.0],
                                            standard_name=um2nc.FORECAST_PERIOD)
 
@@ -1187,6 +1195,9 @@ def test_fix_forecast_reference_time_standard(forecast_cube,
                                  forecast_period])
 
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
+
+    # TODO: add assertions here
+    warnings.warn("test_fix_forecast_reference_time_standard asserts nothing")
 
 
 @pytest.mark.skip
