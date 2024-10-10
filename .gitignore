@@ -4,3 +4,5 @@
 .idea
 .coverage
 *~
+*.egg-info
+coverage_html
