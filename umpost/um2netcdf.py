@@ -965,6 +965,23 @@ def convert_32_bit(cube):
 
 
 def fix_time_coord(cube, verbose):
+    """
+    Ensures cube has a 'time' coordinate dimension.
+
+    Coordinate dimensions are reordered to ensure 'time' is the first dimension.
+    Cubes are modified in place, although it is possible iris will return new
+    copies of cubes. UM ancillary files are ignored.
+
+    Parameters
+    ----------
+    cube : iris Cube object
+    verbose : True to display information on stdout
+
+    Returns
+    -------
+    A (cube, unlimited_dimensions) tuple. Unlimited dimensions is None for
+    ancillary files.
+    """
     try:
         # If time is a dimension but not a coordinate dimension, coord_dims('time')
         # returns empty tuple
