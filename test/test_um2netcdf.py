@@ -121,6 +121,12 @@ class DummyCube:
             msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
             raise CoordinateNotFoundError(msg)
 
+    def coords(self):
+        return self._coordinates.values()
+
+    def coord_dims(self):
+        return ()
+
     def remove_coord(self, coord):
         del self._coordinates[coord]
 
@@ -215,21 +221,14 @@ def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
                                          fake_in_path, fake_out_path):
     """Attempt end-to-end process() test, dropping cubes requiring masking."""
     with (
-        # use mocks to prevent mule data extraction file I/O
-        mock.patch("mule.load_umfile"),
-        mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-        mock.patch("iris.load") as m_iris_load,
-        mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-        mock.patch("umpost.um2netcdf.cubewrite"),
+        mock.patch("umpost.um2netcdf.fix_fill_value"),
+        mock.patch("umpost.um2netcdf.fix_time_coord") as m_time_coord,
     ):
-        m_mule_vars.return_value = mule_vars
-
         # include cubes requiring both heaviside uv & t cubes to filter, to
         # ensure both uv/t dependent cubes are dropped
         cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
+        m_time_coord.side_effect = tuple(zip(cubes, [None] * len(cubes)))
 
-        m_iris_load.return_value = cubes
-        m_saver().__enter__ = mock.Mock(name="mock_sman")
         std_args.verbose = True  # test some warning branches
 
         # trying to mask None will break in numpy
@@ -237,11 +236,13 @@ def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
 
         # air temp & geo potential should be dropped in process()
         with pytest.warns(RuntimeWarning):
-            processed = um2nc.process(fake_in_path, fake_out_path, std_args)
+            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
 
         assert len(processed) == 1
-        cube = processed[0]
+        cube, _, dim = processed[0]
 
+        assert dim is None
+        assert cube.name() == precipitation_flux_cube.name()
         assert cube is precipitation_flux_cube
 
         # contrived testing: if the masking code was reached for some reason,
@@ -254,17 +255,17 @@ def test_process_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
                                     fake_in_path, fake_out_path):
     """Ensure process() exits early if all cubes are removed in filtering."""
     with (
-        mock.patch("mule.load_umfile"),
-        mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
-        mock.patch("iris.load") as m_iris_load,
-        mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
+        mock.patch("um2nc.fix_fill_value"),
+        #mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
+        #mock.patch("iris.load") as m_iris_load,
+        #mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
     ):
-        m_mule_vars.return_value = mule_vars
-        m_iris_load.return_value = [ta_plev_cube, geo_potential_cube]
-        m_saver().__enter__ = mock.Mock(name="mock_sman")
+        # m_mule_vars.return_value = mule_vars
+        # m_iris_load.return_value = [ta_plev_cube, geo_potential_cube]
+        # m_saver().__enter__ = mock.Mock(name="mock_sman")
 
         # all cubes should be dropped
-        assert um2nc.process(fake_in_path, fake_out_path, std_args) == []
+        assert list(um2nc.process(fake_in_path, fake_out_path, std_args)) == []
 
 
 def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
@@ -278,7 +279,6 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
         mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
-        mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
 
@@ -307,7 +307,6 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
         mock.patch("umpost.um2netcdf.process_mule_vars") as m_mule_vars,
         mock.patch("iris.load") as m_iris_load,
         mock.patch("iris.fileformats.netcdf.Saver") as m_saver,  # prevent I/O
-        mock.patch("umpost.um2netcdf.cubewrite"),
     ):
         m_mule_vars.return_value = mule_vars
 
