@@ -368,6 +368,9 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
 def fix_forecast_reference_time(cube):
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days
+
+    # TODO: constrain the exception handler to the first 2 coord lookups?
+    # TODO: detect dump files & exit early (look up all coords early)
     try:
         reftime = cube.coord(FORECAST_REFERENCE_TIME)
         time = cube.coord(TIME)
@@ -388,6 +391,12 @@ def fix_forecast_reference_time(cube):
             if time.bounds is not None:
                 time.bounds = time.bounds / 24.
 
+        # TODO: remove_coord() calls the coord() lookup, which raises
+        #       CoordinateNotFoundError if the forecast period is missing, this
+        #       ties remove_coords() to the exception handler below
+        #
+        # TODO: if removing the forecast period fails, forecast reference time is
+        #       NOT removed. What is the desired behaviour?
         cube.remove_coord(FORECAST_PERIOD)
         cube.remove_coord(FORECAST_REFERENCE_TIME)
     except iris.exceptions.CoordinateNotFoundError:
