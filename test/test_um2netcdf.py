@@ -1233,6 +1233,8 @@ def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube,
                                                          time_coord):
     msg = "Is time.units.calendar == 'proleptic_gregorian' branch & testing required?"
     raise NotImplementedError(msg)
+
+
 @pytest.mark.parametrize(
     "cube_data, expected_fill_val",
     [
@@ -1253,7 +1255,7 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
     Check that correct default fill values are found based
     on a cube's data's type.
     """
-    fake_cube = DummyCube(12345, "fake_var", attributes={})
+    fake_cube = DummyCube(12345, "fake_var")
     fake_cube.data = cube_data
 
     fill_value = um2nc.fix_fill_value(fake_cube)
