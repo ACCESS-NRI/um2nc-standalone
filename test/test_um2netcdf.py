@@ -82,6 +82,7 @@ class DummyStash:
     item: int
 
 
+# TODO: would making this a dataclass provide any benefit?
 class DummyCube:
     """
     Imitation iris Cube for unit testing.
@@ -119,13 +120,19 @@ class DummyCube:
             msg = f"{self.__class__}[{self.var_name}]: lacks coord for '{_name}'"
             raise CoordinateNotFoundError(msg)
 
-    def update_coords(self, coords):
+    def remove_coord(self, coord):
+        del self._coordinates[coord]
+
+    # Auxiliary methods
+    # These methods DO NOT exist in the iris cube API, these are helper methods
+    # to configure DummyCubes for testing.
+    #
+    # All methods should see an `aux_` prefix
+
+    def aux_update_coords(self, coords):
         # Mimic a coordinate dictionary keys for iris coordinate names. This
         # ensures the access key for coord() matches the coordinate's name
         self._coordinates = {c.name(): c for c in coords} if coords else {}
-
-    def remove_coord(self, coord):
-        del self._coordinates[coord]
 
 
 # NB: these cube fixtures have been chosen to mimic cubes for testing key parts
@@ -1178,7 +1185,7 @@ def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
 def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
                                                           forecast_ref_time_coord):
     # verify fix_forecast_ref_time() exits early if the coord is missing
-    forecast_cube.update_coords([forecast_ref_time_coord])
+    forecast_cube.aux_update_coords([forecast_ref_time_coord])
 
     with pytest.raises(iris.exceptions.CoordinateNotFoundError):
         forecast_cube.coord(um2nc.TIME)
@@ -1196,9 +1203,9 @@ def test_fix_forecast_reference_time_standard(forecast_cube,
     forecast_period = iris.coords.DimCoord([372.0],
                                            standard_name=um2nc.FORECAST_PERIOD)
 
-    forecast_cube.update_coords([forecast_ref_time_coord,
-                                 time_coord,
-                                 forecast_period])
+    forecast_cube.aux_update_coords([forecast_ref_time_coord,
+                                     time_coord,
+                                     forecast_period])
 
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
