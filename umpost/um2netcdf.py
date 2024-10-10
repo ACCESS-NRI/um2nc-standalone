@@ -380,7 +380,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         if coord.points.dtype == np.int64:
             coord.points = coord.points.astype(np.int32)
 
-    cube, unlimited_dimension = fix_time_coord(cube, verbose)
+    cube, unlimited_dimensions = fix_time_coord(cube, verbose)
 
     # TODO: refactor & move to end of process()
     # TODO: refactor cubewrite() to return (cube, unlimited dims, fill value)
@@ -388,7 +388,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     sman.write(cube,
                zlib=True,
                complevel=compression,
-               unlimited_dimensions=unlimited_dimension,
+               unlimited_dimensions=unlimited_dimensions,
                fill_value=fill_value)
 
 
