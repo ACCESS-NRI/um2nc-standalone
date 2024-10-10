@@ -1134,7 +1134,13 @@ def time_points():
 
 
 @pytest.fixture
-def forecast_ref_time_coord(time_points):
+def forecast_ref_time_points():
+    """Use for cube.coord('forecast_reference_time').points attribute."""
+    return [-16383336.]
+
+
+@pytest.fixture
+def forecast_ref_time_coord(forecast_ref_time_points):
     # units & point data ripped from aiihca.paa1jan data file:
     # cubes = iris.load("aiihca.paa1jan")
     # cubes[0].long_name --> 'atmosphere_optical_thickness_due_to_sulphate_ambient_aerosol'
@@ -1142,7 +1148,7 @@ def forecast_ref_time_coord(time_points):
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
     assert unit.calendar == cf_units.CALENDAR_STANDARD
 
-    return iris.coords.DimCoord(time_points,
+    return iris.coords.DimCoord(forecast_ref_time_points,
                                 standard_name=um2nc.FORECAST_REFERENCE_TIME,
                                 units=unit)
 
