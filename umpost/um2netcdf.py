@@ -970,7 +970,7 @@ def fix_time_coord(cube, verbose):
 
     Coordinate dimensions are reordered to ensure 'time' is the first dimension.
     Cubes are modified in place, although it is possible iris will return new
-    copies of cubes. UM ancillary files are ignored.
+    copies of cubes. UM ancillary files with no time dimension are ignored.
 
     Parameters
     ----------
@@ -980,7 +980,7 @@ def fix_time_coord(cube, verbose):
     Returns
     -------
     A (cube, unlimited_dimensions) tuple. Unlimited dimensions is None for
-    ancillary files.
+    ancillary files with no time dimension.
     """
     try:
         # If time is a dimension but not a coordinate dimension, coord_dims('time')
