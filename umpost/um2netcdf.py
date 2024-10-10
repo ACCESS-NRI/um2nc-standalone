@@ -365,6 +365,11 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
 
 
+# TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
+#     indicates these time functions can be simplified. Suggestion: modularise
+#     functionality to simplify logic:
+#   * Extract origin time shift to a function?
+#   * Extract hours to days conversion to a function?
 def fix_forecast_reference_time(cube):
     # If reference date is before 1600 use proleptic gregorian
     # calendar and change units from hours to days
@@ -375,8 +380,13 @@ def fix_forecast_reference_time(cube):
         reftime = cube.coord(FORECAST_REFERENCE_TIME)
         time = cube.coord(TIME)
         refdate = reftime.units.num2date(reftime.points[0])
+
+        # TODO: replace with `if` check to prevent assert vanishing in optimised Python mode
         assert time.units.origin == 'hours since 1970-01-01 00:00:00'
 
+        # TODO: add reference year as a configurable arg?
+        # TODO: determine if the start year should be changed from 1600
+        #  see https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1792886613
         if time.units.calendar == cf_units.CALENDAR_PROLEPTIC_GREGORIAN and refdate.year < 1600:
             convert_proleptic(time)
         else:
@@ -404,7 +414,9 @@ def fix_forecast_reference_time(cube):
         pass
 
 
-# TODO: rename time to avoid clash with builtin time module
+# TODO: rename time arg to pre-emptively avoid a clash with builtin time module
+# TODO: refactor to add a calendar arg here, see
+#       https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794321677
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
     newunits = cf_units.Unit("days since 0001-01-01 00:00",
@@ -412,6 +424,10 @@ def convert_proleptic(time):
     tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
     tbnds = np.array(time.bounds) if time.bounds is not None else None
 
+    # TODO: refactor manual looping with pythonic iteration
+    #
+    # TODO: limit the looping as per this review suggestion:
+    #  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794315128
     for i in range(len(time.points)):
         date = time.units.num2date(tvals[i])
         newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
