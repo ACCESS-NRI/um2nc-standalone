@@ -11,6 +11,7 @@ import umpost.um2netcdf as um2nc
 
 import pytest
 import numpy as np
+import netCDF4
 
 import mule
 import mule.ff
@@ -1231,3 +1232,36 @@ def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube,
                                                          time_coord):
     msg = "Is time.units.calendar == 'proleptic_gregorian' branch & testing required?"
     raise NotImplementedError(msg)
+
+
+@pytest.mark.parametrize(
+    "cube_data, expected_fill_val",
+    [
+        (np.array([1.1, 2.1], dtype="float32"),
+         np.float32(um2nc.DEFAULT_FILL_VAL_FLOAT)),
+        (np.array([1.1, 2.1], dtype="float64"),
+         np.float64(um2nc.DEFAULT_FILL_VAL_FLOAT)),
+        (np.array([1.1, 2.1], dtype="complex64"),
+         np.complex64(netCDF4.default_fillvals["c8"])),
+        (np.array([1, 2], dtype="int32"),
+         np.int32(netCDF4.default_fillvals["i4"])),
+        (np.array([1, 2], dtype="int64"),
+         np.int64(netCDF4.default_fillvals["i8"]))
+    ]
+)
+def test_fix_fill_value_defaults(cube_data, expected_fill_val):
+    """
+    Check that correct default fill values are found based
+    on a cube's data's type.
+    """
+    fake_cube = DummyCube(12345, "fake_var")
+    fake_cube.data = cube_data
+
+    fill_value = um2nc.fix_fill_value(fake_cube)
+
+    assert fill_value == expected_fill_val
+    # Check new fill value type matches cube's data's type
+    assert fill_value.dtype == cube_data.dtype
+
+    # Check that missing value attribute set to expected fill_value
+    assert fake_cube.attributes["missing_value"][0] == expected_fill_val
