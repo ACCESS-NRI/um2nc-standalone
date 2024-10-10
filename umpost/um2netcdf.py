@@ -389,38 +389,16 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
         if coord.points.dtype == np.int64:
             coord.points = coord.points.astype(np.int32)
 
-    try:
-        # If time is a dimension but not a coordinate dimension, coord_dims('time') returns empty tuple
-        if tdim := cube.coord_dims('time'):
-            # For fields with a pseudo-level, time may not be the first dimension
-            if tdim != (0,):
-                tdim = tdim[0]
-                neworder = list(range(cube.ndim))
-                neworder.remove(tdim)
-                neworder.insert(0, tdim)
+    cube, unlimited_dimensions = fix_time_coord(cube, verbose)
 
-                if verbose > 1:
-                    print("Incorrect dimension order", cube)
-                    print("Transpose to", neworder)
-
-                cube.transpose(neworder)
-
-            sman.write(cube,
-                       zlib=True,
-                       complevel=compression,
-                       unlimited_dimensions=['time'],
-                       fill_value=fill_value)
-        else:
-            tmp = iris.util.new_axis(cube, cube.coord('time'))
-            sman.write(tmp,
-                       zlib=True,
-                       complevel=compression,
-                       unlimited_dimensions=['time'],
-                       fill_value=fill_value)
-
-    except iris.exceptions.CoordinateNotFoundError:
-        # No time dimension (probably ancillary file)
-        sman.write(cube, zlib=True, complevel=compression, fill_value=fill_value)
+    # TODO: refactor & move to end of process()
+    # TODO: refactor cubewrite() to return (cube, unlimited dims, fill value)
+    #       then move above steps into process() / remove cubewrite()
+    sman.write(cube,
+               zlib=True,
+               complevel=compression,
+               unlimited_dimensions=unlimited_dimensions,
+               fill_value=fill_value)
 
 
 # TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
@@ -1077,6 +1055,54 @@ def convert_32_bit(cube):
             warnings.warn(msg, category=RuntimeWarning)
 
         cube.data = cube.data.astype(np.int32)
+
+
+def fix_time_coord(cube, verbose):
+    """
+    Ensures cube has a 'time' coordinate dimension.
+
+    Coordinate dimensions are reordered to ensure 'time' is the first dimension.
+    Cubes are modified in place, although it is possible iris will return new
+    copies of cubes. UM ancillary files with no time dimension are ignored.
+
+    Parameters
+    ----------
+    cube : iris Cube object
+    verbose : True to display information on stdout
+
+    Returns
+    -------
+    A (cube, unlimited_dimensions) tuple. Unlimited dimensions is None for
+    ancillary files with no time dimension.
+    """
+    try:
+        # If time is a dimension but not a coordinate dimension, coord_dims('time')
+        # returns empty tuple
+        if tdim := cube.coord_dims('time'):
+            # For fields with a pseudo-level, time may not be the first dimension
+            if tdim != (0,):
+                tdim = tdim[0]
+                neworder = list(range(cube.ndim))
+                neworder.remove(tdim)
+                neworder.insert(0, tdim)
+
+                if verbose > 1:
+                    # TODO: fix I/O, is this better as a warning?
+                    print("Incorrect dimension order", cube)
+                    print("Transpose to", neworder)
+
+                cube.transpose(neworder)
+        else:
+            # TODO: does this return a new copy or modified cube?
+            cube = iris.util.new_axis(cube, cube.coord('time'))
+
+        unlimited_dimensions = ['time']
+
+    except iris.exceptions.CoordinateNotFoundError:
+        # No time dimension (probably ancillary file)
+        unlimited_dimensions = None
+
+    return cube, unlimited_dimensions
 
 
 def parse_args():
