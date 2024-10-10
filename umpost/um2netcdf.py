@@ -966,7 +966,8 @@ def convert_32_bit(cube):
 
 def fix_time_coord(cube, verbose):
     try:
-        # If time is a dimension but not a coordinate dimension, coord_dims('time') returns empty tuple
+        # If time is a dimension but not a coordinate dimension, coord_dims('time')
+        # returns empty tuple
         if tdim := cube.coord_dims('time'):
             # For fields with a pseudo-level, time may not be the first dimension
             if tdim != (0,):
@@ -976,11 +977,13 @@ def fix_time_coord(cube, verbose):
                 neworder.insert(0, tdim)
 
                 if verbose > 1:
+                    # TODO: fix I/O, is this better as a warning?
                     print("Incorrect dimension order", cube)
                     print("Transpose to", neworder)
 
                 cube.transpose(neworder)
         else:
+            # TODO: does this return a new copy or modified cube?
             cube = iris.util.new_axis(cube, cube.coord('time'))
 
         unlimited_dimensions = ['time']
