@@ -26,32 +26,6 @@ To install it run:
 conda install accessnri::um2nc
 ```
 
-### Installing Dependencies
-IS THIS REQUIRED?? 
-udunits is also available in conda-forge...
-
-#### MacOS
-
-```Bash
-brew install udunits
-```
-
-if this fails with some compiler/header errors, try:
-
-```Bash
-# set up non standard cf-unit paths
-export UDUNITS2_XML_PATH=/opt/homebrew/Cellar/udunits/2.2.28/share/udunits/udunits2.xml
-export UDUNITS2_LIBDIR=/opt/homebrew/lib
-export UDUNITS2_INCDIR=/opt/homebrew/Cellar/udunits/2.2.28/include
-brew install udunits
-```
-
-#### Linux
-
-```Bash
-apt-get install udunits
-```
-
 ## Development/Testing instructions
 For development/testing, it is recommended to install `um2nc` as a development package within a `micromamba`/`conda` testing environment.
 
