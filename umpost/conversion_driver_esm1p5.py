@@ -282,7 +282,7 @@ def filter_name_collisions(input_output_pairs):
 
     Parameters
     ----------
-    input_ouptut_pairs: iterator of of tuples (input_path, output_path).
+    input_ouptut_pairs: iterator of tuples (input_path, output_path).
 
     Yields
     -------
