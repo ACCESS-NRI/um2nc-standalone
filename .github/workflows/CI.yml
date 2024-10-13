@@ -11,7 +11,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 env:
-  PY_VERSION: 3.11
+  PY_VERSION: "3.11"
 
 jobs:
   # JOB to run change in the build files
@@ -27,7 +27,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4.1.7
 
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 #v3.0.2
+      - name: Filter files
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 #v3.0.2
         id: filter
         with:
           filters: |
@@ -117,9 +118,9 @@ jobs:
         run: python -m pytest --cov=umpost --cov-report=xml -s test
 
       - name: Upload code coverage
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 #v4.6.0
         # Only upload once for the installed version
-        if: matrix.python-version == ${{ env.PY_VERSION }}
+        if: ${{ matrix.python-version == env.PY_VERSION }}
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 #v4.6.0
         with:
           token: ${{ secrets.codecov_token }}
           files: ./coverage.xml
