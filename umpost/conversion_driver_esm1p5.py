@@ -268,6 +268,45 @@ def format_failures(failed, quiet):
             yield failure_report
 
 
+def _resolve_path(path):
+    """
+    Resolve path for use in comparison. Ensure that symlinks, relative paths,
+    and home directories are expanded.
+    """
+    return os.path.realpath(os.path.expanduser(path))
+
+
+def filter_name_collisions(input_output_pairs):
+    """
+    Remove input/output pairs which have overlapping output paths.
+
+    Parameters
+    ----------
+    input_ouptut_pairs: iterator of tuples (input_path, output_path).
+
+    Yields
+    -------
+    filtered_pairs: (input_path, output_path) tuples with unique
+        output_path values.
+    """
+    # Convert to list to allow repeated traversal.
+    input_output_pairs = list(input_output_pairs)
+
+    output_paths = [_resolve_path(output) for _, output in input_output_pairs]
+    output_counts = collections.Counter(output_paths)
+
+    for input_path, output_path in input_output_pairs:
+        if output_counts[_resolve_path(output_path)] != 1:
+            msg = (
+                f"Multiple inputs have same output path {output_path}.\n"
+                f"{input_path} will not be converted."
+            )
+            warnings.warn(msg)
+            continue
+
+        yield input_path, output_path
+
+
 def convert_esm1p5_output_dir(esm1p5_output_dir):
     """
     Driver function for converting ESM1.5 atmospheric outputs during a simulation.
@@ -321,6 +360,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     output_paths = [get_nc_write_path(path, nc_write_dir, get_ff_date(path)) for path in atm_dir_fields_files]
     input_output_pairs = zip(atm_dir_fields_files, output_paths)
+    input_output_pairs = filter_name_collisions(input_output_pairs)
 
     succeeded, failed = convert_fields_file_list(input_output_pairs)
 
