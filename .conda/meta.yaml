@@ -37,9 +37,9 @@ test:
     {% endfor %}
 
 about:
-    home: https://github.com/access-nri/um2nc-standalone
+    home: {{ project.get('urls').get('Repository') }}
     license: Apache Software
     license_file: LICENSE
-    summary: "Tool to convert UM fieldsfiles into netCDF format."
+    summary: {{ project.get('description') }}
     license_family: Apache
 
