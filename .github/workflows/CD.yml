@@ -6,7 +6,7 @@ on:
         - '*'
 
 env:
-  PY_VERSION: "3.10"
+  PY_VERSION: "3.11"
 
 jobs:
 
