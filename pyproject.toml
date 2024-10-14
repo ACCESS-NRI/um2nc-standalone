@@ -2,6 +2,7 @@
 name = "um2nc"
 authors = [
   {name = "Ben Davies", email="ben.davies@anu.edu.au"},
+  {name = "Davide Marchegiani", email="davide.marchegiani@anu.edu.au"},
   {name = "Martin Dix", email="martin.dix@anu.edu.au"},
   {name = "Spencer Wong", email="spencer.wong@anu.edu.au"},
 ]
@@ -14,27 +15,24 @@ readme = "README.md"
 keywords = ["netCDF", "UM", "postprocessing"]
 dynamic = ["version"]
 dependencies = [
-  "numpy",
-  "mule",
-  "cftime",
-  "netCDF4",
-  "scitools-iris",
-  "cf-units",
-  "PyYAML",
-  "f90nml",
+    "python >=3.10,<=3.12",
+    "cf-units",
+    "cftime",
+    "f90nml",
+    "mule",
+    "netcdf4",
+    "numpy",
+    "scitools-iris",
+    "versioneer",
 ]
+
 
 [project.scripts]
 esm1p5_convert_nc = "umpost.conversion_driver_esm1p5:main"
 um2nc = "umpost.um2netcdf:main"
 
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-versionfile_source = "umpost/_version.py"
-versionfile_build = "umpost/_version.py"
-tag_prefix = ""
-parentdir_prefix = "umpost-"
+[project.urls]
+Repository = "https://github.com/ACCESS-NRI/um2nc-standalone"
 
 [build-system]
 build-backend = "setuptools.build_meta"
@@ -44,5 +42,13 @@ requires = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["umpost*"]
+include = ["umpost"]
 namespaces = false
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "umpost/_version.py"
+versionfile_build = "umpost/_version.py"
+tag_prefix = ""
+parentdir_prefix = "umpost-"
