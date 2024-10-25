@@ -226,8 +226,7 @@ def mock_fix_time_no_time_dim(cube, verbose):
 # TODO: evolve towards design where input & output file I/O is extracted from
 #       process() & the function takes *raw data only* (is highly testable)
 def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
-                                               geo_potential_cube, mule_vars, std_args,
-                                               fake_in_path, fake_out_path):
+                                               geo_potential_cube, mule_vars, std_args):
     """Attempt end-to-end process_cubes() test, dropping cubes requiring masking."""
 
     # include cubes requiring both heaviside uv & t cubes to filter, to
@@ -262,8 +261,7 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
 
 
 def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
-                                          mule_vars, std_args,
-                                          fake_in_path, fake_out_path):
+                                          mule_vars, std_args):
     """
     Ensure process_cubes() exits early if all cubes are removed in filtering.
     """
@@ -284,7 +282,7 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
 def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
                                      heaviside_uv_cube, heaviside_t_cube,
                                      geo_potential_cube, mule_vars,
-                                     std_args, fake_in_path, fake_out_path):
+                                     std_args):
     """Run process() with pressure level masking cubes present."""
 
     # air temp requires heaviside_uv & geo_potential_cube requires heaviside_t
@@ -312,8 +310,7 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
 
 
 def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube,
-                                           geo_potential_cube, mule_vars, std_args,
-                                           fake_in_path, fake_out_path):
+                                           geo_potential_cube, mule_vars, std_args):
     """Run process() with masking off, ensuring all cubes are kept & modified."""
 
     # air temp and geo potential would need heaviside uv & t respectively
