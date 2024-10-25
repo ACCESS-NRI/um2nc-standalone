@@ -200,18 +200,6 @@ def std_args():
     return args
 
 
-@pytest.fixture
-def fake_in_path():
-    # use junk paths to protect against accidentally touching filesystems
-    return "/tmp-does-not-exist/fake_input_fields_file"
-
-
-@pytest.fixture
-def fake_out_path():
-    # use junk paths to protect against accidentally touching filesystems
-    return "/tmp-does-not-exist/fake_input_fields_file.nc"
-
-
 def mock_fix_time_no_time_dim(cube, verbose):
     """
     Side effect for fix_time_coord() mocks in process_cube() tests.
