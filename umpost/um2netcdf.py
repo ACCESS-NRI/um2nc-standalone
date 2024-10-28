@@ -367,7 +367,8 @@ def fix_fill_value(cube, custom_fill_value=None):
     # given the type conversion in get_default_fill_value()
     cube.attributes['missing_value'] = np.array([fill_value],
                                                 cube.data.dtype)
-    return fill_value
+
+    cube.attributes['um2nc']['fill_value'] = fill_value
 
 
 # TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
@@ -522,20 +523,26 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({'Conventions': 'CF-1.6'})
 
-        for c, fill, dims in process_cubes(cubes, mv, args):
+        for c in process_cubes(cubes, mv, args):
+            # Extract atributes used for internal um2nc processing. Remove from
+            # cube to ensure they are not written to netCDF.
+            um2nc_attrs = c.attributes.pop('um2nc')
+            unlimited_dims = um2nc_attrs['unlimited_dimensions']
+            fill_val = um2nc_attrs['fill_value']
+
             # if args.verbose:
-            #     print(c.name(), c.item_code)
+            #     print(c.name(), c.attributes['um2nc']['item_code'])
 
             sman.write(c,
                        zlib=True,
                        complevel=args.compression,
-                       unlimited_dimensions=dims,
-                       fill_value=fill)
+                       unlimited_dimensions=unlimited_dims,
+                       fill_value=fill_val)
 
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
-    cubes.sort(key=lambda cs: cs.item_code)
+    cubes.sort(key=lambda cs: cs.attributes['um2nc']['item_code'])
 
     if args.include_list or args.exclude_list:
         cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
@@ -554,7 +561,7 @@ def process_cubes(cubes, mv, args):
 
     # cube processing & modification
     for c in cubes:
-        st = stashvar.StashVar(c.item_code)
+        st = stashvar.StashVar(c.attributes['um2nc']['item_code'])
         fix_var_name(c, st.uniquename, args.simple)
         fix_standard_name(c, st.standard_name, args.verbose)
         fix_long_name(c, st.long_name)
@@ -568,10 +575,10 @@ def process_cubes(cubes, mv, args):
 
         if do_masking:
             # Pressure level data should be masked
-            if require_heaviside_uv(c.item_code) and heaviside_uv:
+            if require_heaviside_uv(c.attributes['um2nc']['item_code']) and heaviside_uv:
                 apply_mask(c, heaviside_uv, args.hcrit)
 
-            if require_heaviside_t(c.item_code) and heaviside_t:
+            if require_heaviside_t(c.attributes['um2nc']['item_code']) and heaviside_t:
                 apply_mask(c, heaviside_t, args.hcrit)
 
         # TODO: some cubes lose item_code when replaced with new cubes
@@ -581,7 +588,7 @@ def process_cubes(cubes, mv, args):
         if not args.use64bit:
             convert_32_bit(c)
 
-        fill_value = fix_fill_value(c)
+        fix_fill_value(c)
         fix_forecast_reference_time(c)
 
         # Check whether any of the coordinates is a pseudo-dimension with integer values and
@@ -591,9 +598,9 @@ def process_cubes(cubes, mv, args):
                 coord.points = coord.points.astype(np.int32)
 
         # TODO: can item code get removed here when new cubes returned?
-        c, unlimited_dimensions = fix_time_coord(c, args.verbose)
+        c = fix_time_coord(c, args.verbose)
 
-        yield c, fill_value, unlimited_dimensions
+        yield c
 
 
 MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z_theta")
@@ -726,11 +733,12 @@ def set_item_codes(cubes):
     """
     # TODO: should this be _set_item_codes() to flag as an internal detail?
     for cube in cubes:
+        cube.attributes['um2nc'] = {}
         # NB: expanding the interface at runtime is somewhat hacky, however iris
         # cube objects are defined in a 3rd party project. The alternative is
         # passing primitives or additional data structures in process().
         item_code = to_item_code(cube.attributes[STASH])
-        setattr(cube, ITEM_CODE, item_code)
+        cube.attributes['um2nc']['item_code'] = item_code
 
 
 def get_heaviside_cubes(cubes):
@@ -750,9 +758,9 @@ def get_heaviside_cubes(cubes):
     heaviside_t = None
 
     for cube in cubes:
-        if is_heaviside_uv(cube.item_code):
+        if is_heaviside_uv(cube.attributes['um2nc']['item_code']):
             heaviside_uv = cube
-        elif is_heaviside_t(cube.item_code):
+        elif is_heaviside_t(cube.attributes['um2nc']['item_code']):
             heaviside_t = cube
 
     return heaviside_uv, heaviside_t
@@ -797,13 +805,13 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
            "Excluding cube '{}' as it cannot be masked")
 
     for c in cubes:
-        if require_heaviside_uv(c.item_code) and heaviside_uv is None:
+        if require_heaviside_uv(c.attributes['um2nc']['item_code']) and heaviside_uv is None:
             if verbose:
                 warnings.warn(msg.format("heaviside_uv", c.name()),
                               category=RuntimeWarning)
             continue
 
-        elif require_heaviside_t(c.item_code) and heaviside_t is None:
+        elif require_heaviside_t(c.attributes['um2nc']['item_code']) and heaviside_t is None:
             if verbose:
                 warnings.warn(msg.format("heaviside_t", c.name()),
                               category=RuntimeWarning)
@@ -834,9 +842,9 @@ def filtered_cubes(cubes, include=None, exclude=None):
     if include is None and exclude is None:
         f_cubes = cubes
     elif include:
-        f_cubes = (c for c in cubes if c.item_code in include)
+        f_cubes = (c for c in cubes if c.attributes['um2nc']['item_code'] in include)
     elif exclude:
-        f_cubes = (c for c in cubes if c.item_code not in exclude)
+        f_cubes = (c for c in cubes if c.attributes['um2nc']['item_code'] not in exclude)
 
     for c in f_cubes:
         yield c
@@ -935,7 +943,7 @@ def fix_units(cube, um_var_units, verbose: bool):
         # the Unit type works around them. repr is also unreliable
         if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
             if verbose:
-                msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
+                msg = f"Units mismatch {cube.attributes['um2nc']['item_code']} {cube.units} {um_var_units}"
                 warnings.warn(msg)
             cube.units = um_var_units
 
@@ -1092,7 +1100,9 @@ def fix_time_coord(cube, verbose):
         # No time dimension (probably ancillary file)
         unlimited_dimensions = None
 
-    return cube, unlimited_dimensions
+    cube.attributes['um2nc']['unlimited_dimensions'] = unlimited_dimensions
+
+    return cube
 
 
 def parse_args():
