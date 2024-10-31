@@ -21,7 +21,7 @@ dependencies = [
     "f90nml",
     "mule",
     "netcdf4",
-    "numpy",
+    "numpy <2",
     "scitools-iris",
     "versioneer",
 ]

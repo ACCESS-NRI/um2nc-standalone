@@ -15,7 +15,7 @@ dependencies:
     - ipykernel
     - mule
     - netcdf4
-    - numpy
+    - numpy <2
     - pip
     - pytest
     - pytest-cov
