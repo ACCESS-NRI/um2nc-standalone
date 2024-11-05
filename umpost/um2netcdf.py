@@ -16,6 +16,7 @@ import datetime
 import warnings
 import collections
 
+import umpost
 from umpost import stashvar_cmip6 as stashvar
 
 import mule
@@ -34,8 +35,8 @@ from iris.fileformats.pp import PPField
 STASH = "STASH"
 ITEM_CODE = "item_code"
 
-GRID_END_GAME = 'EG'
-GRID_NEW_DYNAMICS = 'ND'
+GRID_END_GAME = "EG"
+GRID_NEW_DYNAMICS = "ND"
 
 # TODO: what is this limit & does it still exist?
 XCONV_LONG_NAME_LIMIT = 110
@@ -44,10 +45,7 @@ LONGITUDE = "longitude"
 LATITUDE = "latitude"
 
 # Bounds for global single cells
-GLOBAL_COORD_BOUNDS = {
-    LONGITUDE: np.array([[0., 360.]]),
-    LATITUDE: np.array([[-90., 90.]])
-}
+GLOBAL_COORD_BOUNDS = {LONGITUDE: np.array([[0.0, 360.0]]), LATITUDE: np.array([[-90.0, 90.0]])}
 
 NUM_LAT_RIVER_GRID_POINTS = 180
 NUM_LON_RIVER_GRID_POINTS = 360
@@ -59,12 +57,7 @@ VAR_NAME_LON_U = "lon_u"
 VAR_NAME_LAT_STANDARD = "lat"
 VAR_NAME_LON_STANDARD = "lon"
 
-NC_FORMATS = {
-    1: 'NETCDF3_CLASSIC',
-    2: 'NETCDF3_64BIT',
-    3: 'NETCDF4',
-    4: 'NETCDF4_CLASSIC'
-}
+NC_FORMATS = {1: "NETCDF3_CLASSIC", 2: "NETCDF3_64BIT", 3: "NETCDF4", 4: "NETCDF4_CLASSIC"}
 
 MODEL_LEVEL_NUM = "model_level_number"
 MODEL_RHO_LEVEL = "model_rho_level_number"
@@ -83,11 +76,12 @@ FORECAST_REFERENCE_TIME = "forecast_reference_time"
 FORECAST_PERIOD = "forecast_period"
 TIME = "time"
 
-DEFAULT_FILL_VAL_FLOAT = 1.e20
+DEFAULT_FILL_VAL_FLOAT = 1.0e20
 
 
 class PostProcessingError(Exception):
     """Generic class for um2nc specific errors."""
+
     pass
 
 
@@ -96,6 +90,7 @@ class UnsupportedTimeSeriesError(PostProcessingError):
     Error to be raised when latitude and longitude coordinates
     are missing.
     """
+
     pass
 
 
@@ -133,10 +128,7 @@ def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     """
 
     if lat_coordinate.name() != LATITUDE:
-        raise ValueError(
-                f"Wrong coordinate {lat_coordinate.name()} supplied. "
-                f"Expected {LATITUDE}."
-            )
+        raise ValueError(f"Wrong coordinate {lat_coordinate.name()} supplied. " f"Expected {LATITUDE}.")
 
     if is_lat_river_grid(lat_coordinate.points):
         lat_coordinate.var_name = VAR_NAME_LAT_RIVER
@@ -162,10 +154,7 @@ def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
     """
 
     if lon_coordinate.name() != LONGITUDE:
-        raise ValueError(
-                f"Wrong coordinate {lon_coordinate.name()} supplied. "
-                f"Expected {LATITUDE}."
-            )
+        raise ValueError(f"Wrong coordinate {lon_coordinate.name()} supplied. " f"Expected {LATITUDE}.")
 
     if is_lon_river_grid(lon_coordinate.points):
         lon_coordinate.var_name = VAR_NAME_LON_RIVER
@@ -209,7 +198,7 @@ def is_lat_v_grid(latitude_points, grid_type, dlat):
     dlat: (float) meridional spacing between latitude grid points.
     """
     min_latitude = latitude_points[0]
-    min_lat_v_nd_grid = -90.+0.5*dlat
+    min_lat_v_nd_grid = -90.0 + 0.5 * dlat
     min_lat_v_eg_grid = -90
 
     if grid_type == GRID_END_GAME:
@@ -231,7 +220,7 @@ def is_lon_u_grid(longitude_points, grid_type, dlon):
     dlon: (float) zonal spacing between longitude grid points.
     """
     min_longitude = longitude_points[0]
-    min_lon_u_nd_grid = 0.5*dlon
+    min_lon_u_nd_grid = 0.5 * dlon
     min_lon_u_eg_grid = 0
 
     if grid_type == GRID_END_GAME:
@@ -253,10 +242,7 @@ def add_latlon_coord_bounds(cube_coordinate):
     """
     coordinate_name = cube_coordinate.name()
     if coordinate_name not in [LONGITUDE, LATITUDE]:
-        raise ValueError(
-            f"Wrong coordinate {coordinate_name} supplied. "
-            f"Expected one of {LONGITUDE}, {LATITUDE}."
-        )
+        raise ValueError(f"Wrong coordinate {coordinate_name} supplied. " f"Expected one of {LONGITUDE}, {LATITUDE}.")
 
     # Only add bounds if not already present.
     if not cube_coordinate.has_bounds():
@@ -289,10 +275,7 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
         latitude_coordinate = cube.coord(LATITUDE)
         longitude_coordinate = cube.coord(LONGITUDE)
     except iris.exceptions.CoordinateNotFoundError as coord_error:
-        msg = (
-            "Missing latitude or longitude coordinate for variable (possible timeseries?): \n"
-            f"{cube}\n"
-        )
+        msg = "Missing latitude or longitude coordinate for variable (possible timeseries?): \n" f"{cube}\n"
         raise UnsupportedTimeSeriesError(msg) from coord_error
 
     # Force to double for consistency with CMOR
@@ -318,13 +301,11 @@ def get_default_fill_value(cube):
     -------
     fill_value: numpy scalar with type matching cube.data
     """
-    if cube.data.dtype.kind == 'f':
+    if cube.data.dtype.kind == "f":
         fill_value = DEFAULT_FILL_VAL_FLOAT
 
     else:
-        fill_value = netCDF4.default_fillvals[
-            f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"
-        ]
+        fill_value = netCDF4.default_fillvals[f"{cube.data.dtype.kind:s}{cube.data.dtype.itemsize:1d}"]
 
     # NB: the `_FillValue` attribute appears to be converted to match the
     # cube data's type externally (likely in the netCDF4 library). It's not
@@ -365,8 +346,7 @@ def fix_fill_value(cube, custom_fill_value=None):
 
     # TODO: Is placing the fill value in an array still necessary,
     # given the type conversion in get_default_fill_value()
-    cube.attributes['missing_value'] = np.array([fill_value],
-                                                cube.data.dtype)
+    cube.attributes["missing_value"] = np.array([fill_value], cube.data.dtype)
     return fill_value
 
 
@@ -394,11 +374,7 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     # TODO: refactor & move to end of process()
     # TODO: refactor cubewrite() to return (cube, unlimited dims, fill value)
     #       then move above steps into process() / remove cubewrite()
-    sman.write(cube,
-               zlib=True,
-               complevel=compression,
-               unlimited_dimensions=unlimited_dimensions,
-               fill_value=fill_value)
+    sman.write(cube, zlib=True, complevel=compression, unlimited_dimensions=unlimited_dimensions, fill_value=fill_value)
 
 
 # TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
@@ -418,7 +394,7 @@ def fix_forecast_reference_time(cube):
         refdate = reftime.units.num2date(reftime.points[0])
 
         # TODO: replace with `if` check to prevent assert vanishing in optimised Python mode
-        assert time.units.origin == 'hours since 1970-01-01 00:00:00'
+        assert time.units.origin == "hours since 1970-01-01 00:00:00"
 
         # TODO: add reference year as a configurable arg?
         # TODO: determine if the start year should be changed from 1600
@@ -432,10 +408,10 @@ def fix_forecast_reference_time(cube):
                 new_calendar = time.units.calendar
 
             time.units = cf_units.Unit("days since 1970-01-01 00:00", calendar=new_calendar)
-            time.points = time.points / 24.
+            time.points = time.points / 24.0
 
             if time.bounds is not None:
-                time.bounds = time.bounds / 24.
+                time.bounds = time.bounds / 24.0
 
         # TODO: remove_coord() calls the coord() lookup, which raises
         #       CoordinateNotFoundError if the forecast period is missing, this
@@ -455,8 +431,7 @@ def fix_forecast_reference_time(cube):
 #       https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794321677
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
-    newunits = cf_units.Unit("days since 0001-01-01 00:00",
-                             calendar=cf_units.CALENDAR_PROLEPTIC_GREGORIAN)
+    newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar=cf_units.CALENDAR_PROLEPTIC_GREGORIAN)
     tvals = np.array(time.points)  # Need a copy because can't assign to time.points[i]
     tbnds = np.array(time.bounds) if time.bounds is not None else None
 
@@ -466,15 +441,17 @@ def convert_proleptic(time):
     #  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794315128
     for i in range(len(time.points)):
         date = time.units.num2date(tvals[i])
-        newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                    date.hour, date.minute, date.second)
+        newdate = cftime.DatetimeProlepticGregorian(
+            date.year, date.month, date.day, date.hour, date.minute, date.second
+        )
         tvals[i] = newunits.date2num(newdate)
 
         if tbnds is not None:  # Fields with instantaneous data don't have bounds
             for j in range(2):
                 date = time.units.num2date(tbnds[i][j])
-                newdate = cftime.DatetimeProlepticGregorian(date.year, date.month, date.day,
-                                                            date.hour, date.minute, date.second)
+                newdate = cftime.DatetimeProlepticGregorian(
+                    date.year, date.month, date.day, date.hour, date.minute, date.second
+                )
                 tbnds[i][j] = newunits.date2num(newdate)
 
     time.points = tvals
@@ -499,13 +476,12 @@ def fix_cell_methods(cell_methods):
     -------
     A tuple of cell methods, with "hour" removed from interval names
     """
-    return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments)
-                 for m in cell_methods)
+    return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments) for m in cell_methods)
 
 
 def _remove_hour_interval(cell_method):
     """Helper retains all non 'hour' intervals."""
-    return (i for i in cell_method.intervals if i.find('hour') == -1)
+    return (i for i in cell_method.intervals if i.find("hour") == -1)
 
 
 def apply_mask(c, heaviside, hcrit):
@@ -515,33 +491,31 @@ def apply_mask(c, heaviside, hcrit):
         # If the shapes match it's simple
         # Temporarily turn off warnings from 0/0
         # TODO: refactor to use np.where()
-        with np.errstate(divide='ignore', invalid='ignore'):
-            c.data = np.ma.masked_array(c.data/heaviside.data, heaviside.data <= hcrit).astype(np.float32)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            c.data = np.ma.masked_array(c.data / heaviside.data, heaviside.data <= hcrit).astype(np.float32)
     else:
         # Are the levels of c a subset of the levels of the heaviside variable?
-        c_p = c.coord('pressure')
-        h_p = heaviside.coord('pressure')
+        c_p = c.coord("pressure")
+        h_p = heaviside.coord("pressure")
         # print('Levels for masking', c_p.points, h_p.points)
         if set(c_p.points).issubset(h_p.points):
             # Match is possible
             constraint = iris.Constraint(pressure=c_p.points)
             h_tmp = heaviside.extract(constraint)
             # Double check they're actually the same after extraction
-            if not np.all(c_p.points == h_tmp.coord('pressure').points):
-                raise Exception('Unexpected mismatch in levels of extracted heaviside function')
-            with np.errstate(divide='ignore', invalid='ignore'):
-                c.data = np.ma.masked_array(c.data/h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
+            if not np.all(c_p.points == h_tmp.coord("pressure").points):
+                raise Exception("Unexpected mismatch in levels of extracted heaviside function")
+            with np.errstate(divide="ignore", invalid="ignore"):
+                c.data = np.ma.masked_array(c.data / h_tmp.data, h_tmp.data <= hcrit).astype(np.float32)
         else:
-            raise Exception('Unable to match levels of heaviside function to variable %s' % c.name())
+            raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
 def process(infile, outfile, args):
-
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
-        warnings.filterwarnings(action="ignore", category=UserWarning,
-                                message=r"\sUnable to load STASHmaster")
+        warnings.filterwarnings(action="ignore", category=UserWarning, message=r"\sUnable to load STASHmaster")
         ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
@@ -593,7 +567,7 @@ def process(infile, outfile, args):
         if not args.nohist:
             add_global_history(infile, sman)
 
-        sman.update_global_attributes({'Conventions': 'CF-1.6'})
+        sman.update_global_attributes({"Conventions": "CF-1.6"})
 
         for c in cubes:
             if args.verbose:
@@ -625,7 +599,7 @@ def process_mule_vars(fields_file: mule.ff.FieldsFile):
     A MuleVars data structure.
     """
     if isinstance(fields_file, mule.ancil.AncilFile):
-        raise NotImplementedError('Ancillary files are currently not supported')
+        raise NotImplementedError("Ancillary files are currently not supported")
 
     if mule.__version__ == "2020.01.1":
         msg = "mule 2020.01.1 doesn't handle pathlib Paths properly"
@@ -803,20 +777,17 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     heaviside_t : heaviside_t cube or None if it's missing
     verbose : True to emit warnings to indicate a cube has been removed
     """
-    msg = ("{} field needed for masking pressure level data is missing. "
-           "Excluding cube '{}' as it cannot be masked")
+    msg = "{} field needed for masking pressure level data is missing. " "Excluding cube '{}' as it cannot be masked"
 
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
             if verbose:
-                warnings.warn(msg.format("heaviside_uv", c.name()),
-                              category=RuntimeWarning)
+                warnings.warn(msg.format("heaviside_uv", c.name()), category=RuntimeWarning)
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
             if verbose:
-                warnings.warn(msg.format("heaviside_t", c.name()),
-                              category=RuntimeWarning)
+                warnings.warn(msg.format("heaviside_t", c.name()), category=RuntimeWarning)
             continue
 
         yield c
@@ -853,13 +824,11 @@ def filtered_cubes(cubes, include=None, exclude=None):
 
 
 def add_global_history(infile, iris_out):
-    version = -1  # FIXME: determine version
+    version = umpost.__version__
     t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     um2nc_path = os.path.abspath(__file__)
     history = f"File {infile} converted with {um2nc_path} {version} at {t}"
-
-    iris_out.update_global_attributes({'history': history})
-    warnings.warn("um2nc version number not specified!")
+    iris_out.update_global_attributes({"history": history})
 
 
 # TODO: refactor func sig to take exclusive simple OR unique name field?
@@ -881,9 +850,9 @@ def fix_var_name(cube, um_unique_name, simple: bool):
 
     # Could there be cases with both max and min?
     if cube.var_name:
-        if any([m.method == 'maximum' for m in cube.cell_methods]):
+        if any([m.method == "maximum" for m in cube.cell_methods]):
             cube.var_name += "_max"
-        if any([m.method == 'minimum' for m in cube.cell_methods]):
+        if any([m.method == "minimum" for m in cube.cell_methods]):
             cube.var_name += "_min"
 
 
@@ -901,18 +870,20 @@ def fix_standard_name(cube, um_standard_name, verbose: bool):
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
     if cube.standard_name:
-        if cube.standard_name == 'x_wind':
-            cube.standard_name = 'eastward_wind'
-        if cube.standard_name == 'y_wind':
-            cube.standard_name = 'northward_wind'
+        if cube.standard_name == "x_wind":
+            cube.standard_name = "eastward_wind"
+        if cube.standard_name == "y_wind":
+            cube.standard_name = "northward_wind"
 
         if um_standard_name and cube.standard_name != um_standard_name:
             # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
             if verbose:
                 # TODO: show combined stash code instead?
-                msg = (f"Standard name mismatch section={stash_code.section}"
-                       f" item={stash_code.item} standard_name={cube.standard_name}"
-                       f" UM var name={um_standard_name}")
+                msg = (
+                    f"Standard name mismatch section={stash_code.section}"
+                    f" item={stash_code.item} standard_name={cube.standard_name}"
+                    f" UM var name={um_standard_name}"
+                )
                 warnings.warn(msg)
 
             cube.standard_name = um_standard_name
@@ -974,17 +945,17 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
         return
 
     if c_lev:
-        d_rho = abs(c_height.points[0]-z_rho)
+        d_rho = abs(c_height.points[0] - z_rho)
         if d_rho.min() < tol:
-            c_lev.var_name = 'model_rho_level_number'
-            c_height.var_name = 'rho_level_height'
-            c_sigma.var_name = 'sigma_rho'
+            c_lev.var_name = "model_rho_level_number"
+            c_height.var_name = "rho_level_height"
+            c_sigma.var_name = "sigma_rho"
         else:
-            d_theta = abs(c_height.points[0]-z_theta)
+            d_theta = abs(c_height.points[0] - z_theta)
             if d_theta.min() < tol:
-                c_lev.var_name = 'model_theta_level_number'
-                c_height.var_name = 'theta_level_height'
-                c_sigma.var_name = 'sigma_theta'
+                c_lev.var_name = "model_theta_level_number"
+                c_height.var_name = "theta_level_height"
+                c_sigma.var_name = "sigma_theta"
 
 
 def fix_pressure_levels(cube, decimals=5):
@@ -1005,13 +976,13 @@ def fix_pressure_levels(cube, decimals=5):
     cube if the pressure levels are reversed.
     """
     try:
-        pressure = cube.coord('pressure')
+        pressure = cube.coord("pressure")
     except iris.exceptions.CoordinateNotFoundError:
         return
 
     # update existing cube metadata in place
-    pressure.attributes['positive'] = 'down'
-    pressure.convert_units('Pa')
+    pressure.attributes["positive"] = "down"
+    pressure.convert_units("Pa")
 
     # Round small fractions otherwise coordinates are off by 1e-10 in ncdump output
     pressure.points = np.round(pressure.points, decimals)
@@ -1020,7 +991,7 @@ def fix_pressure_levels(cube, decimals=5):
         # Flip to get pressure decreasing as per CMIP6 standard
         # NOTE: returns a new cube!
         # TODO: add an iris.util.monotonic() check here?
-        return iris.util.reverse(cube, 'pressure')
+        return iris.util.reverse(cube, "pressure")
 
 
 MAX_NP_INT32 = np.iinfo(np.int32).max
@@ -1039,14 +1010,16 @@ def convert_32_bit(cube):
     -----
     RuntimeWarning : if the cube has data over 32-bit limits, causing an overflow.
     """
-    if cube.data.dtype == 'float64':
+    if cube.data.dtype == "float64":
         cube.data = cube.data.astype(np.float32)
-    elif cube.data.dtype == 'int64':
+    elif cube.data.dtype == "int64":
         _max = np.max(cube.data)
         _min = np.min(cube.data)
 
-        msg = (f"32 bit under/overflow converting {cube.var_name}! Output data "
-               f"likely invalid. Use '--64' option to retain data integrity.")
+        msg = (
+            f"32 bit under/overflow converting {cube.var_name}! Output data "
+            f"likely invalid. Use '--64' option to retain data integrity."
+        )
 
         if _max > MAX_NP_INT32:
             warnings.warn(msg, category=RuntimeWarning)
@@ -1078,7 +1051,7 @@ def fix_time_coord(cube, verbose):
     try:
         # If time is a dimension but not a coordinate dimension, coord_dims('time')
         # returns empty tuple
-        if tdim := cube.coord_dims('time'):
+        if tdim := cube.coord_dims("time"):
             # For fields with a pseudo-level, time may not be the first dimension
             if tdim != (0,):
                 tdim = tdim[0]
@@ -1094,9 +1067,9 @@ def fix_time_coord(cube, verbose):
                 cube.transpose(neworder)
         else:
             # TODO: does this return a new copy or modified cube?
-            cube = iris.util.new_axis(cube, cube.coord('time'))
+            cube = iris.util.new_axis(cube, cube.coord("time"))
 
-        unlimited_dimensions = ['time']
+        unlimited_dimensions = ["time"]
 
     except iris.exceptions.CoordinateNotFoundError:
         # No time dimension (probably ancillary file)
@@ -1107,39 +1080,61 @@ def fix_time_coord(cube, verbose):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
-    parser.add_argument('-k', dest='nckind', required=False, type=int,
-                        default=3,
-                        help=('specify netCDF output format: 1 classic, 2 64-bit'
-                              ' offset, 3 netCDF-4, 4 netCDF-4 classic model.'
-                              ' Default 3'),
-                        choices=[1, 2, 3, 4])
-    parser.add_argument('-c', dest='compression', required=False, type=int,
-                        default=4, help='compression level (0=none, 9=max). Default 4')
-    parser.add_argument('--64', dest='use64bit', action='store_true',
-                        default=False, help='Use 64 bit netcdf for 64 bit input')
-    parser.add_argument('-v', '--verbose', dest='verbose',
-                        action='count', default=0,
-                        help='verbose output (-vv for extra verbose)')
+    parser.add_argument(
+        "-k",
+        dest="nckind",
+        required=False,
+        type=int,
+        default=3,
+        help=(
+            "specify netCDF output format: 1 classic, 2 64-bit"
+            " offset, 3 netCDF-4, 4 netCDF-4 classic model."
+            " Default 3"
+        ),
+        choices=[1, 2, 3, 4],
+    )
+    parser.add_argument(
+        "-c",
+        dest="compression",
+        required=False,
+        type=int,
+        default=4,
+        help="compression level (0=none, 9=max). Default 4",
+    )
+    parser.add_argument(
+        "--64", dest="use64bit", action="store_true", default=False, help="Use 64 bit netcdf for 64 bit input"
+    )
+    parser.add_argument(
+        "-v", "--verbose", dest="verbose", action="count", default=0, help="verbose output (-vv for extra verbose)"
+    )
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--include', dest='include_list', type=int,
-                       nargs='+', help='List of stash codes to include')
-    group.add_argument('--exclude', dest='exclude_list', type=int,
-                       nargs='+', help='List of stash codes to exclude')
+    group.add_argument("--include", dest="include_list", type=int, nargs="+", help="List of stash codes to include")
+    group.add_argument("--exclude", dest="exclude_list", type=int, nargs="+", help="List of stash codes to exclude")
 
-    parser.add_argument('--nomask', dest='nomask', action='store_true',
-                        default=False,
-                        help="Don't apply heaviside function mask to pressure level fields")
-    parser.add_argument('--nohist', dest='nohist', action='store_true',
-                        default=False, help="Don't update history attribute")
-    parser.add_argument('--simple', dest='simple', action='store_true',
-                        default=False, help="Use a simple names of form fld_s01i123.")
-    parser.add_argument('--hcrit', dest='hcrit', type=float, default=0.5,
-                        help=("Critical value of heavyside fn for pressure level"
-                              " masking (default=0.5)"))
+    parser.add_argument(
+        "--nomask",
+        dest="nomask",
+        action="store_true",
+        default=False,
+        help="Don't apply heaviside function mask to pressure level fields",
+    )
+    parser.add_argument(
+        "--nohist", dest="nohist", action="store_true", default=False, help="Don't update history attribute"
+    )
+    parser.add_argument(
+        "--simple", dest="simple", action="store_true", default=False, help="Use a simple names of form fld_s01i123."
+    )
+    parser.add_argument(
+        "--hcrit",
+        dest="hcrit",
+        type=float,
+        default=0.5,
+        help=("Critical value of heavyside fn for pressure level" " masking (default=0.5)"),
+    )
 
-    parser.add_argument('infile', help='Input file')
-    parser.add_argument('outfile', help='Output file')
+    parser.add_argument("infile", help="Input file")
+    parser.add_argument("outfile", help="Output file")
 
     return parser.parse_args()
 
@@ -1149,5 +1144,5 @@ def main():
     process(args.infile, args.outfile, args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
