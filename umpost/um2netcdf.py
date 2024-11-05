@@ -541,6 +541,7 @@ def process(infile, outfile, args):
 
 
 def process_cubes(cubes, mv, args):
+    add_um2nc_attrs(cubes)
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.attributes['um2nc']['item_code'])
 
@@ -722,21 +723,34 @@ def to_stash_code(item_code: int):
     return item_code // 1000, item_code % 1000
 
 
+def add_um2nc_attrs(cubes):
+    """
+    Add empty `um2nc` dictionary each cubes cube.attributes, to store internal
+    processing data required for processing and writing.
+
+    cube.attributes are retained by iris functions which return new cubes,
+    such as iris.util.reverse and iris.util.new_axis.
+
+    Parameters
+    ----------
+    cubes: list of iris cubes (modified in place).
+    """
+    for cube in cubes:
+        cube.attributes['um2nc'] = {}
+
+
 def set_item_codes(cubes):
     """
     Add item code attribute to given cubes.
 
     Iris cube objects lack a item_code attribute, a single integer value
     representing the combined stash/section code. This function converts the
-    cube's own stash/section code and stores as an "item_code" attribute. This
-    function is hacky from dynamically modifying the cube interface at runtime,
+    cube's own stash/section code and stores as an "item_code" attribute.
     """
     # TODO: should this be _set_item_codes() to flag as an internal detail?
     for cube in cubes:
-        cube.attributes['um2nc'] = {}
-        # NB: expanding the interface at runtime is somewhat hacky, however iris
-        # cube objects are defined in a 3rd party project. The alternative is
-        # passing primitives or additional data structures in process().
+        # Use the added `um2nc` attributes dictionary for internal processing
+        # data.
         item_code = to_item_code(cube.attributes[STASH])
         cube.attributes['um2nc']['item_code'] = item_code
 
