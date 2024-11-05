@@ -91,12 +91,14 @@ class DummyCube:
 
     def __init__(self, item_code, var_name=None, attributes=None,
                  units=None, coords=None):
-        self.item_code = item_code  # NB: um2nc adds this at runtime
         self.var_name = var_name or "unknown_var"
         self.standard_name = None
         self.long_name = None  # cube names appear to default to None
 
         self.attributes = attributes or {}  # needs dict for update()
+        self.attributes['um2nc'] = {}  # NB: um2nc adds this at runtime
+        self.attributes['um2nc']['item_code'] = item_code
+
         self.cell_methods = []
         self.units = units
         self.data = None
@@ -206,7 +208,7 @@ def mock_fix_time_no_time_dim(cube, verbose):
     Replicates fix_time_coord()'s behaviour on cube's with no
     time dimension.
     """
-    return cube, None
+    return cube
 
 
 # FIXME: the convoluted setup in test_process_...() is a code smell
@@ -236,10 +238,10 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
 
         # air temp & geo potential should be dropped in process()
         with pytest.warns(RuntimeWarning):
-            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
+            processed = list(um2nc.process_cubes(cubes, mule_vars, std_args))
 
     assert len(processed) == 1
-    cube, _, dim = processed[0]
+    cube = processed[0]
 
     assert cube.name() == precipitation_flux_cube.name()
 
@@ -293,7 +295,7 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
     assert len(processed) == len(cubes)
 
     cube_names = {cube.name() for cube in cubes}
-    processed_names = {cube.name() for cube, _, _ in processed}
+    processed_names = {cube.name() for cube in processed}
     assert processed_names == cube_names
 
 
@@ -319,7 +321,7 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
     assert len(processed) == len(cubes)
 
     cube_names = {cube.name() for cube in cubes}
-    processed_names = {cube.name() for cube, _, _ in processed}
+    processed_names = {cube.name() for cube in processed}
     assert processed_names == cube_names
 
 
@@ -397,11 +399,6 @@ def test_stash_code_to_item_code_conversion():
 
     result = um2nc.to_item_code(m_stash_code)
     assert result == 30255
-
-
-def add_stash(cube, stash):
-    d = {um2nc.STASH: stash}
-    setattr(cube, "attributes", d)
 
 
 # cube filtering tests
@@ -580,7 +577,6 @@ def test_fix_long_name_over_limit(x_wind_cube):
 @pytest.fixture
 def ua_plev_alt(ua_plev_cube):
     ua_plev_cube.units = "metres"  # fake some units
-    add_stash(ua_plev_cube, DummyStash(3, 4))
     return ua_plev_cube
 
 
@@ -763,7 +759,7 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     """
 
     cube_with_river_coords = DummyCube(
-        ua_plev_cube.item_code,
+        ua_plev_cube.attributes['um2nc']['item_code'],
         ua_plev_cube.var_name,
         ua_plev_cube.attributes,
         coords=[lat_river_coord, lon_river_coord])
@@ -800,7 +796,7 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
-        cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+        cube_with_uv_coords = DummyCube(ua_plev_cube.attributes['um2nc']['item_code'],
                                         ua_plev_cube.var_name,
                                         coords=[lat_coordinate, lon_coordinate])
 
@@ -841,7 +837,7 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
-        cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+        cube_with_uv_coords = DummyCube(ua_plev_cube.attributes['um2nc']['item_code'],
                                         ua_plev_cube.var_name,
                                         coords=[lat_coordinate, lon_coordinate])
 
@@ -873,7 +869,7 @@ def test_fix_latlon_coords_single_point(ua_plev_cube):
     lon_coord_single = iris.coords.DimCoord(points=np.array([0]),
                                             standard_name=um2nc.LONGITUDE)
 
-    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+    cube_with_uv_coords = DummyCube(ua_plev_cube.attributes['um2nc']['item_code'],
                                     ua_plev_cube.var_name,
                                     coords=[lat_coord_single, lon_coord_single])
 
@@ -904,7 +900,7 @@ def test_fix_latlon_coords_has_bounds(ua_plev_cube):
                                      standard_name=um2nc.LONGITUDE,
                                      bounds=lon_bounds.copy())
 
-    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
+    cube_with_uv_coords = DummyCube(ua_plev_cube.attributes['um2nc']['item_code'],
                                     ua_plev_cube.var_name,
                                     coords=[lat_coord, lon_coord])
     assert has_bounds(lat_coord, lon_coord)
@@ -927,7 +923,7 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
         standard_name="height"
     )
 
-    cube_with_fake_coord = DummyCube(ua_plev_cube.item_code,
+    cube_with_fake_coord = DummyCube(ua_plev_cube.attributes['um2nc']['item_code'],
                                      ua_plev_cube.var_name,
                                      coords=fake_coord)
 
@@ -1254,7 +1250,10 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
     fake_cube = DummyCube(12345, "fake_var")
     fake_cube.data = cube_data
 
-    fill_value = um2nc.fix_fill_value(fake_cube)
+    um2nc.fix_fill_value(fake_cube)
+
+    # fix_fill_value places the fill value in the `um2nc` attributes
+    fill_value = fake_cube.attributes['um2nc']['fill_value']
 
     assert fill_value == expected_fill_val
     # Check new fill value type matches cube's data's type

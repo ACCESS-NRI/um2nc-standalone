@@ -1084,8 +1084,8 @@ def fix_time_coord(cube, verbose):
 
     Returns
     -------
-    A (cube, unlimited_dimensions) tuple. Unlimited dimensions is None for
-    ancillary files with no time dimension.
+    cube: iris cube object with unlimited dimensions added to its `um2nc`
+    attributes.
     """
     try:
         # If time is a dimension but not a coordinate dimension, coord_dims('time')
