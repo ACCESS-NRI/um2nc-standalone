@@ -113,12 +113,12 @@ jobs:
 
       - name: Run tests
         shell: bash -l {0}
-        run: python -m pytest --cov=umpost --cov-report=xml -s test
+        run: python -m pytest --cov=umpost --cov-report=html -s test
 
-      - name: Upload code coverage
-        # Only upload once for the installed version
-        if: ${{ matrix.python-version == env.PY_VERSION }}
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 #v4.6.0
-        with:
-          token: ${{ secrets.codecov_token }}
-          files: ./coverage.xml
+      # - name: Upload code coverage
+      #   # Only upload once for the installed version
+      #   if: ${{ matrix.python-version == env.PY_VERSION }}
+      #   uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 #v4.6.0
+      #   with:
+      #     token: ${{ secrets.codecov_token }}
+      #     files: ./coverage.xml
