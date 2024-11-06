@@ -1,11 +1,11 @@
 name: um2nc-dev
 
 channels:
-    - conda-forge
     - accessnri
+    - conda-forge
     - coecms
-    - default
     - nodefaults
+
 
 dependencies:
     - python >=3.10,<=3.12
