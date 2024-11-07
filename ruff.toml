@@ -32,4 +32,8 @@ select = [
 ignore = [
     # non-imperative-mood
     "D401",
+    # no-explicit-stacklevel
+    "B028",
+    # undocumented-param
+    "D417",
 ]
