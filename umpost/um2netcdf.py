@@ -1088,6 +1088,7 @@ def fix_time_coord(cube, verbose):
 
 
 def parse_args():
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
     parser.add_argument(
         "-k",
@@ -1178,6 +1179,7 @@ def parse_args():
 
 
 def main():
+    """Main entry point for command line execution."""
     args = parse_args()
     process(args.infile, args.outfile, args)
 
