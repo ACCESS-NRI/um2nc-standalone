@@ -60,14 +60,17 @@ python3 -m pytest --cov-report=term-missing --cov=umpost
 > [!TIP]
 > To generate an HTML coverage report substitute `term-missing` with `html`.
 
-## User documentation
-
-TODO: this needs to cover:
-
-1. Running `um2netcdf` standalone
-2. Using the workflow run script
-3. Using `um2netcdf` as an API
-
-## Further information
-
-TODO
+### Running pre-commit hooks
+To manually run pre-commit hooks against all the files run:
+```
+pre-commit run --all-files
+```
+> [!TIP]
+> To automatically run pre-commit on every `git commit` command, run:
+> ```
+> pre-commit install
+> ```
+> To disable this functionality, run:
+> ```
+> pre-commit uninstall
+> ```

@@ -1,25 +1,23 @@
-import unittest.mock as mock
+import operator
 import warnings
-from dataclasses import dataclass
 from collections import namedtuple
+from dataclasses import dataclass
+from unittest import mock
 
 import cf_units
+import iris.coords
+import iris.cube
+import iris.exceptions
+import mule
+import mule.ff
+import netCDF4
+import numpy as np
+import pytest
 from iris.exceptions import CoordinateNotFoundError
-import operator
 
 import umpost.um2netcdf as um2nc
 
-import pytest
-import numpy as np
-import netCDF4
-
-import mule
-import mule.ff
-import iris.cube
-import iris.coords
-import iris.exceptions
-
-D_LAT_N96 = 1.25   # Degrees between latitude points on N96 grid
+D_LAT_N96 = 1.25  # Degrees between latitude points on N96 grid
 D_LON_N96 = 1.875  # Degrees between longitude points on N96 grid
 
 
@@ -27,19 +25,50 @@ D_LON_N96 = 1.875  # Degrees between longitude points on N96 grid
 def z_sea_rho_data():
     # data ripped from aiihca.paa1jan.subset: ff.level_dependent_constants.zsea_at_rho
     # TODO: dtype is object, should it be float?
-    data = np.array([9.9982061118072, 49.998881525751194, 130.00023235363918,
-                     249.99833311211358, 410.00103476788956, 610.000486354252,
-                     850.0006133545584, 1130.0014157688088, 1449.9989681136456,
-                     1810.0011213557837, 2210.0000245285087, 2649.9996031151773,
-                     3129.9998571157903, 3650.000786530347, 4209.99846587549,
-                     4810.000746117935, 5449.999776290966, 6129.999481877941,
-                     6849.999862878861, 7610.000919293723, 8409.998725639172,
-                     9250.001132881924, 10130.00029005526, 11050.000122642545,
-                     12010.000630643768, 13010.001814058938, 14050.40014670717,
-                     15137.719781928794, 16284.973697054254, 17506.96881530842,
-                     18820.820244130424, 20246.59897992768, 21808.13663216417,
-                     23542.18357603375, 25520.960854349545, 27901.358260464756,
-                     31063.888598164976, 36081.76331548462, -1073741824.0], dtype=object)
+    data = np.array(
+        [
+            9.9982061118072,
+            49.998881525751194,
+            130.00023235363918,
+            249.99833311211358,
+            410.00103476788956,
+            610.000486354252,
+            850.0006133545584,
+            1130.0014157688088,
+            1449.9989681136456,
+            1810.0011213557837,
+            2210.0000245285087,
+            2649.9996031151773,
+            3129.9998571157903,
+            3650.000786530347,
+            4209.99846587549,
+            4810.000746117935,
+            5449.999776290966,
+            6129.999481877941,
+            6849.999862878861,
+            7610.000919293723,
+            8409.998725639172,
+            9250.001132881924,
+            10130.00029005526,
+            11050.000122642545,
+            12010.000630643768,
+            13010.001814058938,
+            14050.40014670717,
+            15137.719781928794,
+            16284.973697054254,
+            17506.96881530842,
+            18820.820244130424,
+            20246.59897992768,
+            21808.13663216417,
+            23542.18357603375,
+            25520.960854349545,
+            27901.358260464756,
+            31063.888598164976,
+            36081.76331548462,
+            -1073741824.0,
+        ],
+        dtype=object,
+    )
     return data
 
 
@@ -47,26 +76,56 @@ def z_sea_rho_data():
 def z_sea_theta_data():
     # data ripped from aiihca.paa1jan.subset: ff.level_dependent_constants.zsea_at_theta
     # TODO: dtype is object, should it be float?
-    data = np.array([0.0, 20.000337706971997, 80.00135082788799, 179.9991138793904,
-                     320.00147782819437, 500.00059170758476, 720.0003810009191,
-                     980.0008457081975, 1279.9980603460624, 1619.9998758812287,
-                     1999.9984413469813, 2420.001607710036, 2880.0015240036764,
-                     3379.9981902279037, 3919.9994573494323, 4500.001399884905,
-                     5120.000092350965, 5779.999460230968, 6479.999503524915,
-                     7220.000222232806, 8000.001616354641, 8819.999760407061,
-                     9679.998579873429, 10579.998074753737, 11519.998245047991,
-                     12499.999090756188, 13520.000611878331, 14580.799681536007,
-                     15694.639882321579, 16875.311437270288, 18138.62619334655,
-                     19503.01036943094, 20990.18759042441, 22626.081748420565,
-                     24458.285403646936, 26583.640230535515, 29219.080215877355,
-                     32908.69305496925, 39254.833576], dtype=object)
+    data = np.array(
+        [
+            0.0,
+            20.000337706971997,
+            80.00135082788799,
+            179.9991138793904,
+            320.00147782819437,
+            500.00059170758476,
+            720.0003810009191,
+            980.0008457081975,
+            1279.9980603460624,
+            1619.9998758812287,
+            1999.9984413469813,
+            2420.001607710036,
+            2880.0015240036764,
+            3379.9981902279037,
+            3919.9994573494323,
+            4500.001399884905,
+            5120.000092350965,
+            5779.999460230968,
+            6479.999503524915,
+            7220.000222232806,
+            8000.001616354641,
+            8819.999760407061,
+            9679.998579873429,
+            10579.998074753737,
+            11519.998245047991,
+            12499.999090756188,
+            13520.000611878331,
+            14580.799681536007,
+            15694.639882321579,
+            16875.311437270288,
+            18138.62619334655,
+            19503.01036943094,
+            20990.18759042441,
+            22626.081748420565,
+            24458.285403646936,
+            26583.640230535515,
+            29219.080215877355,
+            32908.69305496925,
+            39254.833576,
+        ],
+        dtype=object,
+    )
     return data
 
 
 @pytest.fixture
 def mule_vars(z_sea_rho_data, z_sea_theta_data):
-    """
-    Simulate mule variables for the New Dynamics grid from
+    """Simulate mule variables for the New Dynamics grid from
     aiihca.paa1jan.subset data.
     """
     d_lat = 1.25  # spacing manually copied from aiihca.paa1jan.subset file
@@ -76,21 +135,17 @@ def mule_vars(z_sea_rho_data, z_sea_theta_data):
 
 @dataclass(frozen=True)
 class DummyStash:
-    """
-    Partial Stash representation for testing.
-    """
+    """Partial Stash representation for testing."""
+
     section: int
     item: int
 
 
 # TODO: would making this a dataclass provide any benefit?
 class DummyCube:
-    """
-    Imitation iris Cube for unit testing.
-    """
+    """Imitation iris Cube for unit testing."""
 
-    def __init__(self, item_code, var_name=None, attributes=None,
-                 units=None, coords=None):
+    def __init__(self, item_code, var_name=None, attributes=None, units=None, coords=None):
         self.item_code = item_code  # NB: um2nc adds this at runtime
         self.var_name = var_name or "unknown_var"
         self.standard_name = None
@@ -141,19 +196,26 @@ class DummyCube:
 # heaviside_uv/t cubes. These cubes facilitate different testing configurations.
 # Modifying them has the potential to reduce test coverage!
 
+
 @pytest.fixture
 def precipitation_flux_cube(lat_standard_nd_coord, lon_standard_nd_coord):
     # copied from aiihca.paa1jan.subset file
-    precipitation_flux = DummyCube(5216, "precipitation_flux",
-                                   coords=[lat_standard_nd_coord, lon_standard_nd_coord])
+    precipitation_flux = DummyCube(
+        5216,
+        "precipitation_flux",
+        coords=[lat_standard_nd_coord, lon_standard_nd_coord],
+    )
     return precipitation_flux
 
 
 @pytest.fixture
 def geo_potential_cube(lat_standard_eg_coord, lon_standard_eg_coord):
     """Return new cube requiring heaviside_t masking"""
-    geo_potential = DummyCube(30297, "geopotential_height",
-                              coords=[lat_standard_eg_coord, lon_standard_eg_coord])
+    geo_potential = DummyCube(
+        30297,
+        "geopotential_height",
+        coords=[lat_standard_eg_coord, lon_standard_eg_coord],
+    )
     return geo_potential
 
 
@@ -164,20 +226,17 @@ def ua_plev_cube():
 
 @pytest.fixture
 def heaviside_uv_cube(lat_v_nd_coord, lon_u_nd_coord):
-    return DummyCube(30301, "heaviside_uv",
-                     coords=[lat_v_nd_coord, lon_u_nd_coord])
+    return DummyCube(30301, "heaviside_uv", coords=[lat_v_nd_coord, lon_u_nd_coord])
 
 
 @pytest.fixture
 def ta_plev_cube(lat_v_nd_coord, lon_u_nd_coord):
-    return DummyCube(30204, "ta_plev",
-                     coords=[lat_v_nd_coord, lon_u_nd_coord])
+    return DummyCube(30204, "ta_plev", coords=[lat_v_nd_coord, lon_u_nd_coord])
 
 
 @pytest.fixture
 def heaviside_t_cube(lat_standard_eg_coord, lon_standard_eg_coord):
-    return DummyCube(30304, "heaviside_t",
-                     coords=[lat_standard_eg_coord, lon_standard_eg_coord])
+    return DummyCube(30304, "heaviside_t", coords=[lat_standard_eg_coord, lon_standard_eg_coord])
 
 
 @pytest.fixture
@@ -210,9 +269,15 @@ def fake_out_path():
 #        use the following tests to gradually refactor process()
 # TODO: evolve towards design where input & output file I/O is extracted from
 #       process() & the function takes *raw data only* (is highly testable)
-def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
-                                         geo_potential_cube, mule_vars, std_args,
-                                         fake_in_path, fake_out_path):
+def test_process_no_heaviside_drop_cubes(
+    ta_plev_cube,
+    precipitation_flux_cube,
+    geo_potential_cube,
+    mule_vars,
+    std_args,
+    fake_in_path,
+    fake_out_path,
+):
     """Attempt end-to-end process() test, dropping cubes requiring masking."""
     with (
         # use mocks to prevent mule data extraction file I/O
@@ -249,9 +314,7 @@ def test_process_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_cube,
         assert cube.data is None  # masking wasn't called/nothing changed
 
 
-def test_process_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
-                                    mule_vars, std_args,
-                                    fake_in_path, fake_out_path):
+def test_process_all_cubes_filtered(ta_plev_cube, geo_potential_cube, mule_vars, std_args, fake_in_path, fake_out_path):
     """Ensure process() exits early if all cubes are removed in filtering."""
     with (
         mock.patch("mule.load_umfile"),
@@ -267,10 +330,17 @@ def test_process_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
         assert um2nc.process(fake_in_path, fake_out_path, std_args) == []
 
 
-def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
-                                     heaviside_uv_cube, heaviside_t_cube,
-                                     geo_potential_cube, mule_vars,
-                                     std_args, fake_in_path, fake_out_path):
+def test_process_mask_with_heaviside(
+    ta_plev_cube,
+    precipitation_flux_cube,
+    heaviside_uv_cube,
+    heaviside_t_cube,
+    geo_potential_cube,
+    mule_vars,
+    std_args,
+    fake_in_path,
+    fake_out_path,
+):
     """Run process() with pressure level masking cubes present."""
     with (
         mock.patch("mule.load_umfile"),
@@ -284,8 +354,13 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
 
         # air temp requires heaviside_uv & geo_potential_cube requires heaviside_t
         # masking, include both to enable code execution for both masks
-        cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube,
-                 heaviside_uv_cube, heaviside_t_cube]
+        cubes = [
+            ta_plev_cube,
+            precipitation_flux_cube,
+            geo_potential_cube,
+            heaviside_uv_cube,
+            heaviside_t_cube,
+        ]
 
         m_iris_load.return_value = cubes
         m_saver().__enter__ = mock.Mock(name="mock_sman")
@@ -298,9 +373,15 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
             assert pc in cubes
 
 
-def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube,
-                                           geo_potential_cube, mule_vars, std_args,
-                                           fake_in_path, fake_out_path):
+def test_process_no_masking_keep_all_cubes(
+    ta_plev_cube,
+    precipitation_flux_cube,
+    geo_potential_cube,
+    mule_vars,
+    std_args,
+    fake_in_path,
+    fake_out_path,
+):
     """Run process() with masking off, ensuring all cubes are kept & modified."""
     with (
         mock.patch("mule.load_umfile"),
@@ -404,11 +485,12 @@ def test_stash_code_to_item_code_conversion():
 
 def add_stash(cube, stash):
     d = {um2nc.STASH: stash}
-    setattr(cube, "attributes", d)
+    cube.attributes = d
 
 
 # cube filtering tests
 # NB: wrap results in tuples to capture generator output in sequences
+
 
 def test_cube_filtering_mutually_exclusive(ua_plev_cube, heaviside_uv_cube):
     include = [30201]
@@ -463,7 +545,11 @@ def test_fix_var_name_simple(x_wind_cube):
     # NB: ignores cell methods functionality
     assert x_wind_cube.var_name == "var_name"  # dummy initial value
 
-    for unique in (None, "", "fake"):  # fake ensures `simple=True` is selected before unique name
+    for unique in (
+        None,
+        "",
+        "fake",
+    ):  # fake ensures `simple=True` is selected before unique name
         um2nc.fix_var_name(x_wind_cube, unique, simple=True)
         assert x_wind_cube.var_name == "fld_s00i002", f"Failed with um_var={unique}"
 
@@ -623,13 +709,9 @@ def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
 
 
 def to_iris_dimcoord(points_and_name_func):
-
     def dimcoord_maker():
         points, name = points_and_name_func()
-        return iris.coords.DimCoord(
-            points=points,
-            standard_name=name
-        )
+        return iris.coords.DimCoord(points=points, standard_name=name)
 
     return dimcoord_maker
 
@@ -639,7 +721,7 @@ def to_iris_dimcoord(points_and_name_func):
 def lat_river_coord():
     # iris DimCoord imitating UM V7.3s 1x1 degree river grid.
     # Must have length 180.
-    lat_river_points = np.arange(-90., 90, dtype="float32") + 0.5
+    lat_river_points = np.arange(-90.0, 90, dtype="float32") + 0.5
     return lat_river_points, um2nc.LATITUDE
 
 
@@ -648,7 +730,7 @@ def lat_river_coord():
 def lon_river_coord():
     # iris DimCoord imitating UM V7.3s 1x1 degree river grid.
     # Must have length 360.
-    lon_river_points = np.arange(0., 360., dtype="float32") + 0.5
+    lon_river_points = np.arange(0.0, 360.0, dtype="float32") + 0.5
     return lon_river_points, um2nc.LONGITUDE
 
 
@@ -659,8 +741,7 @@ def lat_v_nd_coord():
     # lat_v grid from ESM1.5 (which uses the New Dynamics grid).
     # This grid is offset half a grid cell compared to the standard
     # New Dynamics latitude grid.
-    lat_v_points = np.arange(-90.+0.5*D_LAT_N96, 90,
-                             D_LAT_N96, dtype="float32")
+    lat_v_points = np.arange(-90.0 + 0.5 * D_LAT_N96, 90, D_LAT_N96, dtype="float32")
     return lat_v_points, um2nc.LATITUDE
 
 
@@ -671,7 +752,7 @@ def lon_u_nd_coord():
     # lon_u grid from ESM1.5 (which uses the New Dynamics grid).
     # This grid is offset half a grid cell compared to the standard
     # New Dynamics longitude grid.
-    lon_u_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
+    lon_u_points = np.arange(0.5 * D_LON_N96, 360, D_LON_N96, dtype="float32")
     return lon_u_points, um2nc.LONGITUDE
 
 
@@ -682,7 +763,7 @@ def lat_v_eg_coord():
     # lat_v grid from CM2 (which uses the End Game grid).
     # This grid is offset half a grid cell compared to the standard
     # End Game latitude grid.
-    lat_v_points = np.arange(-90., 91, D_LAT_N96, dtype="float32")
+    lat_v_points = np.arange(-90.0, 91, D_LAT_N96, dtype="float32")
     return lat_v_points, um2nc.LATITUDE
 
 
@@ -720,8 +801,7 @@ def lon_standard_nd_coord():
 def lat_standard_eg_coord():
     # iris DimCoord imitating the standard latitude
     # grid from CM2 (which uses the End Game grid).
-    lat_points = np.arange(-90 + 0.5*D_LAT_N96, 90.,
-                           D_LAT_N96, dtype="float32")
+    lat_points = np.arange(-90 + 0.5 * D_LAT_N96, 90.0, D_LAT_N96, dtype="float32")
     return lat_points, um2nc.LATITUDE
 
 
@@ -730,13 +810,12 @@ def lat_standard_eg_coord():
 def lon_standard_eg_coord():
     # iris DimCoord imitating the standard longitude
     # grid from CM2 (which uses the End Game grid).
-    lon_points = np.arange(0.5*D_LON_N96, 360, D_LON_N96, dtype="float32")
+    lon_points = np.arange(0.5 * D_LON_N96, 360, D_LON_N96, dtype="float32")
     return lon_points, um2nc.LONGITUDE
 
 
 def assert_coordinates_are_unmodified(lat_coord, lon_coord):
-    """
-    Helper function to check that a coordinate's attributes match
+    """Helper function to check that a coordinate's attributes match
     those expected for a coordinate that has not yet been modified
     by fix_latlon_coords.
     """
@@ -747,8 +826,7 @@ def assert_coordinates_are_unmodified(lat_coord, lon_coord):
 
 
 def is_float64(lat_coord, lon_coord):
-    return (lat_coord.points.dtype == np.dtype("float64") and
-            lon_coord.points.dtype == np.dtype("float64"))
+    return lat_coord.points.dtype == np.dtype("float64") and lon_coord.points.dtype == np.dtype("float64")
 
 
 def has_bounds(lat_coord, lon_coord):
@@ -758,18 +836,14 @@ def has_bounds(lat_coord, lon_coord):
 # Tests of fix_latlon_coords. This function converts coordinate points
 # to double, adds bounds, and adds var_names to the coordinates.
 # The following tests check that these are done correctly.
-def test_fix_latlon_coords_river(ua_plev_cube,
-                                 lat_river_coord,
-                                 lon_river_coord):
-    """
-    Tests of the fix_lat_lon_coords function on river grid coordinates.
-    """
-
+def test_fix_latlon_coords_river(ua_plev_cube, lat_river_coord, lon_river_coord):
+    """Tests of the fix_lat_lon_coords function on river grid coordinates."""
     cube_with_river_coords = DummyCube(
         ua_plev_cube.item_code,
         ua_plev_cube.var_name,
         ua_plev_cube.attributes,
-        coords=[lat_river_coord, lon_river_coord])
+        coords=[lat_river_coord, lon_river_coord],
+    )
 
     cube_lat_coord = cube_with_river_coords.coord(um2nc.LATITUDE)
     cube_lon_coord = cube_with_river_coords.coord(um2nc.LONGITUDE)
@@ -777,8 +851,7 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     # Checks prior to modifications.
     assert_coordinates_are_unmodified(cube_lat_coord, cube_lon_coord)
 
-    um2nc.fix_latlon_coords(cube_with_river_coords, um2nc.GRID_END_GAME,
-                            D_LAT_N96, D_LON_N96)
+    um2nc.fix_latlon_coords(cube_with_river_coords, um2nc.GRID_END_GAME, D_LAT_N96, D_LON_N96)
 
     # Checks post modifications.
     assert cube_lat_coord.var_name == um2nc.VAR_NAME_LAT_RIVER
@@ -788,30 +861,26 @@ def test_fix_latlon_coords_river(ua_plev_cube,
     assert has_bounds(cube_lat_coord, cube_lon_coord)
 
 
-def test_fix_latlon_coords_uv(ua_plev_cube,
-                              lat_v_nd_coord,
-                              lon_u_nd_coord,
-                              lat_v_eg_coord,
-                              lon_u_eg_coord):
-    """
-    Tests of the fix_lat_lon_coords for longitude u and latitude v
+def test_fix_latlon_coords_uv(ua_plev_cube, lat_v_nd_coord, lon_u_nd_coord, lat_v_eg_coord, lon_u_eg_coord):
+    """Tests of the fix_lat_lon_coords for longitude u and latitude v
     coordinates on both the New Dynamics and End Game grids.
     """
     coord_sets = [
         (lat_v_nd_coord, lon_u_nd_coord, um2nc.GRID_NEW_DYNAMICS),
-        (lat_v_eg_coord, lon_u_eg_coord, um2nc.GRID_END_GAME)
+        (lat_v_eg_coord, lon_u_eg_coord, um2nc.GRID_END_GAME),
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
-        cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
-                                        ua_plev_cube.var_name,
-                                        coords=[lat_coordinate, lon_coordinate])
+        cube_with_uv_coords = DummyCube(
+            ua_plev_cube.item_code,
+            ua_plev_cube.var_name,
+            coords=[lat_coordinate, lon_coordinate],
+        )
 
         # Checks prior to modifications
         assert_coordinates_are_unmodified(lat_coordinate, lon_coordinate)
 
-        um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
-                                D_LAT_N96, D_LON_N96)
+        um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type, D_LAT_N96, D_LON_N96)
 
         assert lat_coordinate.var_name == um2nc.VAR_NAME_LAT_V
         assert lon_coordinate.var_name == um2nc.VAR_NAME_LON_U
@@ -820,39 +889,33 @@ def test_fix_latlon_coords_uv(ua_plev_cube,
         assert has_bounds(lat_coordinate, lon_coordinate)
 
 
-def test_fix_latlon_coords_standard(ua_plev_cube,
-                                    lat_standard_nd_coord,
-                                    lon_standard_nd_coord,
-                                    lat_standard_eg_coord,
-                                    lon_standard_eg_coord):
-    """
-    Tests of the fix_lat_lon_coords for standard longitude
+def test_fix_latlon_coords_standard(
+    ua_plev_cube,
+    lat_standard_nd_coord,
+    lon_standard_nd_coord,
+    lat_standard_eg_coord,
+    lon_standard_eg_coord,
+):
+    """Tests of the fix_lat_lon_coords for standard longitude
     and latitude coordinates on both the New Dynamics and
     End Game grids.
     """
     coord_sets = [
-        (
-            lat_standard_nd_coord,
-            lon_standard_nd_coord,
-            um2nc.GRID_NEW_DYNAMICS
-         ),
-        (
-            lat_standard_eg_coord,
-            lon_standard_eg_coord,
-            um2nc.GRID_END_GAME
-        )
+        (lat_standard_nd_coord, lon_standard_nd_coord, um2nc.GRID_NEW_DYNAMICS),
+        (lat_standard_eg_coord, lon_standard_eg_coord, um2nc.GRID_END_GAME),
     ]
 
     for lat_coordinate, lon_coordinate, grid_type in coord_sets:
-        cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
-                                        ua_plev_cube.var_name,
-                                        coords=[lat_coordinate, lon_coordinate])
+        cube_with_uv_coords = DummyCube(
+            ua_plev_cube.item_code,
+            ua_plev_cube.var_name,
+            coords=[lat_coordinate, lon_coordinate],
+        )
 
         # Checks prior to modifications.
         assert_coordinates_are_unmodified(lat_coordinate, lon_coordinate)
 
-        um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type,
-                                D_LAT_N96, D_LON_N96)
+        um2nc.fix_latlon_coords(cube_with_uv_coords, grid_type, D_LAT_N96, D_LON_N96)
 
         assert lat_coordinate.var_name == um2nc.VAR_NAME_LAT_STANDARD
         assert lon_coordinate.var_name == um2nc.VAR_NAME_LON_STANDARD
@@ -862,28 +925,25 @@ def test_fix_latlon_coords_standard(ua_plev_cube,
 
 
 def test_fix_latlon_coords_single_point(ua_plev_cube):
-    """
-    Test that single point longitude and latitude coordinates
+    """Test that single point longitude and latitude coordinates
     are provided with global bounds.
     """
-
     # Expected values after modification
     expected_lat_bounds = um2nc.GLOBAL_COORD_BOUNDS[um2nc.LATITUDE]
     expected_lon_bounds = um2nc.GLOBAL_COORD_BOUNDS[um2nc.LONGITUDE]
 
-    lat_coord_single = iris.coords.DimCoord(points=np.array([0]),
-                                            standard_name=um2nc.LATITUDE)
-    lon_coord_single = iris.coords.DimCoord(points=np.array([0]),
-                                            standard_name=um2nc.LONGITUDE)
+    lat_coord_single = iris.coords.DimCoord(points=np.array([0]), standard_name=um2nc.LATITUDE)
+    lon_coord_single = iris.coords.DimCoord(points=np.array([0]), standard_name=um2nc.LONGITUDE)
 
-    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
-                                    ua_plev_cube.var_name,
-                                    coords=[lat_coord_single, lon_coord_single])
+    cube_with_uv_coords = DummyCube(
+        ua_plev_cube.item_code,
+        ua_plev_cube.var_name,
+        coords=[lat_coord_single, lon_coord_single],
+    )
 
     assert not has_bounds(lat_coord_single, lon_coord_single)
 
-    um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
-                            D_LAT_N96, D_LON_N96)
+    um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS, D_LAT_N96, D_LON_N96)
 
     assert has_bounds(lat_coord_single, lon_coord_single)
     assert np.array_equal(lat_coord_single.bounds, expected_lat_bounds)
@@ -891,52 +951,39 @@ def test_fix_latlon_coords_single_point(ua_plev_cube):
 
 
 def test_fix_latlon_coords_has_bounds(ua_plev_cube):
-    """
-    Test that existing coordinate bounds are not modified by
+    """Test that existing coordinate bounds are not modified by
     fix_latlon_coords.
     """
-
     # Expected values after modification
     lon_bounds = np.array([[0, 1]])
     lat_bounds = np.array([[10, 25]])
 
-    lat_coord = iris.coords.DimCoord(points=np.array([0]),
-                                     standard_name=um2nc.LATITUDE,
-                                     bounds=lat_bounds.copy())
-    lon_coord = iris.coords.DimCoord(points=np.array([0]),
-                                     standard_name=um2nc.LONGITUDE,
-                                     bounds=lon_bounds.copy())
+    lat_coord = iris.coords.DimCoord(points=np.array([0]), standard_name=um2nc.LATITUDE, bounds=lat_bounds.copy())
+    lon_coord = iris.coords.DimCoord(points=np.array([0]), standard_name=um2nc.LONGITUDE, bounds=lon_bounds.copy())
 
-    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code,
-                                    ua_plev_cube.var_name,
-                                    coords=[lat_coord, lon_coord])
+    cube_with_uv_coords = DummyCube(ua_plev_cube.item_code, ua_plev_cube.var_name, coords=[lat_coord, lon_coord])
     assert has_bounds(lat_coord, lon_coord)
 
-    um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS,
-                            D_LAT_N96, D_LON_N96)
+    um2nc.fix_latlon_coords(cube_with_uv_coords, um2nc.GRID_NEW_DYNAMICS, D_LAT_N96, D_LON_N96)
 
     assert np.array_equal(lat_coord.bounds, lat_bounds)
     assert np.array_equal(lon_coord.bounds, lon_bounds)
 
 
 def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
-    """
-    Test that fix_latlon_coords raises the right type of error when a cube
+    """Test that fix_latlon_coords raises the right type of error when a cube
     is missing coordinates.
     """
     fake_coord = iris.coords.DimCoord(
         points=np.array([1, 2, 3], dtype="float32"),
         # Iris requires name to still be valid 'standard name'
-        standard_name="height"
+        standard_name="height",
     )
 
-    cube_with_fake_coord = DummyCube(ua_plev_cube.item_code,
-                                     ua_plev_cube.var_name,
-                                     coords=fake_coord)
+    cube_with_fake_coord = DummyCube(ua_plev_cube.item_code, ua_plev_cube.var_name, coords=fake_coord)
 
     with pytest.raises(um2nc.UnsupportedTimeSeriesError):
-        um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS,
-                                D_LAT_N96, D_LON_N96)
+        um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS, D_LAT_N96, D_LON_N96)
 
 
 def test_fix_cell_methods_drop_hours():
@@ -974,9 +1021,11 @@ def level_heights():
 @pytest.fixture
 def level_coords(level_heights):
     # data likely extracted from aiihca.subset
-    return [iris.coords.DimCoord(range(1, 39), var_name=um2nc.MODEL_LEVEL_NUM),
-            iris.coords.DimCoord(level_heights, var_name=um2nc.LEVEL_HEIGHT),
-            iris.coords.AuxCoord(np.array([0.99771646]), var_name=um2nc.SIGMA)]
+    return [
+        iris.coords.DimCoord(range(1, 39), var_name=um2nc.MODEL_LEVEL_NUM),
+        iris.coords.DimCoord(level_heights, var_name=um2nc.LEVEL_HEIGHT),
+        iris.coords.AuxCoord(np.array([0.99771646]), var_name=um2nc.SIGMA),
+    ]
 
 
 @pytest.fixture
@@ -984,10 +1033,7 @@ def level_coords_cube(level_coords):
     return DummyCube(0, coords=level_coords)
 
 
-def test_fix_level_coord_modify_cube_with_rho(level_coords_cube,
-                                              level_heights,
-                                              z_sea_rho_data,
-                                              z_sea_theta_data):
+def test_fix_level_coord_modify_cube_with_rho(level_coords_cube, level_heights, z_sea_rho_data, z_sea_theta_data):
     # verify cube renaming with appropriate z_rho data
     cube = level_coords_cube
 
@@ -1003,10 +1049,7 @@ def test_fix_level_coord_modify_cube_with_rho(level_coords_cube,
     assert cube.coord(um2nc.SIGMA).var_name == um2nc.SIGMA_RHO
 
 
-def test_fix_level_coord_modify_cube_with_theta(level_heights,
-                                                level_coords_cube,
-                                                z_sea_rho_data,
-                                                z_sea_theta_data):
+def test_fix_level_coord_modify_cube_with_theta(level_heights, level_coords_cube, z_sea_rho_data, z_sea_theta_data):
     # verify cube renaming with appropriate z_theta data
     cube = level_coords_cube
     um2nc.fix_level_coord(cube, z_sea_rho_data, z_sea_theta_data)
@@ -1025,6 +1068,7 @@ def test_fix_level_coord_skipped_if_no_levels(z_sea_rho_data, z_sea_theta_data):
 
 # tests - fix pressure level data
 
+
 def test_fix_pressure_levels_no_pressure_coord(level_coords_cube):
     cube = level_coords_cube
 
@@ -1036,17 +1080,19 @@ def test_fix_pressure_levels_no_pressure_coord(level_coords_cube):
 
 
 def test_fix_pressure_levels_do_rounding():
-    pressure = iris.coords.DimCoord([1.000001, 0.000001],
-                                    var_name="pressure",
-                                    units="Pa",
-                                    attributes={"positive": None})
+    pressure = iris.coords.DimCoord(
+        [1.000001, 0.000001],
+        var_name="pressure",
+        units="Pa",
+        attributes={"positive": None},
+    )
 
     cube = DummyCube(1, coords=[pressure])
 
     # ensure no cube is returned if Cube not modified in fix_pressure_levels()
     assert um2nc.fix_pressure_levels(cube) is None
 
-    c_pressure = cube.coord('pressure')
+    c_pressure = cube.coord("pressure")
     assert c_pressure.attributes["positive"] == "down"
     assert all(c_pressure.points == [1.0, 0.0])
 
@@ -1054,10 +1100,12 @@ def test_fix_pressure_levels_do_rounding():
 @pytest.mark.skip
 def test_fix_pressure_levels_reverse_pressure():
     # TODO: test is broken due to fiddly mocking problems (see below)
-    pressure = iris.coords.DimCoord([0.000001, 1.000001],
-                                    var_name="pressure",
-                                    units="Pa",
-                                    attributes={"positive": None})
+    pressure = iris.coords.DimCoord(
+        [0.000001, 1.000001],
+        var_name="pressure",
+        units="Pa",
+        attributes={"positive": None},
+    )
 
     cube = DummyCube(1, coords=[pressure])
     cube.ndim = 3
@@ -1083,13 +1131,14 @@ def test_fix_pressure_levels_reverse_pressure():
 
     assert mod_cube is not None
     assert mod_cube != cube
-    c_pressure = mod_cube.coord('pressure')
+    c_pressure = mod_cube.coord("pressure")
     assert c_pressure.attributes["positive"] == "down"
     assert all(c_pressure.points == [1.0, 0.0])
 
 
 # int64 to int32 data conversion tests
 # NB: skip float64 to float32 overflow as float32 min/max is huge: -/+ 3.40e+38
+
 
 def test_convert_32_bit_safe(ua_plev_cube):
     # simple baseline test of down conversion int64 to int32 without warnings
@@ -1100,9 +1149,13 @@ def test_convert_32_bit_safe(ua_plev_cube):
     assert np.all(ua_plev_cube.data == data)
 
 
-@pytest.mark.parametrize("array,_operator,bound",
-                         [([3000000000], operator.gt, np.iinfo(np.int32).max),
-                          ([-3000000000], operator.lt, np.iinfo(np.int32).min)])
+@pytest.mark.parametrize(
+    "array,_operator,bound",
+    [
+        ([3000000000], operator.gt, np.iinfo(np.int32).max),
+        ([-3000000000], operator.lt, np.iinfo(np.int32).min),
+    ],
+)
 def test_convert_32_bit_overflow_warning(ua_plev_cube, array, _operator, bound):
     # ensure overflow covered for large positive & negative int64s
     msg = f"Over/underflow impossible with {array[0]} {_operator} {bound}"
@@ -1138,13 +1191,13 @@ def forecast_cube():
 @pytest.fixture
 def time_points():
     """Use for cube.coord('time').points attribute."""
-    return [-16382964.]
+    return [-16382964.0]
 
 
 @pytest.fixture
 def forecast_ref_time_points():
     """Use for cube.coord('forecast_reference_time').points attribute."""
-    return [-16383336.]
+    return [-16383336.0]
 
 
 # FIXME: unit.calendar needs updating as per:
@@ -1158,9 +1211,11 @@ def forecast_ref_time_coord(forecast_ref_time_points):
     unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00")
     assert unit.calendar == cf_units.CALENDAR_STANDARD
 
-    return iris.coords.DimCoord(forecast_ref_time_points,
-                                standard_name=um2nc.FORECAST_REFERENCE_TIME,
-                                units=unit)
+    return iris.coords.DimCoord(
+        forecast_ref_time_points,
+        standard_name=um2nc.FORECAST_REFERENCE_TIME,
+        units=unit,
+    )
 
 
 # FIXME: unit.calendar needs updating as per:
@@ -1168,13 +1223,10 @@ def forecast_ref_time_coord(forecast_ref_time_points):
 @pytest.fixture
 def time_coord(time_points):
     # units data ripped from aiihca data file
-    unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00",
-                         calendar=cf_units.CALENDAR_GREGORIAN)
+    unit = cf_units.Unit(unit="hours since 1970-01-01 00:00:00", calendar=cf_units.CALENDAR_GREGORIAN)
     assert unit.calendar == cf_units.CALENDAR_STANDARD
 
-    return iris.coords.DimCoord(time_points,
-                                standard_name=um2nc.TIME,
-                                units=unit)
+    return iris.coords.DimCoord(time_points, standard_name=um2nc.TIME, units=unit)
 
 
 def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
@@ -1187,8 +1239,7 @@ def test_fix_forecast_reference_time_exit_on_missing_ref_time(forecast_cube):
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
 
-def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
-                                                          forecast_ref_time_coord):
+def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube, forecast_ref_time_coord):
     # verify fix_forecast_ref_time() exits early if the coord is missing
     forecast_cube.aux_update_coords([forecast_ref_time_coord])
 
@@ -1200,17 +1251,12 @@ def test_fix_forecast_reference_time_exit_on_missing_time(forecast_cube,
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
 
-def test_fix_forecast_reference_time_standard(forecast_cube,
-                                              forecast_ref_time_coord,
-                                              time_coord):
+def test_fix_forecast_reference_time_standard(forecast_cube, forecast_ref_time_coord, time_coord):
     # TODO: executes part of the ref time fix code
     # TODO: needs to assert the changes!
-    forecast_period = iris.coords.DimCoord([372.0],
-                                           standard_name=um2nc.FORECAST_PERIOD)
+    forecast_period = iris.coords.DimCoord([372.0], standard_name=um2nc.FORECAST_PERIOD)
 
-    forecast_cube.aux_update_coords([forecast_ref_time_coord,
-                                     time_coord,
-                                     forecast_period])
+    forecast_cube.aux_update_coords([forecast_ref_time_coord, time_coord, forecast_period])
 
     assert um2nc.fix_forecast_reference_time(forecast_cube) is None
 
@@ -1219,17 +1265,13 @@ def test_fix_forecast_reference_time_standard(forecast_cube,
 
 
 @pytest.mark.skip
-def test_fix_forecast_reference_time_gregorian(forecast_cube,
-                                               forecast_ref_time_coord,
-                                               time_coord):
+def test_fix_forecast_reference_time_gregorian(forecast_cube, forecast_ref_time_coord, time_coord):
     msg = "Is time.units.calendar == 'gregorian' branch & testing required?"
     raise NotImplementedError(msg)
 
 
 @pytest.mark.skip
-def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube,
-                                                         forecast_ref_time_coord,
-                                                         time_coord):
+def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube, forecast_ref_time_coord, time_coord):
     msg = "Is time.units.calendar == 'proleptic_gregorian' branch & testing required?"
     raise NotImplementedError(msg)
 
@@ -1237,21 +1279,24 @@ def test_fix_forecast_reference_time_proleptic_gregorian(forecast_cube,
 @pytest.mark.parametrize(
     "cube_data, expected_fill_val",
     [
-        (np.array([1.1, 2.1], dtype="float32"),
-         np.float32(um2nc.DEFAULT_FILL_VAL_FLOAT)),
-        (np.array([1.1, 2.1], dtype="float64"),
-         np.float64(um2nc.DEFAULT_FILL_VAL_FLOAT)),
-        (np.array([1.1, 2.1], dtype="complex64"),
-         np.complex64(netCDF4.default_fillvals["c8"])),
-        (np.array([1, 2], dtype="int32"),
-         np.int32(netCDF4.default_fillvals["i4"])),
-        (np.array([1, 2], dtype="int64"),
-         np.int64(netCDF4.default_fillvals["i8"]))
-    ]
+        (
+            np.array([1.1, 2.1], dtype="float32"),
+            np.float32(um2nc.DEFAULT_FILL_VAL_FLOAT),
+        ),
+        (
+            np.array([1.1, 2.1], dtype="float64"),
+            np.float64(um2nc.DEFAULT_FILL_VAL_FLOAT),
+        ),
+        (
+            np.array([1.1, 2.1], dtype="complex64"),
+            np.complex64(netCDF4.default_fillvals["c8"]),
+        ),
+        (np.array([1, 2], dtype="int32"), np.int32(netCDF4.default_fillvals["i4"])),
+        (np.array([1, 2], dtype="int64"), np.int64(netCDF4.default_fillvals["i8"])),
+    ],
 )
 def test_fix_fill_value_defaults(cube_data, expected_fill_val):
-    """
-    Check that correct default fill values are found based
+    """Check that correct default fill values are found based
     on a cube's data's type.
     """
     fake_cube = DummyCube(12345, "fake_var")

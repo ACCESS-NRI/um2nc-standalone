@@ -1,5 +1,4 @@
-"""
-UM to NetCDF Standalone (um2netcdf).
+"""UM to NetCDF Standalone (um2netcdf).
 
 um2netcdf is a standalone module to convert Unified Model Fields Files to NetCDF
 format, applying several modifications to format the output data. This project
@@ -10,26 +9,24 @@ Note that um2netcdf depends on the following data access libraries:
 * Iris https://github.com/SciTools/iris
 """
 
-import os
 import argparse
-import datetime
-import warnings
 import collections
+import datetime
+import os
+import warnings
 
-import umpost
-from umpost import stashvar_cmip6 as stashvar
-
-import mule
-import numpy as np
-import cftime
 import cf_units
-import netCDF4
-
-import iris.util
+import cftime
 import iris.exceptions
+import iris.util
+import mule
+import netCDF4
+import numpy as np
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
+import umpost
+from umpost import stashvar_cmip6 as stashvar
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -45,7 +42,10 @@ LONGITUDE = "longitude"
 LATITUDE = "latitude"
 
 # Bounds for global single cells
-GLOBAL_COORD_BOUNDS = {LONGITUDE: np.array([[0.0, 360.0]]), LATITUDE: np.array([[-90.0, 90.0]])}
+GLOBAL_COORD_BOUNDS = {
+    LONGITUDE: np.array([[0.0, 360.0]]),
+    LATITUDE: np.array([[-90.0, 90.0]]),
+}
 
 NUM_LAT_RIVER_GRID_POINTS = 180
 NUM_LON_RIVER_GRID_POINTS = 360
@@ -57,7 +57,12 @@ VAR_NAME_LON_U = "lon_u"
 VAR_NAME_LAT_STANDARD = "lat"
 VAR_NAME_LON_STANDARD = "lon"
 
-NC_FORMATS = {1: "NETCDF3_CLASSIC", 2: "NETCDF3_64BIT", 3: "NETCDF4", 4: "NETCDF4_CLASSIC"}
+NC_FORMATS = {
+    1: "NETCDF3_CLASSIC",
+    2: "NETCDF3_64BIT",
+    3: "NETCDF4",
+    4: "NETCDF4_CLASSIC",
+}
 
 MODEL_LEVEL_NUM = "model_level_number"
 MODEL_RHO_LEVEL = "model_rho_level_number"
@@ -86,8 +91,7 @@ class PostProcessingError(Exception):
 
 
 class UnsupportedTimeSeriesError(PostProcessingError):
-    """
-    Error to be raised when latitude and longitude coordinates
+    """Error to be raised when latitude and longitude coordinates
     are missing.
     """
 
@@ -113,8 +117,7 @@ PPField.calendar = pg_calendar
 
 
 def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
-    """
-    Add a 'var_name' attribute to a latitude coordinate object
+    """Add a 'var_name' attribute to a latitude coordinate object
     based on the grid it lies on.
 
     NB - Grid spacing dlon only refers to variables on the main
@@ -125,8 +128,8 @@ def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     lat_coordinate: coordinate object from iris cube (edits in place).
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
-    """
 
+    """
     if lat_coordinate.name() != LATITUDE:
         raise ValueError(f"Wrong coordinate {lat_coordinate.name()} supplied. " f"Expected {LATITUDE}.")
 
@@ -139,8 +142,7 @@ def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
 
 
 def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
-    """
-    Add a 'var_name' attribute to a longitude coordinate object
+    """Add a 'var_name' attribute to a longitude coordinate object
     based on the grid it lies on.
 
     NB - Grid spacing dlon only refers to variables on the main
@@ -151,8 +153,8 @@ def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
     lon_coordinate: coordinate object from iris cube (edits in place).
     grid_type: (string) model horizontal grid type.
     dlon: (float) zonal spacing between longitude grid points.
-    """
 
+    """
     if lon_coordinate.name() != LONGITUDE:
         raise ValueError(f"Wrong coordinate {lon_coordinate.name()} supplied. " f"Expected {LATITUDE}.")
 
@@ -165,37 +167,36 @@ def fix_lon_coord_name(lon_coordinate, grid_type, dlon):
 
 
 def is_lat_river_grid(latitude_points):
-    """
-    Check whether latitude points are on the river routing grid.
+    """Check whether latitude points are on the river routing grid.
 
     Parameters
     ----------
     latitude_points: (array) 1D array of latitude grid points.
+
     """
     return len(latitude_points) == NUM_LAT_RIVER_GRID_POINTS
 
 
 def is_lon_river_grid(longitude_points):
-    """
-    Check whether longitude points are on the river routing grid.
+    """Check whether longitude points are on the river routing grid.
 
     Parameters
     ----------
     longitude_points: (array) 1D array of longitude grid points.
-    """
 
+    """
     return len(longitude_points) == NUM_LON_RIVER_GRID_POINTS
 
 
 def is_lat_v_grid(latitude_points, grid_type, dlat):
-    """
-    Check whether latitude points are on the lat_v grid.
+    """Check whether latitude points are on the lat_v grid.
 
     Parameters
     ----------
     latitude_points: (array) 1D array of latitude grid points.
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
+
     """
     min_latitude = latitude_points[0]
     min_lat_v_nd_grid = -90.0 + 0.5 * dlat
@@ -210,14 +211,14 @@ def is_lat_v_grid(latitude_points, grid_type, dlat):
 
 
 def is_lon_u_grid(longitude_points, grid_type, dlon):
-    """
-    Check whether longitude points are on the lon_u grid.
+    """Check whether longitude points are on the lon_u grid.
 
     Parameters
     ----------
     longitude_points: (array) 1D array of longitude grid points.
     grid_type: (string) model horizontal grid type.
     dlon: (float) zonal spacing between longitude grid points.
+
     """
     min_longitude = longitude_points[0]
     min_lon_u_nd_grid = 0.5 * dlon
@@ -232,13 +233,13 @@ def is_lon_u_grid(longitude_points, grid_type, dlon):
 
 
 def add_latlon_coord_bounds(cube_coordinate):
-    """
-    Add bounds to horizontal coordinate (longitude or latitude) if
+    """Add bounds to horizontal coordinate (longitude or latitude) if
     they don't already exist. Edits coordinate in place.
 
     Parameters
     ----------
     cube_coordinate: coordinate object from iris cube.
+
     """
     coordinate_name = cube_coordinate.name()
     if coordinate_name not in [LONGITUDE, LATITUDE]:
@@ -255,8 +256,7 @@ def add_latlon_coord_bounds(cube_coordinate):
 
 
 def fix_latlon_coords(cube, grid_type, dlat, dlon):
-    """
-    Wrapper function to modify cube's horizontal coordinates
+    """Wrapper function to modify cube's horizontal coordinates
     (latitude and longitude). Converts to float64, adds grid bounds,
     and renames coordinates. Modifies cube in place.
 
@@ -269,8 +269,8 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
     grid_type: (string) model horizontal grid type.
     dlat: (float) meridional spacing between latitude grid points.
     dlon: (float) zonal spacing between longitude grid points.
-    """
 
+    """
     try:
         latitude_coordinate = cube.coord(LATITUDE)
         longitude_coordinate = cube.coord(LONGITUDE)
@@ -290,8 +290,7 @@ def fix_latlon_coords(cube, grid_type, dlat, dlon):
 
 
 def get_default_fill_value(cube):
-    """
-    Get the default fill value for a cube's data's type.
+    """Get the default fill value for a cube's data's type.
 
     Parameters
     ----------
@@ -300,6 +299,7 @@ def get_default_fill_value(cube):
     Returns
     -------
     fill_value: numpy scalar with type matching cube.data
+
     """
     if cube.data.dtype.kind == "f":
         fill_value = DEFAULT_FILL_VAL_FLOAT
@@ -321,8 +321,7 @@ def get_default_fill_value(cube):
 
 
 def fix_fill_value(cube, custom_fill_value=None):
-    """
-    Set a cube's missing_value attribute and return the value
+    """Set a cube's missing_value attribute and return the value
     for later use.
 
     Parameters
@@ -334,6 +333,7 @@ def fix_fill_value(cube, custom_fill_value=None):
     Returns
     -------
     fill_value: Fill value to use when writing to netCDF.
+
     """
     if custom_fill_value is not None:
         msg = "Custom fill values are not currently implemented."
@@ -374,7 +374,13 @@ def cubewrite(cube, sman, compression, use64bit, verbose):
     # TODO: refactor & move to end of process()
     # TODO: refactor cubewrite() to return (cube, unlimited dims, fill value)
     #       then move above steps into process() / remove cubewrite()
-    sman.write(cube, zlib=True, complevel=compression, unlimited_dimensions=unlimited_dimensions, fill_value=fill_value)
+    sman.write(
+        cube,
+        zlib=True,
+        complevel=compression,
+        unlimited_dimensions=unlimited_dimensions,
+        fill_value=fill_value,
+    )
 
 
 # TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
@@ -463,8 +469,7 @@ def convert_proleptic(time):
 
 
 def fix_cell_methods(cell_methods):
-    """
-    Removes misleading 'hour' from interval naming, leaving other names intact.
+    """Removes misleading 'hour' from interval naming, leaving other names intact.
 
     TODO: is this an iris bug?
 
@@ -475,6 +480,7 @@ def fix_cell_methods(cell_methods):
     Returns
     -------
     A tuple of cell methods, with "hour" removed from interval names
+
     """
     return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments) for m in cell_methods)
 
@@ -515,7 +521,11 @@ def process(infile, outfile, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
-        warnings.filterwarnings(action="ignore", category=UserWarning, message=r"\sUnable to load STASHmaster")
+        warnings.filterwarnings(
+            action="ignore",
+            category=UserWarning,
+            message=r"\sUnable to load STASHmaster",
+        )
         ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
@@ -585,8 +595,7 @@ MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z
 
 # TODO: rename this function, it's *getting* variables
 def process_mule_vars(fields_file: mule.ff.FieldsFile):
-    """
-    Extract model levels and grid structure with Mule.
+    """Extract model levels and grid structure with Mule.
 
     The model levels help with workflow dimension naming.
 
@@ -597,6 +606,7 @@ def process_mule_vars(fields_file: mule.ff.FieldsFile):
     Returns
     -------
     A MuleVars data structure.
+
     """
     if isinstance(fields_file, mule.ancil.AncilFile):
         raise NotImplementedError("Ancillary files are currently not supported")
@@ -613,8 +623,7 @@ def process_mule_vars(fields_file: mule.ff.FieldsFile):
 
 
 def get_grid_type(ff):
-    """
-    Returns grid type from a fields file.
+    """Returns grid type from a fields file.
 
     Parameters
     ----------
@@ -623,6 +632,7 @@ def get_grid_type(ff):
     Returns
     -------
     String code for grid type, or raise a UMError.
+
     """
     staggering = ff.fixed_length_header.grid_staggering
 
@@ -635,8 +645,7 @@ def get_grid_type(ff):
 
 
 def get_grid_spacing(ff):
-    """
-    Helper function for accessing grid spacing variables.
+    """Helper function for accessing grid spacing variables.
 
     Parameters
     ----------
@@ -645,6 +654,7 @@ def get_grid_spacing(ff):
     Returns
     -------
     (row_spacing, column_spacing) tuple of floats.
+
     """
     try:
         return ff.real_constants.row_spacing, ff.real_constants.col_spacing
@@ -654,8 +664,7 @@ def get_grid_spacing(ff):
 
 
 def get_z_sea_constants(ff):
-    """
-    Helper function to obtain z axis/ocean altitude constants.
+    """Helper function to obtain z axis/ocean altitude constants.
 
     Z sea represents the geo-potential height of the free surface of the sea (the layer of water in
     contact with the atmosphere). Theta is the equivalent potential temperature, rho levels are ways
@@ -669,6 +678,7 @@ def get_z_sea_constants(ff):
     Returns
     -------
     (z_rho, z_theta) tuple of array of floating point values.
+
     """
     try:
         z_rho = ff.level_dependent_constants.zsea_at_rho
@@ -680,8 +690,7 @@ def get_z_sea_constants(ff):
 
 
 def to_item_code(stash_code):
-    """
-    Returns stash code (with section & item members) as a single integer "code".
+    """Returns stash code (with section & item members) as a single integer "code".
 
     Parameters
     ----------
@@ -690,6 +699,7 @@ def to_item_code(stash_code):
     Returns
     -------
     A single integer "item code".
+
     """
     return 1000 * stash_code.section + stash_code.item
 
@@ -700,8 +710,7 @@ def to_stash_code(item_code: int):
 
 
 def set_item_codes(cubes):
-    """
-    Add item code attribute to given cubes.
+    """Add item code attribute to given cubes.
 
     Iris cube objects lack a item_code attribute, a single integer value
     representing the combined stash/section code. This function converts the
@@ -718,8 +727,7 @@ def set_item_codes(cubes):
 
 
 def get_heaviside_cubes(cubes):
-    """
-    Finds heaviside_uv, heaviside_t cubes in given sequence.
+    """Finds heaviside_uv, heaviside_t cubes in given sequence.
 
     Parameters
     ----------
@@ -729,6 +737,7 @@ def get_heaviside_cubes(cubes):
     -------
     (heaviside_uv, heaviside_t) tuple, or None for either cube where the
         heaviside_uv/t cubes not found.
+
     """
     heaviside_uv = None
     heaviside_t = None
@@ -763,8 +772,7 @@ def is_heaviside_t(item_code):
 
 
 def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
-    """
-    Yields cubes that:
+    """Yields cubes that:
     * do not require pressure level masking
     * require pressure level masking & the relevant masking cube exists
 
@@ -776,6 +784,7 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     heaviside_uv : heaviside_uv cube or None if it's missing
     heaviside_t : heaviside_t cube or None if it's missing
     verbose : True to emit warnings to indicate a cube has been removed
+
     """
     msg = "{} field needed for masking pressure level data is missing. " "Excluding cube '{}' as it cannot be masked"
 
@@ -794,8 +803,7 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
 
 
 def filtered_cubes(cubes, include=None, exclude=None):
-    """
-    Generator filters & emits cubes by include or exclude lists.
+    """Generator filters & emits cubes by include or exclude lists.
 
     Include & exclude args are mutually exclusive. If neither include or exclude
     are specified, the generator yields the full cube list.
@@ -805,6 +813,7 @@ def filtered_cubes(cubes, include=None, exclude=None):
     cubes : Sequence of Iris Cube objects
     include: Sequence of item_code (int) to include (discarding all others)
     exclude: Sequence of item_code (int) to exclude (keeping all other cubes)
+
     """
     if include and exclude:
         msg = "Include and exclude lists are mutually exclusive"
@@ -833,14 +842,14 @@ def add_global_history(infile, iris_out):
 
 # TODO: refactor func sig to take exclusive simple OR unique name field?
 def fix_var_name(cube, um_unique_name, simple: bool):
-    """
-    Modify cube `var_name` attr to change naming for NetCDF output.
+    """Modify cube `var_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
     cube : iris cube to modify (changes the name in place)
     um_unique_name : the UM Stash unique name
     simple : True to replace var_name with "fld_s00i000" style name
+
     """
     if simple:
         stash_code = cube.attributes[STASH]
@@ -857,14 +866,14 @@ def fix_var_name(cube, um_unique_name, simple: bool):
 
 
 def fix_standard_name(cube, um_standard_name, verbose: bool):
-    """
-    Modify cube `standard_name` attr to change naming for NetCDF output.
+    """Modify cube `standard_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
     cube : iris cube to modify (changes the name in place)
     um_standard_name : the UM Stash standard name
     verbose : True to turn warnings on
+
     """
     stash_code = cube.attributes[STASH]
 
@@ -893,13 +902,13 @@ def fix_standard_name(cube, um_standard_name, verbose: bool):
 
 
 def fix_long_name(cube, um_long_name):
-    """
-    Modify cube `long_name` attr to change naming for NetCDF output.
+    """Modify cube `long_name` attr to change naming for NetCDF output.
 
     Parameters
     ----------
     cube : iris cube to modify (changes the name in place)
     um_long_name : the UM Stash long name
+
     """
     # Temporary work around for xconv
     if cube.long_name:
@@ -922,8 +931,7 @@ def fix_units(cube, um_var_units, verbose: bool):
 
 
 def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
-    """
-    Renames model_level_number coordinates to help distinguish rho/theta levels.
+    """Renames model_level_number coordinates to help distinguish rho/theta levels.
 
     Cubes without 'model_level_number' coordinates are skipped.
 
@@ -933,6 +941,7 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
     z_rho : geopotential height of the sea free surface
     z_theta : density (rho) of the air at sea level
     tol : height tolerance
+
     """
     # TODO: this is called once per cube and many lack the model_level_number
     #       coord. Is a potential optimisation possible from pre-specifying a
@@ -959,8 +968,7 @@ def fix_level_coord(cube, z_rho, z_theta, tol=1e-6):
 
 
 def fix_pressure_levels(cube, decimals=5):
-    """
-    Reformat pressure level data for NetCDF output.
+    """Reformat pressure level data for NetCDF output.
 
     This converts units, rounds small fractional errors & ensures pressure is
     decreasing (following the CMIP6 standard).
@@ -974,6 +982,7 @@ def fix_pressure_levels(cube, decimals=5):
     -------
     None if cube lacks pressure coord or is modified in place, otherwise a new
     cube if the pressure levels are reversed.
+
     """
     try:
         pressure = cube.coord("pressure")
@@ -999,8 +1008,7 @@ MIN_NP_INT32 = np.iinfo(np.int32).min
 
 
 def convert_32_bit(cube):
-    """
-    Convert 64 bit int/float data to 32 bit (in place).
+    """Convert 64 bit int/float data to 32 bit (in place).
 
     Parameters
     ----------
@@ -1009,6 +1017,7 @@ def convert_32_bit(cube):
     Warns
     -----
     RuntimeWarning : if the cube has data over 32-bit limits, causing an overflow.
+
     """
     if cube.data.dtype == "float64":
         cube.data = cube.data.astype(np.float32)
@@ -1031,8 +1040,7 @@ def convert_32_bit(cube):
 
 
 def fix_time_coord(cube, verbose):
-    """
-    Ensures cube has a 'time' coordinate dimension.
+    """Ensures cube has a 'time' coordinate dimension.
 
     Coordinate dimensions are reordered to ensure 'time' is the first dimension.
     Cubes are modified in place, although it is possible iris will return new
@@ -1047,6 +1055,7 @@ def fix_time_coord(cube, verbose):
     -------
     A (cube, unlimited_dimensions) tuple. Unlimited dimensions is None for
     ancillary files with no time dimension.
+
     """
     try:
         # If time is a dimension but not a coordinate dimension, coord_dims('time')
@@ -1102,15 +1111,36 @@ def parse_args():
         help="compression level (0=none, 9=max). Default 4",
     )
     parser.add_argument(
-        "--64", dest="use64bit", action="store_true", default=False, help="Use 64 bit netcdf for 64 bit input"
+        "--64",
+        dest="use64bit",
+        action="store_true",
+        default=False,
+        help="Use 64 bit netcdf for 64 bit input",
     )
     parser.add_argument(
-        "-v", "--verbose", dest="verbose", action="count", default=0, help="verbose output (-vv for extra verbose)"
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="count",
+        default=0,
+        help="verbose output (-vv for extra verbose)",
     )
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--include", dest="include_list", type=int, nargs="+", help="List of stash codes to include")
-    group.add_argument("--exclude", dest="exclude_list", type=int, nargs="+", help="List of stash codes to exclude")
+    group.add_argument(
+        "--include",
+        dest="include_list",
+        type=int,
+        nargs="+",
+        help="List of stash codes to include",
+    )
+    group.add_argument(
+        "--exclude",
+        dest="exclude_list",
+        type=int,
+        nargs="+",
+        help="List of stash codes to exclude",
+    )
 
     parser.add_argument(
         "--nomask",
@@ -1120,10 +1150,18 @@ def parse_args():
         help="Don't apply heaviside function mask to pressure level fields",
     )
     parser.add_argument(
-        "--nohist", dest="nohist", action="store_true", default=False, help="Don't update history attribute"
+        "--nohist",
+        dest="nohist",
+        action="store_true",
+        default=False,
+        help="Don't update history attribute",
     )
     parser.add_argument(
-        "--simple", dest="simple", action="store_true", default=False, help="Use a simple names of form fld_s01i123."
+        "--simple",
+        dest="simple",
+        action="store_true",
+        default=False,
+        help="Use a simple names of form fld_s01i123.",
     )
     parser.add_argument(
         "--hcrit",

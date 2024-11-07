@@ -1,0 +1,35 @@
+line-length = 120
+indent-width = 4
+
+[format]
+quote-style = "double"  
+indent-style = "space"
+
+[lint]
+select = [
+    # Pyflakes
+    "F",
+    # pycodestyle
+    "E",
+    # isort
+    "I",
+    # pep8-naming
+    "N",
+    # pydocstyle
+    "D",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # Pylint
+    "PL",
+    # Ruff-specific rules
+    "RUF",
+]
+
+ignore = [
+    # non-imperative-mood
+    "D401",
+]

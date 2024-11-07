@@ -17,6 +17,7 @@ dependencies:
     - netcdf4
     - numpy <2
     - pip
+    - pre-commit
     - pytest
     - pytest-cov
     - pylint #TODO: remove this after setting up linting with ruff

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-ESM1.5 conversion driver
+"""ESM1.5 conversion driver
 
 Wrapper script for automated fields file to netCDF conversion
 during ESM1.5 simulations. Runs conversion module
@@ -10,19 +9,19 @@ Adapted from Martin Dix's conversion driver for CM2:
 https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 """
 
-
-import os
-import collections
-import re
-import f90nml
-import warnings
-import traceback
 import argparse
+import collections
 import errno
+import os
+import re
+import traceback
+import warnings
 from pathlib import Path
-from umpost import um2netcdf
+
+import f90nml
 import mule
 
+from umpost import um2netcdf
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
 # https://github.com/ACCESS-NRI/um2nc-standalone/issues/17
@@ -50,8 +49,7 @@ FF_UNIT_SUFFIX = {
 
 
 def get_esm1p5_fields_file_pattern(run_id: str):
-    """
-    Generate regex pattern for finding current experiment's UM outputs.
+    """Generate regex pattern for finding current experiment's UM outputs.
 
     Parameters
     ----------
@@ -60,16 +58,14 @@ def get_esm1p5_fields_file_pattern(run_id: str):
     Returns
     -------
     fields_file_name_pattern: Regex pattern for matching fields file names.
-    """
 
+    """
     # For ESM1.5 simulations, files start with run_id + 'a' (atmosphere) +
     # '.' (absolute standard time convention) + 'p' (pp file).
     # See get_name.F90 in the UM7.3 source code for details.
 
     if len(run_id) != 5:
-        raise ValueError(
-            f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
-        )
+        raise ValueError(f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5")
 
     fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
 
@@ -77,8 +73,7 @@ def get_esm1p5_fields_file_pattern(run_id: str):
 
 
 def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
-    """
-    Get filepath for writing netCDF to based on fields file name and date.
+    """Get filepath for writing netCDF to based on fields file name and date.
 
     Parameters
     ----------
@@ -89,6 +84,7 @@ def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
     Returns
     -------
     nc_write_path : path for writing converted fields_file_path file.
+
     """
     fields_file_path = Path(fields_file_path)
     nc_write_dir = Path(nc_write_dir)
@@ -99,8 +95,7 @@ def get_nc_write_path(fields_file_path, nc_write_dir, date=None):
 
 
 def find_matching_fields_files(dir_contents, fields_file_name_pattern):
-    """
-    Find files in list of paths with names matching fields_file_name_pattern.
+    """Find files in list of paths with names matching fields_file_name_pattern.
     Used to find ESM1.5 UM outputs in a simulation output directory.
 
     Parameters
@@ -111,20 +106,16 @@ def find_matching_fields_files(dir_contents, fields_file_name_pattern):
     Returns
     -------
     fields_file_paths : subset of dir_contents with names matching fields_file_name_pattern.
-    """
 
+    """
     dir_contents = [Path(filepath) for filepath in dir_contents]
-    fields_file_paths = [
-        filepath for filepath in dir_contents
-        if re.match(fields_file_name_pattern, filepath.name)
-    ]
+    fields_file_paths = [filepath for filepath in dir_contents if re.match(fields_file_name_pattern, filepath.name)]
 
     return fields_file_paths
 
 
 def get_nc_filename(fields_file_name, date=None):
-    """
-    Format a netCDF output filename based on the input fields file name and
+    """Format a netCDF output filename based on the input fields file name and
     its date. Assumes fields_file_name follows ESM1.5's naming convention
     '{5 char run_id}.pa{unit}{date encoding}`.
 
@@ -138,13 +129,14 @@ def get_nc_filename(fields_file_name, date=None):
     Returns
     -------
     name: formated netCDF filename for writing output.
+
     """
     if date is None:
         return f"{fields_file_name}.nc"
 
-    # TODO: Use regex to extract stem and unit from filename to improve 
+    # TODO: Use regex to extract stem and unit from filename to improve
     # clarity, and for better handling of unexpected filenames.
-    stem = fields_file_name[0:FF_UNIT_INDEX + 1]
+    stem = fields_file_name[0 : FF_UNIT_INDEX + 1]
     unit = fields_file_name[FF_UNIT_INDEX]
 
     try:
@@ -153,7 +145,8 @@ def get_nc_filename(fields_file_name, date=None):
         warnings.warn(
             f"Unit code '{unit}' from filename f{fields_file_name} "
             "not recognized. Frequency information will not be added "
-            "to the netCDF filename.", RuntimeWarning
+            "to the netCDF filename.",
+            RuntimeWarning,
         )
         suffix = ""
 
@@ -162,8 +155,7 @@ def get_nc_filename(fields_file_name, date=None):
 
 
 def get_ff_date(fields_file_path):
-    """
-    Get the date from a fields file. To be used for naming output files.
+    """Get the date from a fields file. To be used for naming output files.
 
     Parameters
     ----------
@@ -173,16 +165,15 @@ def get_ff_date(fields_file_path):
     -------
     date_tuple : tuple of integers (yyyy,mm,dd) containing the fields
                  file's date.
+
     """
-    header = mule.FixedLengthHeader.from_file(
-                                            str(fields_file_path))
+    header = mule.FixedLengthHeader.from_file(str(fields_file_path))
 
     return header.t2_year, header.t2_month, header.t2_day  # pylint: disable=no-member
 
 
 def convert_fields_file_list(input_output_paths):
-    """
-    Convert group of fields files to netCDF, writing output in nc_write_dir.
+    """Convert group of fields files to netCDF, writing output in nc_write_dir.
 
     Parameters
     ----------
@@ -195,6 +186,7 @@ def convert_fields_file_list(input_output_paths):
                conversions.
     failed: list of tuples of form (input path, exception) for files which
             failed to convert due to an allowed exception.
+
     """
     succeeded = []
     failed = []
@@ -213,8 +205,7 @@ def convert_fields_file_list(input_output_paths):
 
 
 def format_successes(succeeded):
-    """
-    Format reports of successful conversions to be shared with user.
+    """Format reports of successful conversions to be shared with user.
 
     Parameters
     ----------
@@ -222,18 +213,17 @@ def format_successes(succeeded):
                conversions.
 
     Yields
-    -------
+    ------
     success_report: formatted report of successful conversion.
-    """
 
+    """
     for input_path, output_path in succeeded:
         success_report = f"Successfully converted {input_path} to {output_path}"
         yield success_report
 
 
 def format_failures(failed, quiet):
-    """
-    Format reports of conversions which failed with permitted exceptions.
+    """Format reports of conversions which failed with permitted exceptions.
 
     Parameters
     ----------
@@ -243,51 +233,40 @@ def format_failures(failed, quiet):
            full stack trace when true.
 
     Yields
-    -------
+    ------
     failure_report: Formatted reports of failed conversion.
+
     """
-
     if quiet:
-
         for fields_file_path, exception in failed:
-            failure_report = (
-                f"Failed to convert {fields_file_path}. Final reported error: \n"
-                f"{repr(exception)}"
-            )
+            failure_report = f"Failed to convert {fields_file_path}. Final reported error: \n" f"{exception!r}"
             yield failure_report
     else:
-
         for fields_file_path, exception in failed:
-            formatted_traceback = "".join(
-                traceback.format_exception(exception)
-            )
-            failure_report = (
-                f"Failed to convert {fields_file_path}. Final reported error: \n"
-                f"{formatted_traceback}"
-            )
+            formatted_traceback = "".join(traceback.format_exception(exception))
+            failure_report = f"Failed to convert {fields_file_path}. Final reported error: \n" f"{formatted_traceback}"
             yield failure_report
 
 
 def _resolve_path(path):
-    """
-    Resolve path for use in comparison. Ensure that symlinks, relative paths,
+    """Resolve path for use in comparison. Ensure that symlinks, relative paths,
     and home directories are expanded.
     """
     return os.path.realpath(os.path.expanduser(path))
 
 
 def filter_name_collisions(input_output_pairs):
-    """
-    Remove input/output pairs which have overlapping output paths.
+    """Remove input/output pairs which have overlapping output paths.
 
     Parameters
     ----------
     input_ouptut_pairs: iterator of tuples (input_path, output_path).
 
     Yields
-    -------
+    ------
     filtered_pairs: (input_path, output_path) tuples with unique
         output_path values.
+
     """
     # Convert to list to allow repeated traversal.
     input_output_pairs = list(input_output_pairs)
@@ -297,10 +276,7 @@ def filter_name_collisions(input_output_pairs):
 
     for input_path, output_path in input_output_pairs:
         if output_counts[_resolve_path(output_path)] != 1:
-            msg = (
-                f"Multiple inputs have same output path {output_path}.\n"
-                f"{input_path} will not be converted."
-            )
+            msg = f"Multiple inputs have same output path {output_path}.\n" f"{input_path} will not be converted."
             warnings.warn(msg)
             continue
 
@@ -308,8 +284,7 @@ def filter_name_collisions(input_output_pairs):
 
 
 def convert_esm1p5_output_dir(esm1p5_output_dir):
-    """
-    Driver function for converting ESM1.5 atmospheric outputs during a simulation.
+    """Driver function for converting ESM1.5 atmospheric outputs during a simulation.
 
     Parameters
     ----------
@@ -323,16 +298,14 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
                conversions.
     failed: list of tuples of form (filepath, exception) for files which failed
             to convert due to an allowed exception.
-    """
 
+    """
     esm1p5_output_dir = Path(esm1p5_output_dir)
 
     current_atm_output_dir = esm1p5_output_dir / "atmosphere"
 
     if not current_atm_output_dir.exists():
-        raise FileNotFoundError(
-            errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir
-        )
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), current_atm_output_dir)
 
     # Create a directory for writing netCDF files
     nc_write_dir = current_atm_output_dir / "netCDF"
@@ -345,9 +318,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
     atm_dir_contents = current_atm_output_dir.glob("*")
 
-    atm_dir_fields_files = find_matching_fields_files(
-        atm_dir_contents, fields_file_name_pattern
-    )
+    atm_dir_fields_files = find_matching_fields_files(atm_dir_contents, fields_file_name_pattern)
 
     if len(atm_dir_fields_files) == 0:
         warnings.warn(
@@ -368,8 +339,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
 
 
 def safe_removal(succeeded, failed):
-    """
-    Check whether any input files were reported as simultaneously
+    """Check whether any input files were reported as simultaneously
     successful and failed conversions. Return those that appear
     only as successes as targets for safe deletion.
 
@@ -383,6 +353,7 @@ def safe_removal(succeeded, failed):
     -------
     successful_only: set of input filepaths which appear in succeeded but
         not failed.
+
     """
     succeeded_inputs = {succeed_path for succeed_path, _ in succeeded}
     failed_inputs = {fail_path for fail_path, _ in failed}
@@ -391,25 +362,26 @@ def safe_removal(succeeded, failed):
 
 
 def parse_args():
-    """
-    Parse arguments given as list (args)
-    """
+    """Parse arguments given as list (args)"""
     parser = argparse.ArgumentParser()
+    parser.add_argument("current_output_dir", help="ESM1.5 output directory to be converted", type=str)
     parser.add_argument(
-        "current_output_dir", help="ESM1.5 output directory to be converted",
-        type=str
+        "--quiet",
+        "-q",
+        action="store_true",
+        help=(
+            "Report only final exception type and message for "
+            "allowed exceptions raised during conversion when "
+            "flag is included. Otherwise report full "
+            "stack trace."
+        ),
     )
-    parser.add_argument("--quiet", "-q", action="store_true",
-                        help=(
-                            "Report only final exception type and message for "
-                            "allowed exceptions raised during conversion when "
-                            "flag is included. Otherwise report full "
-                            "stack trace."
-                        )
-                        )
-    parser.add_argument("--delete-ff", "-d", action="store_true",
-                        help="Delete fields files upon successful conversion."
-                        )
+    parser.add_argument(
+        "--delete-ff",
+        "-d",
+        action="store_true",
+        help="Delete fields files upon successful conversion.",
+    )
 
     return parser.parse_args()
 
@@ -431,5 +403,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
