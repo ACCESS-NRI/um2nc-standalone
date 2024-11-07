@@ -1,16 +1,11 @@
-name: um2nc
-
 channels:
-    - conda-forge
     - accessnri
+    - conda-forge
     - coecms
-    - defaults
+    - nodefaults
 
 dependencies:
     - anaconda-client
     - conda-build
     - conda-verify
     - versioneer
-    - pylint
-    - pytest
-    - pytest-cov

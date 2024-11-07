@@ -1,0 +1,25 @@
+name: um2nc-dev
+
+channels:
+    - accessnri
+    - conda-forge
+    - coecms
+    - nodefaults
+
+
+dependencies:
+    - python >=3.10,<=3.12
+    - cf-units
+    - cftime
+    - f90nml
+    - ipykernel
+    - mule
+    - netcdf4
+    - numpy <2
+    - pip
+    - pytest
+    - pytest-cov
+    - pylint #TODO: remove this after setting up linting with ruff
+    - ruff
+    - scitools-iris
+    - versioneer
