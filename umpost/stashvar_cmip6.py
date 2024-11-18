@@ -4771,6 +4771,94 @@ atm_stashvar = {
     54968: ["CLOUD DROP. No. CONC. (m-3) CLIM", "", "", "", ""]
 }
 
+model_overwrites = {
+    # ESM1.x specific overwrites
+    ESM1PX: {
+       883: ["CASA SOIL ORDER (VALUE FROM 1 TO 12)", "", "", "", ""],
+       884: ["CASA NITROGEN DEPOSITION", "", "", "", ""],
+       885: ["CASA NITROGEN FIXATION", "", "", "", ""],
+       887: ["CASA PHOSPHORUS FROM DUST", "", "", "", ""],
+       888: ["CASA PHOSPHORUS FROM WEATHERING", "", "", "", ""],
+       893: ["CASA LEAF AREA INDEX", "", "", "", ""],
+       894: ["CASA PHENOLOGY PHASE", "", "", "", ""],
+       3173: ["soil (heterotrophic) respiration on tiles", "", "", "", ""],
+       3174: ["TRANSPIRATION FROM CABLE (ON TILES)", "", "", "", ""],
+       3835: ["PREVIOUS YEAR SURF FRACTIONS (TILES)", "", "", "", ""],
+       3851: ["CARBON POOL LABILE ON TILES", "", "", "", ""],
+       3852: ["CARBON POOL PLANT - LEAF ON TILES ", "", "", "", ""],
+       3853: ["CARBON POOL PLANT - WOOD ON TILES", "", "", "", ""],
+       3854: ["CARBON POOL PLANT - ROOT ON TILES", "", "", "", ""],
+       3855: ["CARBON POOL LITTER - METB ON TILES", "", "", "", ""],
+       3856: ["CARBON POOL LITTER - STR ON TILES", "", "", "", ""],
+       3857: ["CARBON POOL LITTER - CWD ON TILES", "", "", "", ""],
+       3858: ["CARBON POOL SOIL - MIC ON TILES", "", "", "", ""],
+       3859: ["CARBON POOL SOIL - SLOW ON TILES", "", "", "", ""],
+       3860: ["CARBON POOL SOIL - PASS ON TILES", "", "", "", ""],
+       3861: ["NITROGEN POOL PLANT - LEAF ON TILES", "", "", "", ""],
+       3862: ["NITROGEN POOL PLANT - WOOD ON TILES", "", "", "", ""],
+       3863: ["NITROGEN POOL PLANT - ROOT ON TILES", "", "", "", ""],
+       3864: ["NITROGEN POOL LITTER - METB ON TILES", "", "", "", ""],
+       3865: ["NITROGEN POOL LITTER - STR ON TILES", "", "", "", ""],
+       3866: ["NITROGEN POOL LITTER - CWD ON TILES", "", "", "", ""],
+       3867: ["NITROGEN POOL SOIL - MIC ON TILE", "", "", "", ""],
+       3868: ["NITROGEN POOL SOIL - SLOW ON TILES", "", "", "", ""],
+       3869: ["NITROGEN POOL SOIL - PASS ON TILES", "", "", "", ""],
+       3870: ["NITROGEN POOL SOIL MINIMUM (TILES)", "", "", "", ""],
+       3871: ["PHOSPHORUS POOL PLANT - LEAF (TILES)", "", "", "", ""],
+       3872: ["PHOSPHORUS POOL PLANT - WOOD (TILES)", "", "", "", ""],
+       3873: ["PHOSPHORUS POOL PLANT - ROOT (TILES)", "", "", "", ""],
+       3874: ["PHOSPHORUS POOL LITTER- METB (TILES)", "", "", "", ""],
+       3875: ["PHOSPHORUS POOL LITTER - STR (TILES)", "", "", "", ""],
+       3876: ["PHOSPHORUS POOL LITTER - CWD (TILES)", "", "", "", ""],
+       3877: ["PHOSPHORUS POOL SOIL - MIC (TILES)", "", "", "", ""],
+       3878: ["PHOSPHORUS POOL SOIL - SLOW (TILES)", "", "", "", ""],
+       3879: ["PHOSPHORUS POOL SOIL - PASS (TILES)", "", "", "", ""],
+       3880: ["PHOSPHORUS POOL SOIL LABILE (TILES)", "", "", "", ""],
+       3881: ["PHOSPHORUS POOL SOIL SORB ON TILES", "", "", "", ""],
+       3882: ["PHOSPHORUS POOL SOIL OCC ON TILES", "", "", "", ""],
+       3883: ["SOIL ORDER (VALUE FROM 1 TO 12)", "", "", "", ""],
+       3884: ["NITROGEN DEPOSITION", "", "", "", ""],
+       3885: ["NITROGEN FIXATION", "", "", "", ""],
+       3893: ["LEAF AREA INDEX (CASA-CNP GLAI)", "", "", "", ""],
+       3894: ["PHENOLOGY PHASE (CASA-CNP)", "", "", "", ""],
+       3895: ["WOOD FLUX CARBON    (CASA-CNP)", "", "", "", ""],
+       3896: ["WOOD FLUX NITROGEN    (CASA-CNP)", "", "", "", ""],
+       3897: ["WOOD FLUX PHOSPHOR    (CASA-CNP)", "", "", "", ""],
+       3898: ["WOOD HARVEST CARBON1(CASA-CNP)", "", "", "", ""],
+       3899: ["WOOD HARVEST CARBON2(CASA-CNP)", "", "", "", ""],
+       3900: ["WOOD HARVEST CARBON3(CASA-CNP)", "", "", "", ""],
+       3901: ["WOOD HARVEST NITROG1(CASA-CNP)", "", "", "", ""],
+       3902: ["WOOD HARVEST NITROG2(CASA-CNP)", "", "", "", ""],
+       3903: ["WOOD HARVEST NITROG3(CASA-CNP)", "", "", "", ""],
+       3904: ["WOOD HARVEST PHOSPH1(CASA-CNP)", "", "", "", ""],
+       3905: ["WOOD HARVEST PHOSPH2(CASA-CNP)", "", "", "", ""],
+       3906: ["WOOD HARVEST PHOSPH3(CASA-CNP)", "", "", "", ""],
+       3907: ["WOOD RESPIRA CARBON1(CASA-CNP)", "", "", "", ""],
+       3908: ["WOOD RESPIRA CARBON2(CASA-CNP)", "", "", "", ""],
+       3909: ["WOOD RESPIRA CARBON3(CASA-CNP)", "", "", "", ""],
+       3910: ["WOOD RESPIRA NITROG1(CASA-CNP)", "", "", "", ""],
+       3911: ["WOOD RESPIRA NITROG2(CASA-CNP)", "", "", "", ""],
+       3912: ["WOOD RESPIRA NITROG3(CASA-CNP)", "", "", "", ""],
+       3913: ["WOOD RESPIRA PHOSPH1(CASA-CNP)", "", "", "", ""],
+       3914: ["WOOD RESPIRA PHOSPH2(CASA-CNP)", "", "", "", ""],
+       3915: ["WOOD RESPIRA PHOSPH3(CASA-CNP)", "", "", "", ""],
+       3916: ["THIN RATIO FOR FOREST (CASA-CNP)", "", "", "", ""],
+       3917: ["NITROGEN NET RELEASE (CASA-CNP)", "", "", "", ""],
+       3918: ["NITROGEN LEACHING (CASA-CNP)", "", "", "", ""],
+       3919: ["NITROGEN UPTAKE (CASA-CNP)", "", "", "", ""],
+       3920: ["NITROGEN LOSS (CASA-CNP)", "", "", "", ""],
+    }
+
+    # CM2 specific overwrites
+    CM2: {}
+}
+
+
+
+cm2_stashvar = {
+#     2: ["U COMPNT OF WIND AFTER TIMESTEP", "ua", "m s-1", "eastward_wind", ""],
+#     3: ["V COMPNT OF WIND AFTER TIMESTEP", "va", "m s-1", "northward_wind", ""],
+}
 
 class StashVar:
 
