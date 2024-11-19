@@ -10,26 +10,24 @@ Note that um2netcdf depends on the following data access libraries:
 * Iris https://github.com/SciTools/iris
 """
 
-import os
 import argparse
-import datetime
-import warnings
 import collections
+import datetime
+import os
+import warnings
 
-import umpost
-from umpost import stashvar_cmip6 as stashvar
-
-import mule
-import numpy as np
-import cftime
 import cf_units
-import netCDF4
-
-import iris.util
+import cftime
 import iris.exceptions
+import iris.util
+import mule
+import netCDF4
+import numpy as np
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
+import umpost
+from umpost import stashvar_cmip6 as stashvar
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -350,33 +348,6 @@ def fix_fill_value(cube, custom_fill_value=None):
     return fill_value
 
 
-# TODO: split cube ops into functions, this will likely increase process() workflow steps
-def cubewrite(cube, sman, compression, use64bit, verbose):
-    # TODO: move into process() AND if a new cube is returned, swap into filtered cube list
-    cube = fix_pressure_levels(cube) or cube  # NB: use new cube if pressure points are modified
-
-    # TODO: flag warnings as an error for the driver script?
-    if not use64bit:
-        convert_32_bit(cube)
-
-    fill_value = fix_fill_value(cube)
-
-    fix_forecast_reference_time(cube)
-
-    # Check whether any of the coordinates is a pseudo-dimension with integer values and
-    # if so, reset to int32 to prevent problems with possible later conversion to netCDF3
-    for coord in cube.coords():
-        if coord.points.dtype == np.int64:
-            coord.points = coord.points.astype(np.int32)
-
-    cube, unlimited_dimensions = fix_time_coord(cube, verbose)
-
-    # TODO: refactor & move to end of process()
-    # TODO: refactor cubewrite() to return (cube, unlimited dims, fill value)
-    #       then move above steps into process() / remove cubewrite()
-    sman.write(cube, zlib=True, complevel=compression, unlimited_dimensions=unlimited_dimensions, fill_value=fill_value)
-
-
 # TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
 #     indicates these time functions can be simplified. Suggestion: modularise
 #     functionality to simplify logic:
@@ -519,8 +490,23 @@ def process(infile, outfile, args):
         ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
-
     cubes = iris.load(infile)
+
+    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
+        # Add global attributes
+        if not args.nohist:
+            add_global_history(infile, sman)
+
+        sman.update_global_attributes({"Conventions": "CF-1.6"})
+
+        for c, fill, dims in process_cubes(cubes, mv, args):
+            # if args.verbose:
+            #     print(c.name(), c.item_code)
+
+            sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+
+
+def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
@@ -537,7 +523,7 @@ def process(infile, outfile, args):
 
     if not cubes:
         print("No cubes left to process after filtering")
-        return cubes
+        return
 
     # cube processing & modification
     for c in cubes:
@@ -561,23 +547,26 @@ def process(infile, outfile, args):
             if require_heaviside_t(c.item_code) and heaviside_t:
                 apply_mask(c, heaviside_t, args.hcrit)
 
-    # cube output I/O
-    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
-        # Add global attributes
-        if not args.nohist:
-            add_global_history(infile, sman)
+        # TODO: some cubes lose item_code when replaced with new cubes
+        c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
 
-        sman.update_global_attributes({"Conventions": "CF-1.6"})
+        # TODO: flag warnings as an error for the driver script?
+        if not args.use64bit:
+            convert_32_bit(c)
 
-        for c in cubes:
-            if args.verbose:
-                print(c.name(), c.item_code)
+        fill_value = fix_fill_value(c)
+        fix_forecast_reference_time(c)
 
-            # TODO: split cubewrite ops into funcs & bring into process() workflow
-            #       or a sub process workflow function (like process_mule_vars())
-            cubewrite(c, sman, args.compression, args.use64bit, args.verbose)
+        # Check whether any of the coordinates is a pseudo-dimension with integer values and
+        # if so, reset to int32 to prevent problems with possible later conversion to netCDF3
+        for coord in c.coords():
+            if coord.points.dtype == np.int64:
+                coord.points = coord.points.astype(np.int32)
 
-    return cubes
+        # TODO: can item code get removed here when new cubes returned?
+        c, unlimited_dimensions = fix_time_coord(c, args.verbose)
+
+        yield c, fill_value, unlimited_dimensions
 
 
 MuleVars = collections.namedtuple("MuleVars", "grid_type, d_lat, d_lon, z_rho, z_theta")
