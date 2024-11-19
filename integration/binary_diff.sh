@@ -14,7 +14,7 @@
 #
 # If running on gadi, it is recommended to
 # use the intermediate size files, by setting UM2NC_TEST_DATA to
-# /g/data/vk83/testing/um2nc/integration-tests/intermediate
+# /g/data/vk83/testing/um2nc/integration-tests/intermediate/<latest-version>
 #
 # Requires nccmp to be installed: https://gitlab.com/remikz/nccmp
 # On gadi, nccmp is available via:
