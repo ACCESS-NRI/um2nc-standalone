@@ -98,3 +98,4 @@ python3 "$UM2NC_PROJ"/umpost/um2netcdf.py \
                                         "$out_mask_nc"
 
 diff_warn "$orig_mask_nc"  "$out_mask_nc"
+
