@@ -3,7 +3,6 @@
 # -----------------------------------------------------------------
 #
 # Basic binary compatibility test script for um2nc-standalone
-# Requires nccmp to be installed: https://gitlab.com/remikz/nccmp
 #
 # This script runs some basic tests to ensure binary compatibility
 # between Martix Dix's base script & changes introduced by the
@@ -16,6 +15,11 @@
 # If running on gadi, it is recommended to
 # use the intermediate size files, by setting UM2NC_TEST_DATA to
 # /g/data/vk83/testing/um2nc/integration-tests/intermediate
+#
+# Requires nccmp to be installed: https://gitlab.com/remikz/nccmp
+# On gadi, nccmp is available via:
+#
+#     module load nccmp
 #
 # -----------------------------------------------------------------
 # Terminal session setup
