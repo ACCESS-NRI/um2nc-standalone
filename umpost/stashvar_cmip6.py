@@ -4934,7 +4934,7 @@ class StashVar:
             self.uniquename = self.name
 
 
-def get_stashinfo(code, model):
+def get_stashinfo(code, model=None):
     """
     Get variable name and information for use in netCDF metadata.
 
