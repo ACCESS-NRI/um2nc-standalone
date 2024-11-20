@@ -197,6 +197,7 @@ def std_args():
     args.exclude_list = None
     args.simple = False
     args.verbose = False
+    args.model = None
     return args
 
 

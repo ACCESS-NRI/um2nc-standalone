@@ -3,6 +3,7 @@
 # Fifth field is a unique name suitable for filenames or creating multiple
 # variables in a single file
 
+
 atm_stashvar = {
     2: ["U COMPNT OF WIND AFTER TIMESTEP", "ua", "m s-1", "eastward_wind", ""],
     3: ["V COMPNT OF WIND AFTER TIMESTEP", "va", "m s-1", "northward_wind", ""],
@@ -4771,9 +4772,14 @@ atm_stashvar = {
     54968: ["CLOUD DROP. No. CONC. (m-3) CLIM", "", "", "", ""]
 }
 
+# Model choices for stashvar overwrites
+MODEL_ESM1PX = "ESM1PX"
+MODEL_CM2 = "CM2"
+
+
 model_overwrites = {
     # ESM1.x specific overwrites
-    ESM1PX: {
+    MODEL_ESM1PX: {
        883: ["CASA SOIL ORDER (VALUE FROM 1 TO 12)", "", "", "", ""],
        884: ["CASA NITROGEN DEPOSITION", "", "", "", ""],
        885: ["CASA NITROGEN FIXATION", "", "", "", ""],
@@ -4847,31 +4853,18 @@ model_overwrites = {
        3918: ["NITROGEN LEACHING (CASA-CNP)", "", "", "", ""],
        3919: ["NITROGEN UPTAKE (CASA-CNP)", "", "", "", ""],
        3920: ["NITROGEN LOSS (CASA-CNP)", "", "", "", ""],
-    }
+    },
 
     # CM2 specific overwrites
-    CM2: {}
+    MODEL_CM2: {}
 }
 
-
-
-cm2_stashvar = {
-#     2: ["U COMPNT OF WIND AFTER TIMESTEP", "ua", "m s-1", "eastward_wind", ""],
-#     3: ["V COMPNT OF WIND AFTER TIMESTEP", "va", "m s-1", "northward_wind", ""],
-}
 
 class StashVar:
 
-    def __init__(self, code, model=1):
-        # Allow this to be 0 to support some ancillary files
-        if model in [0, 1]:
-            # Should this be trapped so that we can return None?
-            try:
-                var = atm_stashvar[code]
-            except KeyError:
-                var = ["UNKNOWN VARIABLE", "", "", "", ""]
-        else:
-            raise Exception("Model type %d not supported at the moment" % model)
+    def __init__(self, code, model=None):
+        var = get_stashinfo(code, model)
+
         self.long_name = var[0]
         # Should there be a dictionary somewhere so this returns a unique
         # set of names? unique as an optional argument?
@@ -4886,3 +4879,32 @@ class StashVar:
             self.uniquename = var[4]
         else:
             self.uniquename = self.name
+
+
+def get_stashinfo(code, model):
+    """
+    Get variable name and information for use in netCDF metadata.
+
+    Parameters
+    ----------
+    code: integer stash code of form (1000*section + item)
+    model: Which model's name overwrites to use. When None, defaults
+    are used.
+    """
+    # Rely on shared defaults
+    if model is None:
+        try:
+            var = atm_stashvar[code]
+        except KeyError:
+            var = ["UNKNOWN VARIABLE", "", "", "", ""]
+
+    # Model specific overwrites selected
+    else:
+        model_specific_vars = model_overwrites[model]
+        try:
+            var = model_specific_vars[code]
+        except KeyError:
+            # Use defaults if no overwrite specified
+            var = get_stashinfo(code, model=None)
+
+    return var

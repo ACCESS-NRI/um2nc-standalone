@@ -527,7 +527,7 @@ def process_cubes(cubes, mv, args):
 
     # cube processing & modification
     for c in cubes:
-        st = stashvar.StashVar(c.item_code)
+        st = stashvar.StashVar(c.item_code, model=args.model)
         fix_var_name(c, st.uniquename, args.simple)
         fix_standard_name(c, st.standard_name, args.verbose)
         fix_long_name(c, st.long_name)
@@ -1120,6 +1120,18 @@ def parse_args():
         type=float,
         default=0.5,
         help=("Critical value of heavyside fn for pressure level" " masking (default=0.5)"),
+    )
+
+    parser.add_argument(
+        "--model",
+        dest="model",
+        default=None,
+        choices=[stashvar.MODEL_ESM1PX, stashvar.MODEL_CM2],
+        help=(
+            "Use variable names and metadata associated with a specific model."
+            f"Options: '{stashvar.MODEL_ESM1PX}', '{stashvar.MODEL_CM2}'\n"
+            "If omitted, shared defaults will be used."
+        )
     )
 
     parser.add_argument("infile", help="Input file")
