@@ -78,23 +78,21 @@ out_mask_nc=$UM2NC_PROJ/integration/mask.nc
 
 # execute nomask variant, pressure masking is turned OFF & all cubes are kept
 # TODO: capture error condition if conversion does not complete
-rm -f "$nomask_path"  # remove previous data
-um2nc
-                                        --nohist \
-                                        --nomask \
-                                        "$source_ff" \
-                                        "$out_nomask_nc"
+rm -f "$out_nomask_nc"  # remove previous data
+um2nc        --nohist \
+             --nomask \
+             "$source_ff" \
+             "$out_nomask_nc"
 
 diff_warn "$orig_nomask_nc"  "$out_nomask_nc"
 echo
 
 # execute pressure masking variant: cubes which cannot be pressure masked are dropped
 # TODO: capture error condition if conversion does not complete
-rm -f "$mask_path"  # remove previous data
-python3 "$UM2NC_PROJ"/umpost/um2netcdf.py \
-                                        --nohist \
-                                        "$source_ff" \
-                                        "$out_mask_nc"
+rm -f "$out_mask_nc"  # remove previous data
+um2nc        --nohist \
+             "$source_ff" \
+             "$out_mask_nc"
 
 diff_warn "$orig_mask_nc"  "$out_mask_nc"
 
