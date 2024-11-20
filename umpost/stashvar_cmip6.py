@@ -4780,13 +4780,13 @@ MODEL_CM2 = "CM2"
 model_overwrites = {
     # ESM1.x specific overwrites
     MODEL_ESM1PX: {
-       883: ["CASA SOIL ORDER (VALUE FROM 1 TO 12)", "", "", "", ""],
-       884: ["CASA NITROGEN DEPOSITION", "", "", "", ""],
-       885: ["CASA NITROGEN FIXATION", "", "", "", ""],
-       887: ["CASA PHOSPHORUS FROM DUST", "", "", "", ""],
-       888: ["CASA PHOSPHORUS FROM WEATHERING", "", "", "", ""],
-       893: ["CASA LEAF AREA INDEX", "", "", "", ""],
-       894: ["CASA PHENOLOGY PHASE", "", "", "", ""],
+       883: ["SOIL ORDER (VALUE FROM 1 TO 12)", "", "", "", ""],
+       884: ["NITROGEN DEPOSITION", "", "", "", ""],
+       885: ["NITROGEN FIXATION", "", "", "", ""],
+       887: ["PHOSPHORUS FROM DUST", "", "", "", ""],
+       888: ["PHOSPHORUS FROM WEATHERING", "", "", "", ""],
+       893: ["LEAF AREA INDEX (CASA-CNP GLAI)", "", "", "", ""],
+       894: ["PHENOLOGY PHASE (CASA-CNP)", "", "", "", ""],
        3173: ["soil (heterotrophic) respiration on tiles", "", "", "", ""],
        3174: ["TRANSPIRATION FROM CABLE (ON TILES)", "", "", "", ""],
        3835: ["PREVIOUS YEAR SURF FRACTIONS (TILES)", "", "", "", ""],
