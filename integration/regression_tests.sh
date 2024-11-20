@@ -5,8 +5,7 @@
 # Basic binary compatibility test script for um2nc-standalone
 #
 # This script runs some basic tests to ensure binary compatibility
-# between Martix Dix's base script & changes introduced by the
-# um2nc-standalone development effort.
+# between subsequent versions of the package.
 #
 # Three sets of reference data are available on gadi at
 # /g/data/vk83/testing/um2nc/integration-tests. Refer to
@@ -33,13 +32,13 @@
 # Script warns if there is a difference in netCDF data,
 # global attributes, or encodings.
 #
-# Asssumes UM2NC_TEST_DATA contains a fields file named "fields_file",
+# Assumes UM2NC_TEST_DATA contains a fields file named "fields_file",
 # and two netCDFs "reference_mask.nc", "reference_nomask.nc" which
 # will be compared against.
 #
 # NB: will display some um2nc output
 
-echo "Binary equivalence/backwards compatibility diff for um2nc-standalone"
+echo "Binary equivalence/backwards compatibility test for um2nc."
 
 if [ -z ${UM2NC_PROJ+x} ]; then
   echo "ERROR: set UM2NC_PROJ to um2nc-standalone project dir";
@@ -59,7 +58,7 @@ fi
 function diff_warn {
   # compare & warn if data, encodings, global attributes, metdatata,
   # and history do not match.
-  echo "Comparing $1 and $2"
+  echo "Comparing \"$1\" and \"$2\""
   nccmp -degh "$1" "$2"
 }
 
@@ -80,7 +79,7 @@ out_mask_nc=$UM2NC_PROJ/integration/mask.nc
 # execute nomask variant, pressure masking is turned OFF & all cubes are kept
 # TODO: capture error condition if conversion does not complete
 rm -f "$nomask_path"  # remove previous data
-python3 "$UM2NC_PROJ"/umpost/um2netcdf.py \
+um2nc
                                         --nohist \
                                         --nomask \
                                         "$source_ff" \
