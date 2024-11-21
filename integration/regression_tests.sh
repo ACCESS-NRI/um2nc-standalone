@@ -2,7 +2,7 @@
 
 # -----------------------------------------------------------------
 #
-# Basic binary compatibility test script for um2nc-standalone
+# Basic binary compatibility test script for um2nc
 #
 # This script runs some basic tests to ensure binary compatibility
 # between subsequent versions of the package.
@@ -11,49 +11,115 @@
 # /g/data/vk83/testing/um2nc/integration-tests. Refer to
 # /g/data/vk83/testing/um2nc/integration-tests/README.md for details.
 #
-# If running on gadi, it is recommended to
-# use the intermediate size files, by setting UM2NC_TEST_DATA to
-# /g/data/vk83/testing/um2nc/integration-tests/intermediate/<latest-version>
 #
 # Requires nccmp to be installed: https://gitlab.com/remikz/nccmp
 # On gadi, nccmp is available via:
 #
 #     module load nccmp
 #
-# -----------------------------------------------------------------
-# Terminal session setup
-# $ export UM2NC_PROJ=<um2nc-standalone git dir>
-# $ export UM2NC_TEST_DATA=<dir with test netCDFs>
-#
-# Usage:
-# cd <um2nc-standalone git dir>
-# ./integration/binary_diff.sh
 #
 # Script warns if there is a difference in netCDF data,
 # global attributes, or encodings.
 #
-# Assumes UM2NC_TEST_DATA contains a fields file named "fields_file",
-# and two netCDFs "reference_mask.nc", "reference_nomask.nc" which
-# will be compared against.
-#
 # NB: will display some um2nc output
+
+function usage {
+    echo "Basic binary compatibility test script for um2nc."
+    echo "Compares um2nc output against previous versions."
+    echo
+    echo "Usage: regression_tests.sh -o OUTPUT_DIR [-d DATA_CHOICE] [-v DATA_VERSION]"
+    echo
+    echo "Options"
+    echo "-o        Directory for writing netCDF output."
+    echo "-d        Choice of test reference data. Options: \"full\", \"intermediate\","
+    echo "          and \"light\". View INTEGRATION_README.md for details."
+    echo "          Default: \"intermediate\""
+    echo "-v        Version of test reference data to use. Options: \"2024.11.19\"."
+    echo "          View INTEGRATION_README.md for details."
+    echo "          Default: \"2024.11.19\""
+}
+
+TEST_DATA_PARENT_DIR=/g/data/vk83/testing/um2nc/integration-tests
+
+# Default values, overwritten by command line arguments if present:
+TEST_DATA_CHOICE_DEFAULT=intermediate
+TEST_DATA_VERSION_DEFAULT=2024.11.19
+
+while getopts ":-:d:ho:v:" opt; do
+    case ${opt} in
+        -)
+            case ${OPTARG} in
+                help)
+                    usage
+                    exit 0
+                ;;
+                *)
+                    echo "Invalid \"--${OPTARG}\" option." >&2
+                    usage
+                    exit 1
+                ;;
+            esac
+        ;;
+        d)
+            case ${OPTARG} in
+                full|intermediate|light)
+                    TEST_DATA_CHOICE=${OPTARG}
+                    ;;
+                *)
+                    echo "Invalid \"-${opt}\" option. Choose between \"full\", \"intermediate\" and \"light\"." >&2
+                    usage
+                    exit 1
+                ;;
+            esac
+        ;;
+        h)
+            usage
+            exit 0
+        ;;
+        o)
+            OUTPUT_DIR=${OPTARG}
+        ;;
+        v)
+            DATA_VERSION=${OPTARG}
+        ;;
+        :)
+            echo "Option \"-${OPTARG}\" requires an argument." >&2
+            usage
+            exit 1
+        ;;
+        \?)
+            echo "Invalid option: -${OPTARG}" >&2
+            usage
+            exit 1
+        ;;
+    esac
+done
+
+# Check options are valid
+if [ -z "${OUTPUT_DIR}" ]; then
+    echo "ERROR: output directory must be set using \"-o\"." >&2
+    usage
+    exit 1
+fi
+if [ ! -d "${OUTPUT_DIR}" ]; then
+    echo "ERROR: output directory \"${OUTPUT_DIR}\" does not exist." >&2
+    exit 1
+fi
+
+# Apply default data choice and version if not set
+echo "Using ${TEST_DATA_CHOICE:=${TEST_DATA_CHOICE_DEFAULT}} data."
+
+echo "Using version ${TEST_DATA_VERSION:=${TEST_DATA_VERSION_DEFAULT}} data."
+
+TEST_DATA_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
+
+if [ ! -d "${TEST_DATA_DIR}" ]; then
+    echo "ERROR: Test data directory \"${TEST_DATA_DIR}\" does not exist." >&2
+    exit 1
+fi
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
 
-if [ -z ${UM2NC_PROJ+x} ]; then
-  echo "ERROR: set UM2NC_PROJ to um2nc-standalone project dir";
-  exit
-fi
-
-if [ -z ${UM2NC_TEST_DATA+x} ]; then
-  echo "ERROR: set UM2NC_TEST_DATA to um2nc-standalone test data dir";
-  exit
-fi
-
-if [ ! -d "$UM2NC_TEST_DATA" ]; then
-  echo "ERROR: UM2NC_TEST_DATA dir does not exist";
-  exit
-fi
 
 function diff_warn {
   # compare & warn if data, encodings, global attributes, metdatata,
@@ -63,15 +129,15 @@ function diff_warn {
 }
 
 # input paths
-source_ff=$UM2NC_TEST_DATA/fields_file # base file to convert
+source_ff=$TEST_DATA_DIR/fields_file # base file to convert
 
 # Reference netCDF files
-orig_nomask_nc=$UM2NC_TEST_DATA/reference_nomask.nc
-orig_mask_nc=$UM2NC_TEST_DATA/reference_mask.nc
+orig_nomask_nc=$TEST_DATA_DIR/reference_nomask.nc
+orig_mask_nc=$TEST_DATA_DIR/reference_mask.nc
 
 # output paths
-out_nomask_nc=$UM2NC_PROJ/integration/nomask.nc
-out_mask_nc=$UM2NC_PROJ/integration/mask.nc
+out_nomask_nc=$OUTPUT_DIR/nomask.nc
+out_mask_nc=$OUTPUT_DIR/mask.nc
 
 # Common test options
 # All tests need --nohist otherwise diff fails on the hist comment date string
