@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# -----------------------------------------------------------------
-# Basic binary compatibility test script for um2nc
-#
+# Basic binary compatibility test script for um2nc.
 # See INTEGRATION_README.md for details on test usage, data and options.
+#
+# -----------------------------------------------------------------
+# Prepare options
 # -----------------------------------------------------------------
 
 function usage {
@@ -89,7 +90,7 @@ if [ ! -d "${OUTPUT_DIR}" ]; then
     exit 1
 fi
 
-# Apply default data choice and version if not set
+# Apply default data choice and version if not set.
 echo "Using ${TEST_DATA_CHOICE:=${TEST_DATA_CHOICE_DEFAULT}} data."
 
 echo "Using version ${TEST_DATA_VERSION:=${TEST_DATA_VERSION_DEFAULT}} data."
@@ -103,21 +104,24 @@ fi
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
 
-# Count the number of failed tests
-N_TESTS_FAILED=0
-
-# input paths
-source_ff=$TEST_DATA_DIR/fields_file # base file to convert
+# Input paths
+source_ff=$TEST_DATA_DIR/fields_file
 
 # Reference netCDF files
 orig_nomask_nc=$TEST_DATA_DIR/reference_nomask.nc
 orig_mask_nc=$TEST_DATA_DIR/reference_mask.nc
 
-# output paths
+# Output paths
 out_nomask_nc=$OUTPUT_DIR/nomask.nc
 out_mask_nc=$OUTPUT_DIR/mask.nc
 
-# Functions for running the tests
+# -----------------------------------------------------------------
+# Functions and variables for running the tests
+# -----------------------------------------------------------------
+
+# Count the number of failed tests.
+N_TESTS_FAILED=0
+
 function clean_output {
     echo "Removing test output files."
     rm $out_mask_nc
@@ -125,9 +129,9 @@ function clean_output {
 }
 
 function run_um2nc {
-    # Run um2nc conversion. Exit if conversion fails
+    # Run um2nc conversion. Exit if conversion fails.
     ifile="${@: -2:1}"
-    echo "Converting \"${ifile}.\""
+    echo "Converting \"${ifile}\"."
     um2nc "$@"
 
     if [ "$?" -ne 0 ]; then
@@ -140,7 +144,7 @@ function run_um2nc {
 function diff_warn {
     # compare & warn if data, encodings, global attributes, metdatata,
     # and history do not match.
-    echo "Comparing \"$1\" and \"$2\""
+    echo "Comparing \"$1\" and \"$2\"."
     nccmp -degh "$1" "$2"
     if [ "$?" -ne 0 ]; then
         (( N_TESTS_FAILED++ ))
@@ -149,11 +153,14 @@ function diff_warn {
     fi
 }
 
-# Common test options
-# All tests need --nohist otherwise diff fails on the hist comment date string
+# -----------------------------------------------------------------
+# Run the tests
+# -----------------------------------------------------------------
 
-# execute nomask variant, pressure masking is turned OFF & all cubes are kept
-# TODO: capture error condition if conversion does not complete
+# Common test options
+# All tests need --nohist otherwise diff fails on the hist comment date string.
+
+# Execute nomask variant, pressure masking is turned OFF & all cubes are kept.
 run_um2nc       --nohist \
              --nomask \
              "$source_ff" \
@@ -162,19 +169,18 @@ run_um2nc       --nohist \
 diff_warn "$orig_nomask_nc"  "$out_nomask_nc"
 echo
 
-# execute pressure masking variant: cubes which cannot be pressure masked are dropped
-# TODO: capture error condition if conversion does not complete
+# Execute pressure masking variant: cubes which cannot be pressure masked are dropped.
 run_um2nc        --nohist \
              "$source_ff" \
              "$out_mask_nc"
 
 diff_warn "$orig_mask_nc"  "$out_mask_nc"
 
-# Exit early if any comparisons failed
+# Exit early if any comparisons failed.
 if [ $N_TESTS_FAILED -ne 0 ]; then
-    echo "${N_TESTS_FAILED} comparisons failed. netCDFs will be left at ${OUTPUT_DIR}." &>2
+    echo "${N_TESTS_FAILED} comparisons failed. netCDF output will be left at ${OUTPUT_DIR}." &>2
     exit 1
 fi
 
-# Remove output netcdfs if tests successful
+# Remove output netCDF files if tests successful.
 clean_output
