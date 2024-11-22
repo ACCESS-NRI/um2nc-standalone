@@ -128,6 +128,7 @@ function clean_output {
     echo "Removing test output files."
     rm $out_mask_nc
     rm $out_nomask_nc
+    rm $out_hist_nc
 }
 
 function run_um2nc {
@@ -154,6 +155,7 @@ function diff_warn {
         (( N_TESTS_FAILED++ ))
     else
         echo "Files match."
+        echo
     fi
 }
 
@@ -169,7 +171,7 @@ run_um2nc    --nohist \
              "$out_nomask_nc"
 
 diff_warn -degh "$orig_nomask_nc"  "$out_nomask_nc"
-echo
+
 
 # Test 2:
 # Execute pressure masking variant: cubes which cannot be pressure masked are dropped.
@@ -178,7 +180,7 @@ run_um2nc    --nohist \
              "$out_mask_nc"
 
 diff_warn -degh "$orig_mask_nc"  "$out_mask_nc"
-echo
+
 
 # Test 3:
 # Run without --nohist flag, and ignore history in nccmp comparison
@@ -187,7 +189,7 @@ run_um2nc     \
              "$out_hist_nc"
 
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
-echo
+
 # Exit early if any comparisons failed.
 if [ $N_TESTS_FAILED -ne 0 ]; then
     echo "${N_TESTS_FAILED} comparisons failed. netCDF output will be left at ${OUTPUT_DIR}." &>2
