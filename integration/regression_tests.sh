@@ -120,13 +120,8 @@ fi
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
 
-
-function diff_warn {
-  # compare & warn if data, encodings, global attributes, metdatata,
-  # and history do not match.
-  echo "Comparing \"$1\" and \"$2\""
-  nccmp -degh "$1" "$2"
-}
+# Count the number of failed tests
+N_TESTS_FAILED=0
 
 # input paths
 source_ff=$TEST_DATA_DIR/fields_file # base file to convert
@@ -139,13 +134,44 @@ orig_mask_nc=$TEST_DATA_DIR/reference_mask.nc
 out_nomask_nc=$OUTPUT_DIR/nomask.nc
 out_mask_nc=$OUTPUT_DIR/mask.nc
 
+# Functions for running the tests
+function clean_output {
+    echo "Removing test output files."
+    rm $out_mask_nc
+    rm $out_nomask_nc
+}
+
+function run_um2nc {
+    # Run um2nc conversion. Exit if conversion fails
+    ifile="${@: -2:1}"
+    echo "Converting \"${ifile}.\""
+    um2nc "$@"
+
+    if [ "$?" -ne 0 ]; then
+        echo "Conversion of \"${ifile}\" failed. Exiting." >&2
+        clean_output
+        exit 1
+    fi
+}
+
+function diff_warn {
+    # compare & warn if data, encodings, global attributes, metdatata,
+    # and history do not match.
+    echo "Comparing \"$1\" and \"$2\""
+    nccmp -degh "$1" "$2"
+    if [ "$?" -ne 0 ]; then
+        (( N_TESTS_FAILED++ ))
+    else
+        echo "Files match."
+    fi
+}
+
 # Common test options
 # All tests need --nohist otherwise diff fails on the hist comment date string
 
 # execute nomask variant, pressure masking is turned OFF & all cubes are kept
 # TODO: capture error condition if conversion does not complete
-rm -f "$out_nomask_nc"  # remove previous data
-um2nc        --nohist \
+run_um2nc       --nohist \
              --nomask \
              "$source_ff" \
              "$out_nomask_nc"
@@ -155,10 +181,17 @@ echo
 
 # execute pressure masking variant: cubes which cannot be pressure masked are dropped
 # TODO: capture error condition if conversion does not complete
-rm -f "$out_mask_nc"  # remove previous data
-um2nc        --nohist \
+run_um2nc        --nohist \
              "$source_ff" \
              "$out_mask_nc"
 
 diff_warn "$orig_mask_nc"  "$out_mask_nc"
 
+# Exit early if any comparisons failed
+if [ $N_TESTS_FAILED -ne 0 ]; then
+    echo "${N_TESTS_FAILED} comparisons failed. netCDFs will be left at ${OUTPUT_DIR}." &>2
+    exit 1
+fi
+
+# Remove output netcdfs if tests successful
+clean_output
