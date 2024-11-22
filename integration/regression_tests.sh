@@ -1,27 +1,10 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------
-#
 # Basic binary compatibility test script for um2nc
 #
-# This script runs some basic tests to ensure binary compatibility
-# between subsequent versions of the package.
-#
-# Three sets of reference data are available on gadi at
-# /g/data/vk83/testing/um2nc/integration-tests. Refer to
-# /g/data/vk83/testing/um2nc/integration-tests/README.md for details.
-#
-#
-# Requires nccmp to be installed: https://gitlab.com/remikz/nccmp
-# On gadi, nccmp is available via:
-#
-#     module load nccmp
-#
-#
-# Script warns if there is a difference in netCDF data,
-# global attributes, or encodings.
-#
-# NB: will display some um2nc output
+# See INTEGRATION_README.md for details on test usage, data and options.
+# -----------------------------------------------------------------
 
 function usage {
     echo "Basic binary compatibility test script for um2nc."
