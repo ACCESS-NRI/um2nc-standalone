@@ -110,10 +110,12 @@ source_ff=$TEST_DATA_DIR/fields_file
 # Reference netCDF files
 orig_nomask_nc=$TEST_DATA_DIR/reference_nomask.nc
 orig_mask_nc=$TEST_DATA_DIR/reference_mask.nc
+orig_hist_nc=$TEST_DATA_DIR/reference_hist.nc
 
 # Output paths
 out_nomask_nc=$OUTPUT_DIR/nomask.nc
 out_mask_nc=$OUTPUT_DIR/mask.nc
+out_hist_nc=$OUTPUT_DIR/hist.nc
 
 # -----------------------------------------------------------------
 # Functions and variables for running the tests
@@ -142,10 +144,12 @@ function run_um2nc {
 }
 
 function diff_warn {
-    # compare & warn if data, encodings, global attributes, metdatata,
-    # and history do not match.
-    echo "Comparing \"$1\" and \"$2\"."
-    nccmp -degh "$1" "$2"
+    # compare & warn if files do not match. Use nccmp flags passed in
+    # as arguments.
+    file1="${@: -2:1}"
+    file2="${@: -1:1}"
+    echo "Comparing \"$file1\" and \"$file2\"."
+    nccmp "$@"
     if [ "$?" -ne 0 ]; then
         (( N_TESTS_FAILED++ ))
     else
@@ -157,25 +161,33 @@ function diff_warn {
 # Run the tests
 # -----------------------------------------------------------------
 
-# Common test options
-# All tests need --nohist otherwise diff fails on the hist comment date string.
-
+# Test 1:
 # Execute nomask variant, pressure masking is turned OFF & all cubes are kept.
-run_um2nc       --nohist \
+run_um2nc    --nohist \
              --nomask \
              "$source_ff" \
              "$out_nomask_nc"
 
-diff_warn "$orig_nomask_nc"  "$out_nomask_nc"
+diff_warn -degh "$orig_nomask_nc"  "$out_nomask_nc"
 echo
 
+# Test 2:
 # Execute pressure masking variant: cubes which cannot be pressure masked are dropped.
-run_um2nc        --nohist \
+run_um2nc    --nohist \
              "$source_ff" \
              "$out_mask_nc"
 
-diff_warn "$orig_mask_nc"  "$out_mask_nc"
+diff_warn -degh "$orig_mask_nc"  "$out_mask_nc"
+echo
 
+# Test 3:
+# Run without --nohist flag, and ignore history in nccmp comparison
+run_um2nc     \
+             "$source_ff" \
+             "$out_hist_nc"
+
+diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
+echo
 # Exit early if any comparisons failed.
 if [ $N_TESTS_FAILED -ne 0 ]; then
     echo "${N_TESTS_FAILED} comparisons failed. netCDF output will be left at ${OUTPUT_DIR}." &>2

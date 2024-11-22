@@ -21,12 +21,17 @@ Options:
 
 ## Data choices
 Three types of reference data are available for use in the tests, called "full",
-"intermediate", and "light".
+"intermediate", and "light". Each group of data contains a fields file, and
+netCDF files produced from converting the fields file using various `um2nc` options.
+The netCDF variants are:
+* `mask`: produced with the `--nohist` flag only.
+* `nomask`: produced with the `--nomask` and `--nohist` flags.
+* `hist`: produced with no flags. These files will have a conversion datestamp
+in their history attribute.
 
 ### Full
-The "full" data consists of an ESM1.5 output fields file,
-and reference netCDF files produced by previous versions of `um2nc`. Running tests
-with the "full" data is slower and more resource intensive.
+The "full" fields file is an output file from an ESM1.5 simulation.
+Running tests with the "full" data is slower and more resource intensive.
 
 ### Intermediate (default)
 The "intermediate" data contains a fields file, generated as a subset of the
@@ -45,9 +50,6 @@ In particular these variables are:
 * m01s08i223 Soil moisture on soil levels
 * m01s30i204 Temperature on PLEV grid (requires masking)
 * m01s30i301 Heaviside (used for masking)
-
-The "intermediate" data also contains reference netCDF files produced by previous
-versions of `um2nc`.
 
 ### Light
 The "light" data contains a minimal subset of variables from the "full" data
@@ -68,10 +70,5 @@ prior to the development of `um2nc`. This was accessed via the following commit:
 https://github.com/ACCESS-NRI/um2nc-standalone/commit/f62105b45eb39d2beed5a7ac71f439ff90f0f00c
 and conversion was run with the `payu1.1.5` environment active on gadi:
 https://github.com/ACCESS-NRI/payu-condaenv/releases/tag/1.1.5
-
-
-
-For each `um2nc` version, `nomask` and `mask` variants of the netCDF files
-were created with and without the `--nomask` flag during conversion.
 
 All test data is located at `/g/data/vk83/testing/um2nc/integration-tests`.
