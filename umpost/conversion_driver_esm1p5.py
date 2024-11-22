@@ -36,7 +36,7 @@ ARG_NAMES = collections.namedtuple(
 )
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False,
-                     stashvar.MODEL_ESM1PX)
+                     stashvar.STASHmaster.ACCESS_ESM1p5)
 
 
 # Character in filenames specifying the unit key

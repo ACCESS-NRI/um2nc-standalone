@@ -15,6 +15,7 @@ import collections
 import datetime
 import os
 import warnings
+from enum import Enum
 
 import cf_units
 import cftime
@@ -90,6 +91,34 @@ class UnsupportedTimeSeriesError(PostProcessingError):
     """
 
     pass
+
+
+# TODO: Move this to a separate helper file?
+class EnumAction(argparse.Action):
+    """
+    Argparse action for handling Enums.
+    It automatically produces choices based on the Enum values.
+    """
+
+    def __init__(self, **kwargs):
+        # Pop the 'type' keyword
+        enum_type = kwargs.pop("type", None)
+        # Ensure an Enum subclass is provided
+        if enum_type is None or not issubclass(enum_type, Enum):
+            raise TypeError(
+                f"The 'type' keyword must be assigned to Enum (or any Enum subclass) when using {self.__class__.__name__}."
+            )
+        # Generate choices from the Enum values
+        kwargs.setdefault("choices", tuple(e.value for e in enum_type))
+        # Call the argparse.Action constructor with the remaining keyword arguments
+        super().__init__(**kwargs)
+        # Store Enum subclass for use in the __call__ method
+        self._enum = enum_type
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        # Convert value to the associated Enum member
+        member = self._enum(value)
+        setattr(namespace, self.dest, member)
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -1125,13 +1154,13 @@ def parse_args():
     parser.add_argument(
         "--model",
         dest="model",
-        default=None,
-        choices=[stashvar.MODEL_ESM1PX, stashvar.MODEL_CM2],
+        type=stashvar.STASHmaster,
+        action=EnumAction,
         help=(
-            "Use variable names and metadata associated with a specific model."
-            f"Options: '{stashvar.MODEL_ESM1PX}', '{stashvar.MODEL_CM2}'\n"
-            "If omitted, shared defaults will be used."
-        )
+            "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
+            f"Options: {[v.value for v in stashvar.STASHmaster]}. "
+            "If omitted, the 'cmip6' STASHmaster will be used."
+        ),
     )
 
     parser.add_argument("infile", help="Input file")
