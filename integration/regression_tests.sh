@@ -17,16 +17,16 @@ function usage {
     echo "-d        Choice of test reference data. Options: \"full\", \"intermediate\","
     echo "          and \"light\". View INTEGRATION_README.md for details."
     echo "          Default: \"intermediate\""
-    echo "-v        Version of test reference data to use. Options: \"2024.11.19\"."
+    echo "-v        Version of test reference data to use. Options: \"v0\"."
     echo "          View INTEGRATION_README.md for details."
-    echo "          Default: \"2024.11.19\""
+    echo "          Default: \"v0\""
 }
 
 TEST_DATA_PARENT_DIR=/g/data/vk83/testing/um2nc/integration-tests
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
-TEST_DATA_VERSION_DEFAULT=2024.11.19
+TEST_DATA_VERSION_DEFAULT=v0
 
 while getopts ":-:d:ho:v:" opt; do
     case ${opt} in
