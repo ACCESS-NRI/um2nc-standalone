@@ -104,7 +104,7 @@ class EnumAction(argparse.Action):
         # Pop the 'type' keyword
         enum_type = kwargs.pop("type", None)
         # Ensure an Enum subclass is provided
-        if enum_type is None or not issubclass(enum_type, Enum):
+        if not enum_type or not issubclass(enum_type, Enum):
             raise TypeError(
                 f"The 'type' keyword must be assigned to Enum (or any Enum subclass) when using {self.__class__.__name__}."
             )
