@@ -28,7 +28,7 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 import umpost
-from umpost import stashvar_cmip6 as stashvar
+from umpost.stashmasters import StashVar, STASHmaster
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -556,7 +556,7 @@ def process_cubes(cubes, mv, args):
 
     # cube processing & modification
     for c in cubes:
-        st = stashvar.StashVar(c.item_code, model=args.model)
+        st = StashVar(c.item_code, model=args.model)
         fix_var_name(c, st.uniquename, args.simple)
         fix_standard_name(c, st.standard_name, args.verbose)
         fix_long_name(c, st.long_name)
@@ -1154,11 +1154,11 @@ def parse_args():
     parser.add_argument(
         "--model",
         dest="model",
-        type=stashvar.STASHmaster,
+        type=STASHmaster,
         action=EnumAction,
         help=(
             "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
-            f"Options: {[v.value for v in stashvar.STASHmaster]}. "
+            f"Options: {[v.value for v in STASHmaster]}. "
             "If omitted, the 'cmip6' STASHmaster will be used."
         ),
     )
