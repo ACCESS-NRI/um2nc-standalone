@@ -26,8 +26,8 @@ import numpy as np
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
-import umpost
-from umpost import stashvar_cmip6 as stashvar
+import um2nc
+from um2nc import stashvar_cmip6 as stashvar
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -813,7 +813,7 @@ def filtered_cubes(cubes, include=None, exclude=None):
 
 
 def add_global_history(infile, iris_out):
-    version = umpost.__version__
+    version = um2nc.__version__
     t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     um2nc_path = os.path.abspath(__file__)
     history = f"File {infile} converted with {um2nc_path} {version} at {t}"

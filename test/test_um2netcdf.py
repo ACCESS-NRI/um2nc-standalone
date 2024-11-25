@@ -7,7 +7,7 @@ import cf_units
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
-import umpost.um2netcdf as um2nc
+import um2nc.um2netcdf as um2nc
 
 import pytest
 import numpy as np
@@ -224,8 +224,8 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
-        mock.patch("umpost.um2netcdf.fix_fill_value"),
-        mock.patch("umpost.um2netcdf.fix_time_coord") as m_time_coord,
+        mock.patch("um2nc.um2netcdf.fix_fill_value"),
+        mock.patch("um2nc.um2netcdf.fix_time_coord") as m_time_coord,
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
@@ -258,8 +258,8 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
-        mock.patch("umpost.um2netcdf.fix_fill_value"),
-        mock.patch("umpost.um2netcdf.fix_time_coord") as m_time_coord,
+        mock.patch("um2nc.um2netcdf.fix_fill_value"),
+        mock.patch("um2nc.um2netcdf.fix_time_coord") as m_time_coord,
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
@@ -281,9 +281,9 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
-        mock.patch("umpost.um2netcdf.apply_mask"),  # TODO: eventually call real version
-        mock.patch("umpost.um2netcdf.fix_fill_value"),
-        mock.patch("umpost.um2netcdf.fix_time_coord") as m_time_coord,
+        mock.patch("um2nc.um2netcdf.apply_mask"),  # TODO: eventually call real version
+        mock.patch("um2nc.um2netcdf.fix_fill_value"),
+        mock.patch("um2nc.um2netcdf.fix_time_coord") as m_time_coord,
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
@@ -307,8 +307,8 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
-        mock.patch("umpost.um2netcdf.fix_fill_value"),
-        mock.patch("umpost.um2netcdf.fix_time_coord") as m_time_coord,
+        mock.patch("um2nc.um2netcdf.fix_fill_value"),
+        mock.patch("um2nc.um2netcdf.fix_time_coord") as m_time_coord,
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
