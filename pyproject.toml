@@ -14,7 +14,7 @@ license = { file = "LICENSE" }
 readme = "README.md"
 keywords = ["netCDF", "UM", "postprocessing"]
 dynamic = ["version"]
-requires-python = ">=3.10,<=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "cf-units",
     "cftime",
