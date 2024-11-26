@@ -101,6 +101,12 @@ class EnumAction(argparse.Action):
     """
 
     def __init__(self, **kwargs):
+        # If 'choices' were declared explicitely, raise an error
+        if "choices" in kwargs:
+            raise ValueError(
+                f"Cannot use 'choices' keyword together with {self.__class__.__name__}. "
+                f"Choices are automatically generated from the Enum values."
+            )
         # Pop the 'type' keyword
         enum_type = kwargs.pop("type", None)
         # Ensure an Enum subclass is provided

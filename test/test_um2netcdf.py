@@ -1303,6 +1303,19 @@ def test_enum_action_choices(enum_parser, test_enum):
     enum_action = [act for act in enum_parser._actions if act.dest == "enum"][0]
     assert enum_action.choices == tuple(c.value for c in test_enum)
 
+def test_enum_action_choices_set(test_enum):
+    """
+    Test that the EnumAction sets the correct choices.
+    """
+    parser = argparse.ArgumentParser()
+    with pytest.raises(ValueError):
+        parser.add_argument(
+            "--enum",
+            type=test_enum,
+            choices=['fake','choices',1,None],
+            action=um2nc.EnumAction,
+        )
+
 def test_enum_action_no_enum_type(enum_parser, test_enum):
     """
     Test that the EnumAction raises an error if type is not Enum.
