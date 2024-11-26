@@ -12,10 +12,12 @@ function usage {
         Basic binary compatibility test script for 'um2nc'.
         Compares 'um2nc' output against previous versions.
         
-        Usage: regression_tests.sh -o OUTPUT_DIR [-d DATA_CHOICE] [-v DATA_VERSION]
+        Usage: regression_tests.sh [-o OUTPUT_DIR] [-d DATA_CHOICE] [-v DATA_VERSION]
         
         Options:
-        -o    OUTPUT_DIR       Directory where to write the netCDF outputs.
+        -o    OUTPUT_DIR      Location to save netCDF output to. If absent, netCDF data will
+                              be written to a temporary directory, and removed upon successful
+                              completion of the tests.
         -d    DATA_CHOICE     Choice of test reference data. 
                                               Options: "full", "intermediate", "light".
                                               Default: "intermediate".
@@ -64,6 +66,7 @@ while getopts ":-:d:ho:v:" opt; do
         ;;
         o)
             OUTPUT_DIR=${OPTARG}
+            CLEAN_OUTPUT=false
         ;;
         v)
             DATA_VERSION=${OPTARG}
@@ -81,18 +84,9 @@ while getopts ":-:d:ho:v:" opt; do
     esac
 done
 
-# Check options are valid
-if [ -z "${OUTPUT_DIR}" ]; then
-    echo "ERROR: output directory must be set using \"-o\"." >&2
-    usage
-    exit 1
-fi
-if [ ! -d "${OUTPUT_DIR}" ]; then
-    echo "ERROR: output directory \"${OUTPUT_DIR}\" does not exist." >&2
-    exit 1
-fi
 
-# Apply default data choice and version if not set.
+
+# Apply default data choice, version, and output directory if not set.
 echo "Using ${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT} data."
 
 echo "Using data version \"${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}\"."
@@ -101,6 +95,13 @@ TEST_DATA_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
 if [ ! -d "${TEST_DATA_DIR}" ]; then
     echo "ERROR: Test data directory \"${TEST_DATA_DIR}\" does not exist." >&2
+    exit 1
+fi
+
+echo "Using output directory \"${OUTPUT_DIR:=$(mktemp -d)}\"
+
+if [ ! -d "${OUTPUT_DIR}" ]; then
+    echo "ERROR: Output directory \"${OUTPUT_DIR}\" does not exist." >&2
     exit 1
 fi
 
