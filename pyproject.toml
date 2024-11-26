@@ -14,7 +14,7 @@ license = { file = "LICENSE" }
 readme = "README.md"
 keywords = ["netCDF", "UM", "postprocessing"]
 dynamic = ["version"]
-requires-python = ">=3.10,<=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "cf-units",
     "cftime",
@@ -28,8 +28,8 @@ dependencies = [
 
 
 [project.scripts]
-esm1p5_convert_nc = "umpost.conversion_driver_esm1p5:main"
-um2nc = "umpost.um2netcdf:main"
+esm1p5_convert_nc = "um2nc.conversion_driver_esm1p5:main"
+um2nc = "um2nc.um2netcdf:main"
 
 [project.urls]
 Repository = "https://github.com/ACCESS-NRI/um2nc-standalone"
@@ -42,13 +42,16 @@ requires = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["umpost"]
+where = ["src"]
 namespaces = false
 
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
-versionfile_source = "umpost/_version.py"
-versionfile_build = "umpost/_version.py"
+versionfile_source = "src/um2nc/_version.py"
+versionfile_build = "um2nc/_version.py"
 tag_prefix = ""
-parentdir_prefix = "umpost-"
+parentdir_prefix = "um2nc-"
+
+[tool.pytest.ini_options]
+pythonpath = "src"

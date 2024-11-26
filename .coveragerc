@@ -2,7 +2,7 @@
 branch = True
 
 # skip coverage testing for external source files
-omit = umpost/_version.py
+omit = um2nc/_version.py
 
 [html]
 title = Coverage report: um2nc-standalone

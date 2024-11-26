@@ -55,7 +55,7 @@ The `um2nc-standalone` project uses `pytest` and `pytest-cov`.<br>
 To run the tests and generate print a coverage report (with missing lines) run:
 
 ```
-python3 -m pytest --cov-report=term-missing --cov=umpost
+python3 -m pytest --cov-report=term-missing --cov=um2nc
 ```
 > [!TIP]
 > To generate an HTML coverage report substitute `term-missing` with `html`.

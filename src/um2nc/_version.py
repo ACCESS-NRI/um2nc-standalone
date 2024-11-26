@@ -52,8 +52,8 @@ def get_config() -> VersioneerConfig:
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = ""
-    cfg.parentdir_prefix = "umpost-"
-    cfg.versionfile_source = "umpost/_version.py"
+    cfg.parentdir_prefix = "um2nc-"
+    cfg.versionfile_source = "um2nc/_version.py"
     cfg.verbose = False
     return cfg
 
