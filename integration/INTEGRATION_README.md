@@ -5,8 +5,9 @@ which compares conversion output between subsequent versions of the
 package. The script warns the user if the conversion output does
 not match an earlier version's reference output.
 
-The tests are designed to be run on gadi in a `um2nc` development environment,
-and require `nccmp` to be installed.
+The tests are designed to be run on Gadi within a Python environment where `um2nc` is installed as a development package (for instructions refer to the Installation paragraph in the README.md).
+The tests also require `nccmp` to be installed. 
+To make sure the `nccmp` requirement is satisfied, it is recommended to install `um2nc` within the `.conda/env_dev.yml` conda environment.
 
 Usage:
     regression_tests.sh -o OUTPUT_DIR [-d DATA_CHOICE] [-v DATA_VERSION]
@@ -15,7 +16,7 @@ Options:
     -d      Choice of test reference data. Options: "full", "intermediate",
             and "light".
             Default: "intermediate"
-    -v      Version of test reference data to use. Options: "v0".
+    -v      Version of test reference data to use. Options: "0".
             Default: "v0".
 
 
@@ -53,7 +54,7 @@ In particular these variables are:
 
 ### Light
 The "light" data contains a minimal subset of variables from the "full" data
-fields file, and can be used for faster but less in depth testing. It includes:
+fields file, and can be used for faster but less in-depth testing. It includes:
 
 * m01s30i204 Temperature on PLEV grid
 * m01s05i216 Precipitation
@@ -64,11 +65,11 @@ Available versions for comparison are:
 
 * `v0` (default)
 
-### `v0`
-The `v0` netCDF outputs were created using the `um2netcdf.py` script available
-prior to the development of `um2nc`. This was accessed via the following commit:
-https://github.com/ACCESS-NRI/um2nc-standalone/commit/f62105b45eb39d2beed5a7ac71f439ff90f0f00c
-and conversion was run with the `payu1.1.5` environment active on gadi:
+### Version `0`
+Version `0` netCDF outputs were created using the `um2netcdf.py` script available
+prior to the development of `um2nc`: https://github.com/ACCESS-NRI/um2nc-standalone/blob/f62105b45eb39d2beed5a7ac71f439ff90f0f00c/src/um2netcdf.py
+
+The conversion was performed within the following `payu1.1.5` environment, active on Gadi:
 https://github.com/ACCESS-NRI/payu-condaenv/releases/tag/1.1.5
 
-All test data is located at `/g/data/vk83/testing/um2nc/integration-tests`.
+All test data is located in `/g/data/vk83/testing/um2nc/integration-tests`.

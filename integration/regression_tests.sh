@@ -8,26 +8,28 @@
 # -----------------------------------------------------------------
 
 function usage {
-    echo "Basic binary compatibility test script for um2nc."
-    echo "Compares um2nc output against previous versions."
-    echo
-    echo "Usage: regression_tests.sh -o OUTPUT_DIR [-d DATA_CHOICE] [-v DATA_VERSION]"
-    echo
-    echo "Options"
-    echo "-o        Directory for writing netCDF output."
-    echo "-d        Choice of test reference data. Options: \"full\", \"intermediate\","
-    echo "          and \"light\". View INTEGRATION_README.md for details."
-    echo "          Default: \"intermediate\""
-    echo "-v        Version of test reference data to use. Options: \"v0\"."
-    echo "          View INTEGRATION_README.md for details."
-    echo "          Default: \"v0\""
+    cat <<- EOF
+        Basic binary compatibility test script for 'um2nc'.
+        Compares 'um2nc' output against previous versions.
+        
+        Usage: regression_tests.sh -o OUTPUT_DIR [-d DATA_CHOICE] [-v DATA_VERSION]
+        
+        Options:
+        -o    OUTPUT_DIR       Directory where to write the netCDF outputs.
+        -d    DATA_CHOICE     Choice of test reference data. 
+                                              Options: "full", "intermediate", "light".
+                                              Default: "intermediate".
+        -v    DATA_VERSION    Version of test reference data to use. 
+                                              Options: "0".
+                                              Default: latest release version
+        EOF
 }
 
 TEST_DATA_PARENT_DIR=/g/data/vk83/testing/um2nc/integration-tests
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
-TEST_DATA_VERSION_DEFAULT=v0
+TEST_DATA_VERSION_DEFAULT=0
 
 while getopts ":-:d:ho:v:" opt; do
     case ${opt} in
@@ -50,7 +52,7 @@ while getopts ":-:d:ho:v:" opt; do
                     TEST_DATA_CHOICE=${OPTARG}
                     ;;
                 *)
-                    echo "Invalid \"-${opt}\" option. Choose between \"full\", \"intermediate\" and \"light\"." >&2
+                    echo "\"-${opt} ${OPTARG}\" is not a valid test data option. Choose between \"full\", \"intermediate\" and \"light\"." >&2
                     usage
                     exit 1
                 ;;
@@ -91,9 +93,9 @@ if [ ! -d "${OUTPUT_DIR}" ]; then
 fi
 
 # Apply default data choice and version if not set.
-echo "Using ${TEST_DATA_CHOICE:=${TEST_DATA_CHOICE_DEFAULT}} data."
+echo "Using ${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT} data."
 
-echo "Using version ${TEST_DATA_VERSION:=${TEST_DATA_VERSION_DEFAULT}} data."
+echo "Using data version \"${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}\"."
 
 TEST_DATA_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
@@ -153,9 +155,6 @@ function diff_warn {
     nccmp "$@"
     if [ "$?" -ne 0 ]; then
         (( N_TESTS_FAILED++ ))
-    else
-        echo "Files match."
-        echo
     fi
 }
 
