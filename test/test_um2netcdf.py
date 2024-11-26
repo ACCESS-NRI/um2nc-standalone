@@ -1316,7 +1316,7 @@ def test_enum_action_choices_set(test_enum):
             action=um2nc.EnumAction,
         )
 
-def test_enum_action_no_enum_type(enum_parser, test_enum):
+def test_enum_action_no_enum_type():
     """
     Test that the EnumAction raises an error if type is not Enum.
     """

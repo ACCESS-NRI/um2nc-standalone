@@ -4957,12 +4957,10 @@ PRESET_STASHMASTERS = {
 }
 
 class StashVar:
-    def __init__(self, code, model=None):
-        if model is None:
-            model = STASHmaster.DEFAULT.value
-        self.stashmaster = PRESET_STASHMASTERS[model]
+    def __init__(self, code, stashmaster=None):
+        self.stashmaster = stashmaster or STASHmaster.DEFAULT.value
         try:
-            var = self.stashmaster[code]
+            var = PRESET_STASHMASTERS[self.stashmaster][code]
         except KeyError:
             var = ["UNKNOWN VARIABLE", "", "", "", ""]
 

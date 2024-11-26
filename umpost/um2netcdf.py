@@ -562,7 +562,7 @@ def process_cubes(cubes, mv, args):
 
     # cube processing & modification
     for c in cubes:
-        st = StashVar(c.item_code, model=args.model)
+        st = StashVar(c.item_code, stashmaster=args.model)
         fix_var_name(c, st.uniquename, args.simple)
         fix_standard_name(c, st.standard_name, args.verbose)
         fix_long_name(c, st.long_name)
