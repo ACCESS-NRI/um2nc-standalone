@@ -31,7 +31,7 @@ in their history attribute.
 
 ### Full
 The "full" fields file is an output file from an ESM1.5 simulation.
-Running tests with the "full" data is slower and more resource intensive.
+Running tests with the "full" data is slower and more resource-intensive.
 
 ### Intermediate (default)
 The "intermediate" data contains a fields file, generated as a subset of the
