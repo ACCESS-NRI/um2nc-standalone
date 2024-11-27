@@ -9,20 +9,20 @@
 
 function usage {
  cat <<- EOF
-        Basic binary compatibility test script for 'um2nc'.
-        Compares 'um2nc' output against previous versions.
+Basic binary compatibility test script for 'um2nc'.
+Compares 'um2nc' output against previous versions.
 
-        Usage: regression_tests.sh [-k, --keep] [-d DATA_CHOICE] [-v DATA_VERSION]
+Usage: regression_tests.sh [--keep] [-d DATA_CHOICE] [-v DATA_VERSION]
 
-        Options:
-        -k, --keep            Keep output netCDF data upon test completion. If absent, output
-                              netCDF data will only be kept for failed test sessions.
-        -d    DATA_CHOICE     Choice of test reference data. 
-                                              Options: "full", "intermediate", "light".
-                                              Default: "intermediate".
-        -v    DATA_VERSION    Version of test reference data to use. 
-                                              Options: "0".
-                                              Default: latest release version
+Options:
+-k, --keep            Keep output netCDF data upon test completion. 
+                      If absent, output netCDF data will only be kept for failed test sessions.
+-d    DATA_CHOICE     Choice of test reference data. 
+                      Options: "full", "intermediate", "light".
+                      Default: "intermediate".
+-v    DATA_VERSION    Version of test reference data to use. 
+                      Options: "0".
+                      Default: latest release version.
 EOF
 }
 
@@ -47,7 +47,7 @@ while getopts ":-:d:hkv:" opt; do
                     CLEAN_OUTPUT=false
                 ;;
                 *)
-                    echo "Invalid \"--${OPTARG}\" option." >&2
+                    echo "Invalid option: \"--${OPTARG}\"." >&2
                     usage
                     exit 1
                 ;;
@@ -81,7 +81,7 @@ while getopts ":-:d:hkv:" opt; do
             exit 1
         ;;
         \?)
-            echo "Invalid option: -${OPTARG}" >&2
+            echo "Invalid option: \"-${OPTARG}\"." >&2
             usage
             exit 1
         ;;
@@ -108,14 +108,13 @@ if [ ! -d "${TEST_DATA_INPUT_DIR}" ]; then
     exit 1
 fi
 
-echo "Using output directory \"${OUTPUT_DIR:=$(mktemp -d)}\"."
+OUTPUT_DIR=$(mktemp -d)
 
 if ! $CLEAN_OUTPUT; then
     echo "Using \"[-k --keep]\" option. netCDF output will be kept in \"${OUTPUT_DIR}\"."
 fi
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
-echo
 
 # Input paths
 source_ff=$TEST_DATA_INPUT_DIR/um2nc_input_data_${TEST_DATA_CHOICE}
@@ -159,7 +158,6 @@ function diff_warn {
     if [ "$?" -ne 0 ]; then
         FAILED_FILES+=($file1,$file2)
     fi
-    echo
 }
 
 # -----------------------------------------------------------------

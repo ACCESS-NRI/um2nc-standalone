@@ -39,8 +39,8 @@ Running tests with the "full" data is slower and more resource-intensive.
 ### Intermediate (default)
 The "intermediate" data contains a fields file, generated as a subset of the
 the variables from the "full" data. These variables were selected to ensure
-a variety of code paths in `um2nc` are used in the integration tests.
-In particular these variables are:
+different portions of code within `um2nc` are used in the integration tests.
+The included variables are:
 
 * m01s00i024 Surface temperature (a simple 2D field)
 * m01s00i407 Pressure on model rho levels
@@ -66,6 +66,7 @@ The `um2nc` version to compare against can be selected with the `-v` flag.
 If omitted, the tests will be performed against the latest released version.
 
 Available versions for comparison are:
+* 0
 
 ### Version `0`
 Version `0` netCDF outputs were created using the `um2netcdf.py` script available
