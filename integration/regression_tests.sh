@@ -154,7 +154,7 @@ function diff_warn {
     echo "Comparing \"$file1\" and \"$file2\"."
     nccmp "$@"
     if [ "$?" -ne 0 ]; then
-        (( N_TESTS_FAILED++ ))
+    FAILED_FILES+=($file1,$file2)
     fi
 }
 
@@ -190,8 +190,11 @@ run_um2nc     \
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
 
 # Exit early if any comparisons failed.
-if [ $N_TESTS_FAILED -ne 0 ]; then
-    echo "${N_TESTS_FAILED} comparisons failed. netCDF output will be left at ${OUTPUT_DIR}." &>2
+if [ -n "$FAILED_FILES" ]; then
+    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
+    for files in ${FAILED_FILES[@]}; do
+        echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
+    done
     exit 1
 fi
 
