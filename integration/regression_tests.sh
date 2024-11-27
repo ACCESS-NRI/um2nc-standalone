@@ -94,10 +94,17 @@ echo "Using ${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT} data."
 
 echo "Using data version \"${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}\"."
 
-TEST_DATA_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
+TEST_DATA_REFERENCE_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
-if [ ! -d "${TEST_DATA_DIR}" ]; then
-    echo "ERROR: Test data directory \"${TEST_DATA_DIR}\" does not exist." >&2
+if [ ! -d "${TEST_DATA_REFERENCE_DIR}" ]; then
+    echo "ERROR: Test reference data directory \"${TEST_DATA_REFERENCE_DIR}\" does not exist." >&2
+    exit 1
+fi
+
+TEST_DATA_INPUT_DIR=${TEST_DATA_PARENT_DIR}/input-data
+
+if [ ! -d "${TEST_DATA_INPUT_DIR}" ]; then
+    echo "ERROR: Test input data directory \"${TEST_DATA_INPUT_DIR}\" does not exist." >&2
     exit 1
 fi
 
@@ -111,12 +118,12 @@ echo "Binary equivalence/backwards compatibility test for um2nc."
 echo
 
 # Input paths
-source_ff=$TEST_DATA_DIR/fields_file
+source_ff=$TEST_DATA_INPUT_DIR/um2nc_input_data_${TEST_DATA_CHOICE}
 
 # Reference netCDF files
-orig_nomask_nc=$TEST_DATA_DIR/reference_nomask.nc
-orig_mask_nc=$TEST_DATA_DIR/reference_mask.nc
-orig_hist_nc=$TEST_DATA_DIR/reference_hist.nc
+orig_nomask_nc=$TEST_DATA_REFERENCE_DIR/reference_nomask.nc
+orig_mask_nc=$TEST_DATA_REFERENCE_DIR/reference_mask.nc
+orig_hist_nc=$TEST_DATA_REFERENCE_DIR/reference_hist.nc
 
 # Output paths
 out_nomask_nc=$OUTPUT_DIR/nomask.nc
