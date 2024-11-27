@@ -95,9 +95,9 @@ if [[ -n "${@:$OPTIND:1}" ]]; then
 fi
 
 # Apply default data choice, version, and output directory if not set.
-echo "Using ${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT} data."
+echo "Using \"${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT}\" data."
 
-echo "Using data version \"${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}\"."
+echo "Comparing to version \"${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}\"."
 
 TEST_DATA_REFERENCE_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
@@ -124,9 +124,6 @@ functrap() {
 trap "exit 2" SIGHUP SIGINT SIGQUIT SIGILL SIGABRT SIGTERM
 trap functrap EXIT
 
-if ! $CLEAN_OUTPUT; then
-    echo "Using \"[-k --keep]\" option. netCDF output will be kept in \"${OUTPUT_DIR}\"."
-fi
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
 
