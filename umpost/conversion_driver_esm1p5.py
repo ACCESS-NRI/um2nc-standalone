@@ -22,7 +22,7 @@ import errno
 from pathlib import Path
 from umpost import um2netcdf
 import mule
-import umpost.stashvar_cmip6 as stashvar
+from umpost.stashmasters import STASHmaster
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
@@ -36,7 +36,7 @@ ARG_NAMES = collections.namedtuple(
 )
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False,
-                     stashvar.MODEL_ESM1PX)
+                     STASHmaster.ACCESS_ESM1p5)
 
 
 # Character in filenames specifying the unit key
