@@ -11,13 +11,12 @@ function usage {
  cat <<- EOF
         Basic binary compatibility test script for 'um2nc'.
         Compares 'um2nc' output against previous versions.
-        
-        Usage: regression_tests.sh [-o OUTPUT_DIR] [-d DATA_CHOICE] [-v DATA_VERSION]
-        
+
+        Usage: regression_tests.sh [-k, --keep] [-d DATA_CHOICE] [-v DATA_VERSION]
+
         Options:
-        -o    OUTPUT_DIR      Location to save netCDF output to. If absent, netCDF data will
-                              be written to a temporary directory, and removed upon successful
-                              completion of the tests.
+        -k, --keep            Keep output netCDF data upon test completion. If absent, output
+                              netCDF data will only be kept for failed test sessions.
         -d    DATA_CHOICE     Choice of test reference data. 
                                               Options: "full", "intermediate", "light".
                                               Default: "intermediate".
@@ -34,14 +33,18 @@ TEST_DATA_PARENT_DIR=/g/data/vk83/testing/um2nc/integration-tests
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
 TEST_DATA_VERSION_DEFAULT=0
+CLEAN_OUTPUT=true
 
-while getopts ":-:d:ho:v:" opt; do
+while getopts ":-:d:hkv:" opt; do
     case ${opt} in
         -)
             case ${OPTARG} in
                 help)
                     usage
                     exit 0
+                ;;
+                keep)
+                    CLEAN_OUTPUT=false
                 ;;
                 *)
                     echo "Invalid \"--${OPTARG}\" option." >&2
@@ -66,8 +69,7 @@ while getopts ":-:d:ho:v:" opt; do
             usage
             exit 0
         ;;
-        o)
-            OUTPUT_DIR=${OPTARG}
+        k)
             CLEAN_OUTPUT=false
         ;;
         v)
@@ -87,7 +89,6 @@ while getopts ":-:d:ho:v:" opt; do
 done
 
 
-
 # Apply default data choice, version, and output directory if not set.
 echo "Using ${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT} data."
 
@@ -100,14 +101,14 @@ if [ ! -d "${TEST_DATA_DIR}" ]; then
     exit 1
 fi
 
-echo "Using output directory \"${OUTPUT_DIR:=$(mktemp -d)}\"
+echo "Using output directory \"${OUTPUT_DIR:=$(mktemp -d)}\"."
 
-if [ ! -d "${OUTPUT_DIR}" ]; then
-    echo "ERROR: Output directory \"${OUTPUT_DIR}\" does not exist." >&2
-    exit 1
+if ! $CLEAN_OUTPUT; then
+    echo "Using \"[-k --keep]\" option. netCDF output will be kept in \"${OUTPUT_DIR}\"."
 fi
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
+echo
 
 # Input paths
 source_ff=$TEST_DATA_DIR/fields_file
@@ -126,16 +127,6 @@ out_hist_nc=$OUTPUT_DIR/hist.nc
 # Functions and variables for running the tests
 # -----------------------------------------------------------------
 
-# Count the number of failed tests.
-N_TESTS_FAILED=0
-
-function clean_output {
-    echo "Removing test output files."
-    rm $out_mask_nc
-    rm $out_nomask_nc
-    rm $out_hist_nc
-}
-
 function run_um2nc {
     # Run um2nc conversion. Exit if conversion fails.
     ifile="${@: -2:1}"
@@ -144,7 +135,9 @@ function run_um2nc {
 
     if [ "$?" -ne 0 ]; then
         echo "Conversion of \"${ifile}\" failed. Exiting." >&2
-        clean_output
+        if $CLEAN_OUTPUT; then
+            rm -r $OUTPUT_DIR
+        fi
         exit 1
     fi
 }
@@ -157,8 +150,9 @@ function diff_warn {
     echo "Comparing \"$file1\" and \"$file2\"."
     nccmp "$@"
     if [ "$?" -ne 0 ]; then
-    FAILED_FILES+=($file1,$file2)
+        FAILED_FILES+=($file1,$file2)
     fi
+    echo
 }
 
 # -----------------------------------------------------------------
@@ -198,8 +192,11 @@ if [ -n "$FAILED_FILES" ]; then
     for files in ${FAILED_FILES[@]}; do
         echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
     done
+    echo "netCDF output will be kept in \"${OUTPUT_DIR}\"."
     exit 1
 fi
 
 # Remove output netCDF files if tests successful.
-clean_output
+if $CLEAN_OUTPUT; then
+        rm -rf $OUTPUT_DIR
+fi
