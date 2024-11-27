@@ -115,6 +115,15 @@ fi
 
 OUTPUT_DIR=$(mktemp -d)
 
+functrap() {
+    code="$?"
+    if ([ "$code" -eq 0 ] && $CLEAN_OUTPUT) || [ "$code" -eq 2 ]; then
+        rm -rf "$OUTPUT_DIR"
+    fi
+}
+trap "exit 2" SIGHUP SIGINT SIGQUIT SIGILL SIGABRT SIGTERM
+trap functrap EXIT
+
 if ! $CLEAN_OUTPUT; then
     echo "Using \"[-k --keep]\" option. netCDF output will be kept in \"${OUTPUT_DIR}\"."
 fi
@@ -146,9 +155,6 @@ function run_um2nc {
 
     if [ "$?" -ne 0 ]; then
         echo "Conversion of \"${ifile}\" failed. Exiting." >&2
-        if $CLEAN_OUTPUT; then
-            rm -r $OUTPUT_DIR
-        fi
         exit 1
     fi
 }
@@ -196,17 +202,13 @@ run_um2nc     \
 
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
 
-# Exit early if any comparisons failed.
-if [ -n "$FAILED_FILES" ]; then
-    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
-    for files in ${FAILED_FILES[@]}; do
-        echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
-    done
-    echo "netCDF output will be kept in \"${OUTPUT_DIR}\"."
-    exit 1
-fi
-
-# Remove output netCDF files if tests successful.
-if $CLEAN_OUTPUT; then
-        rm -rf $OUTPUT_DIR
-fi
+if [ -n "$FAILED_FILES" ]; then # If any comparisons failed
+	    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
+	    for files in ${FAILED_FILES[@]}; do
+	        echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
+	    done
+	    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+	    exit 1
+	elif ! $CLEAN_OUTPUT; then # If tests successful and '--keep' option present
+	    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+	fi
