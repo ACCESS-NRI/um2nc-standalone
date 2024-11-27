@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------
 
 function usage {
-    cat <<- EOF
+ cat <<- EOF
         Basic binary compatibility test script for 'um2nc'.
         Compares 'um2nc' output against previous versions.
         
@@ -24,8 +24,10 @@ function usage {
         -v    DATA_VERSION    Version of test reference data to use. 
                                               Options: "0".
                                               Default: latest release version
-        EOF
+EOF
 }
+
+
 
 TEST_DATA_PARENT_DIR=/g/data/vk83/testing/um2nc/integration-tests
 
