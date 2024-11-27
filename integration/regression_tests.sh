@@ -88,6 +88,11 @@ while getopts ":-:d:hkv:" opt; do
     esac
 done
 
+# Check that no additional arguments were passed.
+if [[ -n "${@:$OPTIND:1}" ]]; then
+    echo "Invalid positional argument: \"${@:$OPTIND:1}\"." >&2
+    exit 1
+fi
 
 # Apply default data choice, version, and output directory if not set.
 echo "Using ${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT} data."

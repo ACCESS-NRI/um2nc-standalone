@@ -10,11 +10,11 @@ The tests also require `nccmp` to be installed.
 To make sure the `nccmp` requirement is satisfied, it is recommended to install `um2nc` within the `.conda/env_dev.yml` conda environment.
 
 Usage:
-    regression_tests.sh [-k, --keep] [-d DATA_CHOICE] [-v DATA_VERSION]
+    regression_tests.sh [--keep] [-d DATA_CHOICE] [-v DATA_VERSION]
 
 Options:
-    -k, --keep            Keep output netCDF data upon test completion. If absent, output
-                          netCDF data will only be kept for failed test sessions.
+    -k, --keep            Keep output netCDF data upon test completion.
+                          If absent, output netCDF data will only be kept for failed test sessions. 
     -d    DATA_CHOICE     Choice of test reference data.
                                             Options: "full", "intermediate", "light".
                                             Default: "intermediate".
