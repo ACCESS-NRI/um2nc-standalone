@@ -26,11 +26,6 @@ Options:
 Three types of reference data are available for use in the tests, called "full",
 "intermediate", and "light". Each group of data contains a fields file, and
 netCDF files produced from converting the fields file using various `um2nc` options.
-The netCDF variants are:
-* `mask`: produced with the `--nohist` flag only.
-* `nomask`: produced with the `--nomask` and `--nohist` flags.
-* `hist`: produced with no flags. These files will have a conversion datestamp
-in their history attribute.
 
 ### Full
 The "full" fields file is an output file from an ESM1.5 simulation.
@@ -60,6 +55,14 @@ fields file, and can be used for faster but less in-depth testing. It includes:
 
 * m01s30i204 Temperature on PLEV grid
 * m01s05i216 Precipitation
+
+### Comparison data
+For each of the above data choices, the following netCDF variants were produced:
+
+* `mask`: produced with the `--nohist` flag only.
+* `nomask`: produced with the `--nomask` and `--nohist` flags.
+* `hist`: produced with no flags. These files will have a conversion datestamp
+in their history attribute.
 
 ## Data versions
 The `um2nc` version to compare against can be selected with the `-v` flag.
