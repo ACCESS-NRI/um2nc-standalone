@@ -30,7 +30,7 @@ requirements:
 
 test:
     imports:
-        - umpost
+        - um2nc
     commands:
     {% for name, script in project.get('scripts').items() %}
         - {{ name }} --help
