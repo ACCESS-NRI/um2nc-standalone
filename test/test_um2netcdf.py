@@ -1305,7 +1305,7 @@ def test_enum_action_choices(enum_parser, test_enum):
 
 def test_enum_action_choices_set(test_enum):
     """
-    Test that the EnumAction sets the correct choices.
+    Test that the EnumAction raises a ValueError if 'choices' keyword is supplied.
     """
     parser = argparse.ArgumentParser()
     with pytest.raises(ValueError):
