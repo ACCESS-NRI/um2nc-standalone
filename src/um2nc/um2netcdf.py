@@ -1068,7 +1068,7 @@ def fix_time_coord(cube, verbose):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netcdf")
+    parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netCDF")
     parser.add_argument(
         "-k",
         dest="nckind",
@@ -1076,9 +1076,9 @@ def parse_args():
         type=int,
         default=3,
         help=(
-            "specify netCDF output format: 1 classic, 2 64-bit"
-            " offset, 3 netCDF-4, 4 netCDF-4 classic model."
-            " Default 3"
+            "netCDF output format: Options '1' classic, '2' 64-bit"
+            " offset, '3' netCDF-4, '4' netCDF-4 classic model."
+            " Default '3'"
         ),
         choices=[1, 2, 3, 4],
     )
@@ -1088,13 +1088,13 @@ def parse_args():
         required=False,
         type=int,
         default=4,
-        help="compression level (0=none, 9=max). Default 4",
+        help="Compression level ('0'=none, '9'=max). Default '4'",
     )
     parser.add_argument(
-        "--64", dest="use64bit", action="store_true", default=False, help="Use 64 bit netcdf for 64 bit input"
+        "--64", dest="use64bit", action="store_true", default=False, help="Write 64 bit output when input is 64 bit"
     )
     parser.add_argument(
-        "-v", "--verbose", dest="verbose", action="count", default=0, help="verbose output (-vv for extra verbose)"
+        "-v", "--verbose", dest="verbose", action="count", default=0, help="Display verbose output (use '-vv' for the highest level of output)"
     )
 
     group = parser.add_mutually_exclusive_group()
@@ -1106,20 +1106,20 @@ def parse_args():
         dest="nomask",
         action="store_true",
         default=False,
-        help="Don't apply heaviside function mask to pressure level fields",
+        help="Don't mask variables on pressure level grids",
     )
     parser.add_argument(
-        "--nohist", dest="nohist", action="store_true", default=False, help="Don't update history attribute"
+        "--nohist", dest="nohist", action="store_true", default=False, help="Don't write a global history attribute to the output"
     )
     parser.add_argument(
-        "--simple", dest="simple", action="store_true", default=False, help="Use a simple names of form fld_s01i123."
+        "--simple", dest="simple", action="store_true", default=False, help="Use simple names of form 'fld_s<section number>i<item number>'"
     )
     parser.add_argument(
         "--hcrit",
         dest="hcrit",
         type=float,
         default=0.5,
-        help=("Critical value of heavyside fn for pressure level" " masking (default=0.5)"),
+        help=("Critical value of heaviside variable for pressure level masking. Default '0.5'"),
     )
 
     parser.add_argument("infile", help="Input file")

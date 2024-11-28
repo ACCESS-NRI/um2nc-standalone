@@ -402,13 +402,13 @@ def parse_args():
     parser.add_argument("--quiet", "-q", action="store_true",
                         help=(
                             "Report only final exception type and message for "
-                            "allowed exceptions raised during conversion when "
-                            "flag is included. Otherwise report full "
-                            "stack trace."
+                            "any expected `um2nc` exceptions raised during "
+                            "conversion. If absent, full stack traces "
+                            "are reported"
                         )
                         )
     parser.add_argument("--delete-ff", "-d", action="store_true",
-                        help="Delete fields files upon successful conversion."
+                        help="Delete fields files upon successful conversion"
                         )
 
     return parser.parse_args()
