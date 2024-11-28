@@ -22,7 +22,7 @@ import errno
 from pathlib import Path
 from um2nc import um2netcdf
 import mule
-from umpost.stashmasters import STASHmaster
+from um2nc.stashmasters import STASHmaster
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.

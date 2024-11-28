@@ -27,8 +27,8 @@ import numpy as np
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
-import umpost
-from umpost.stashmasters import StashVar, STASHmaster
+import um2nc
+from um2nc.stashmasters import StashVar, STASHmaster
 
 # Iris cube attribute names
 STASH = "STASH"
