@@ -20,7 +20,7 @@ import traceback
 import argparse
 import errno
 from pathlib import Path
-from umpost import um2netcdf
+from um2nc import um2netcdf
 import mule
 from umpost.stashmasters import STASHmaster
 

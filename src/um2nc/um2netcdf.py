@@ -848,7 +848,7 @@ def filtered_cubes(cubes, include=None, exclude=None):
 
 
 def add_global_history(infile, iris_out):
-    version = umpost.__version__
+    version = um2nc.__version__
     t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     um2nc_path = os.path.abspath(__file__)
     history = f"File {infile} converted with {um2nc_path} {version} at {t}"

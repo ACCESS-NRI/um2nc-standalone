@@ -1,9 +1,9 @@
-import umpost.conversion_driver_esm1p5 as esm1p5_convert
+import um2nc.conversion_driver_esm1p5 as esm1p5_convert
 
 import pytest
 from pathlib import Path
 import unittest.mock as mock
-import umpost.um2netcdf as um2nc
+import um2nc.um2netcdf as um2nc
 
 
 def test_get_esm1p5_fields_file_pattern():
@@ -148,7 +148,7 @@ def test_find_matching_fields_files():
 @pytest.fixture
 def base_mock_process():
     # Create a patch of um2netcdf.process
-    patcher = mock.patch("umpost.um2netcdf.process")
+    patcher = mock.patch("um2nc.um2netcdf.process")
     yield patcher.start()
     patcher.stop()
 

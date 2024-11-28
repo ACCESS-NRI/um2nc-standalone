@@ -8,18 +8,19 @@ channels:
 
 
 dependencies:
-    - python >=3.10,<=3.12
+    - python >=3.10
     - cf-units
     - cftime
     - f90nml
-    - ipykernel
     - mule
     - netcdf4
     - numpy <2
+    - scitools-iris
+    - versioneer
+    - ipykernel
+    - nccmp
     - pip
     - pytest
     - pytest-cov
     - pylint #TODO: remove this after setting up linting with ruff
     - ruff
-    - scitools-iris
-    - versioneer

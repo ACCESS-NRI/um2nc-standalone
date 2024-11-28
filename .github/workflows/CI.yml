@@ -99,7 +99,7 @@ jobs:
 
       - name: Lint
         shell: bash -l {0}
-        run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=umpost -E umpost
+        run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=um2nc -E um2nc
 
       - name: Entrypoint test of driver script
         shell: bash -l {0}
@@ -111,7 +111,7 @@ jobs:
 
       - name: Run tests
         shell: bash -l {0}
-        run: python -m pytest --cov=umpost --cov-report=html -s test
+        run: python -m pytest --cov=um2nc --cov-report=html -s test
 
       # - name: Upload code coverage
       #   # Only upload once for the installed version
