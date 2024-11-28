@@ -73,7 +73,7 @@ while getopts ":-:d:hkv:" opt; do
             CLEAN_OUTPUT=false
         ;;
         v)
-            DATA_VERSION=${OPTARG}
+            TEST_DATA_VERSION=${OPTARG}
         ;;
         :)
             echo "Option \"-${OPTARG}\" requires an argument." >&2
@@ -95,9 +95,8 @@ if [[ -n "${@:$OPTIND:1}" ]]; then
 fi
 
 # Apply default data choice, version, and output directory if not set.
-echo "Using \"${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT}\" data."
-
-echo "Comparing to version \"${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}\"."
+TEST_DATA_CHOICE="${TEST_DATA_CHOICE:=$TEST_DATA_CHOICE_DEFAULT}"
+TEST_DATA_VERSION="${TEST_DATA_VERSION:=$TEST_DATA_VERSION_DEFAULT}"
 
 TEST_DATA_REFERENCE_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
@@ -126,6 +125,8 @@ trap functrap EXIT
 
 
 echo "Binary equivalence/backwards compatibility test for um2nc."
+echo "Using \"${TEST_DATA_CHOICE}\" data."
+echo "Comparing to version \"${TEST_DATA_VERSION}\"."
 
 # Input paths
 source_ff=$TEST_DATA_INPUT_DIR/um2nc_input_data_${TEST_DATA_CHOICE}
