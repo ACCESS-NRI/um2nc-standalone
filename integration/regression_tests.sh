@@ -200,12 +200,12 @@ run_um2nc     \
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
 
 if [ -n "$FAILED_FILES" ]; then # If any comparisons failed
-	    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
-	    for files in ${FAILED_FILES[@]}; do
-	        echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
-	    done
-	    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
-	    exit 1
-	elif ! $CLEAN_OUTPUT; then # If tests successful and '--keep' option present
-	    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
-	fi
+    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
+    for files in ${FAILED_FILES[@]}; do
+        echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
+    done
+    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+    exit 1
+elif ! $CLEAN_OUTPUT; then # If tests successful and '--keep' option present
+    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+fi

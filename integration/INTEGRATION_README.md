@@ -16,11 +16,11 @@ Options:
     -k, --keep            Keep output netCDF data upon test completion.
                           If absent, output netCDF data will only be kept for failed test sessions. 
     -d    DATA_CHOICE     Choice of test reference data.
-                                            Options: "full", "intermediate", "light".
-                                            Default: "intermediate".
+                          Options: "full", "intermediate", "light".
+                          Default: "intermediate".
     -v    DATA_VERSION    Version of test reference data to use.
-                                            Options: "0".
-                                            Default: latest release version
+                          Options: "0".
+                          Default: latest release version
 
 ## Data choices
 Three types of reference data are available for use in the tests, called "full",
