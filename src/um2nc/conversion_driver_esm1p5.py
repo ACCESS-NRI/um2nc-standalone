@@ -22,6 +22,7 @@ import errno
 from pathlib import Path
 from um2nc import um2netcdf
 import mule
+from um2nc.stashmasters import STASHmaster
 
 
 # TODO: um2netcdf will update the way arguments are fed to `process`.
@@ -31,10 +32,11 @@ import mule
 # Named tuple to hold the argument list
 ARG_NAMES = collections.namedtuple(
     "Args",
-    "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit",
+    "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit model",
 )
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
-ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False)
+ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False,
+                     STASHmaster.ACCESS_ESM1p5)
 
 
 # Character in filenames specifying the unit key

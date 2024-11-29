@@ -15,6 +15,7 @@ import collections
 import datetime
 import os
 import warnings
+from enum import Enum
 
 import cf_units
 import cftime
@@ -27,7 +28,7 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 import um2nc
-from um2nc import stashvar_cmip6 as stashvar
+from um2nc.stashmasters import StashVar, STASHmaster
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -90,6 +91,40 @@ class UnsupportedTimeSeriesError(PostProcessingError):
     """
 
     pass
+
+
+# TODO: Move this to a separate helper file?
+class EnumAction(argparse.Action):
+    """
+    Argparse action for handling Enums.
+    It automatically produces choices based on the Enum values.
+    """
+
+    def __init__(self, **kwargs):
+        # If 'choices' were declared explicitely, raise an error
+        if "choices" in kwargs:
+            raise ValueError(
+                f"Cannot use 'choices' keyword together with {self.__class__.__name__}. "
+                f"Choices are automatically generated from the Enum values."
+            )
+        # Pop the 'type' keyword
+        enum_type = kwargs.pop("type", None)
+        # Ensure an Enum subclass is provided
+        if not enum_type or not issubclass(enum_type, Enum):
+            raise TypeError(
+                f"The 'type' keyword must be assigned to Enum (or any Enum subclass) when using {self.__class__.__name__}."
+            )
+        # Generate choices from the Enum values
+        kwargs.setdefault("choices", tuple(e.value for e in enum_type))
+        # Call the argparse.Action constructor with the remaining keyword arguments
+        super().__init__(**kwargs)
+        # Store Enum subclass for use in the __call__ method
+        self._enum = enum_type
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        # Convert value to the associated Enum member
+        member = self._enum(value)
+        setattr(namespace, self.dest, member)
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -527,7 +562,7 @@ def process_cubes(cubes, mv, args):
 
     # cube processing & modification
     for c in cubes:
-        st = stashvar.StashVar(c.item_code)
+        st = StashVar(c.item_code, stashmaster=args.model)
         fix_var_name(c, st.uniquename, args.simple)
         fix_standard_name(c, st.standard_name, args.verbose)
         fix_long_name(c, st.long_name)
@@ -1120,6 +1155,17 @@ def parse_args():
         type=float,
         default=0.5,
         help=("Critical value of heavyside fn for pressure level" " masking (default=0.5)"),
+    )
+
+    parser.add_argument(
+        "--model",
+        dest="model",
+        type=STASHmaster,
+        action=EnumAction,
+        help=(
+            "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
+            f"Options: {[v.value for v in STASHmaster]}. If omitted, the '{STASHmaster.DEFAULT.value}' STASHmaster will be used."
+        ),
     )
 
     parser.add_argument("infile", help="Input file")
