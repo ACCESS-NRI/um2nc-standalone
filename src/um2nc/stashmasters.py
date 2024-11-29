@@ -2,7 +2,7 @@
 # Where available variable names match PCMDI convention
 # Fifth field is a unique name suitable for filenames or creating multiple
 # variables in a single file
-from enum import StrEnum
+from enum import Enum
 
 CMIP6_DEFAULT_STASHMASTER = {
     2: ["U COMPNT OF WIND AFTER TIMESTEP", "ua", "m s-1", "eastward_wind", ""],
@@ -4939,7 +4939,7 @@ ACCESS_CM2_DEFAULT_STASHMASTER = CMIP6_DEFAULT_STASHMASTER | {
     895: ["TEMPERATURE MET%TK FROM CABLE", "", "", "", ""],
 }
 
-class STASHmaster(StrEnum):
+class STASHmaster(str, Enum):
     """
     Enumeration of the pre-set default STASHmasters.
     """

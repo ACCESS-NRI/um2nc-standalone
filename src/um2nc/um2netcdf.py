@@ -1164,8 +1164,7 @@ def parse_args():
         action=EnumAction,
         help=(
             "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
-            f"Options: {[v.value for v in STASHmaster]}. "
-            "If omitted, the 'cmip6' STASHmaster will be used."
+            f"Options: {[v.value for v in STASHmaster]}. If omitted, the '{STASHmaster.DEFAULT.value}' STASHmaster will be used."
         ),
     )
 
