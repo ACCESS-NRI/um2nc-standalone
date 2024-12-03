@@ -81,8 +81,8 @@ _User information options:_
 * `-v, --verbose`  Display verbose output (use `-vv` for the highest level of output).
 
 _Output file format options:_
-* `-k NC_KIND` netCDF output format. Options `1`: classic, `2`: 64-bit offset, `3`: netCDF-4, `4`: netCDF-4 classic model. Default `3`.
-* `-c COMPRESSION` netCDF compression level (`0`=none, `9`=max). Default `4`.
+* `-k NC_KIND` NetCDF output format. Choose among `1` (classic), `2` (64-bit offset), `3` (netCDF-4), `4` (netCDF-4 classic). Default: `3` (netCDF-4).
+* `-c COMPRESSION` NetCDF compression level. `0` (none) to `9` (max). Default: `4`.
 * `--64` Write 64 bit output when input is 64 bit. When absent, output will be 32 bit.
 
 _Variable selection options:_
