@@ -16,7 +16,7 @@ module use /g/data/vk83/modules
 module load payu
 ```
 > [!IMPORTANT]  
-> You need to be a member of the vk83 project on NCI to access the module. For more information check how to [Join relevant NCI projects](https://access-hive.org.au/getting_started/set_up_nci_account/#join-relevant-nci-projects)
+> You need to be a member of the `vk83` project on NCI to access the module. For more information check how to [Join relevant NCI projects](https://access-hive.org.au/getting_started/set_up_nci_account/#join-relevant-nci-projects)
 
 ### Local installation
 `um2nc` is available as a `conda` package in the [access-nri conda channel](https://anaconda.org/accessnri/um2nc).
@@ -51,7 +51,7 @@ pip install --no-deps --no-build-isolation -e .
 ### Running the tests
 
 The `um2nc-standalone` project uses `pytest` and `pytest-cov`.<br>
-To run the tests and generate print a coverage report (with missing lines) run:
+To run the tests and generate a coverage report (with missing lines) run:
 
 ```
 python3 -m pytest --cov-report=term-missing --cov=um2nc
