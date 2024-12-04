@@ -179,7 +179,7 @@ def get_ff_date(fields_file_path):
     header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
 
-    return header.t2_year, header.t2_month, header.t2_day  # pylint: disable=no-member
+    return header.t2_year, header.t2_month, header.t2_day
 
 
 def convert_fields_file_list(input_output_paths):
