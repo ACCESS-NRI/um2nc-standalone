@@ -1077,7 +1077,7 @@ def parse_args():
         default=3,
         help=(
             "NetCDF output format. Choose among '1' (classic), '2' (64-bit offset),"
-            '3' (netCDF-4), '4' (netCDF-4 classic). Default: '3' (netCDF-4)."
+            "'3' (netCDF-4), '4' (netCDF-4 classic). Default: '3' (netCDF-4)."
         ),
         choices=[1, 2, 3, 4],
     )
