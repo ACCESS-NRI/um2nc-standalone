@@ -25,40 +25,6 @@ To install it run:
 conda install accessnri::um2nc
 ```
 
-## Development/Testing instructions
-For development/testing, it is recommended to install `um2nc` as a development package within a `micromamba`/`conda` testing environment.
-
-### Clone um2nc-standalone GitHub repo
-```
-git clone git@github.com:ACCESS-NRI/um2nc-standalone.git
-```
-
-### Create a micromamba/conda testing environment
-> [!TIP]  
-> In the following instructions `micromamba` can be replaced with `conda`.
-
-```
-cd um2nc-standalone
-micromamba env create -n um2nc_dev --file .conda/env_dev.yml
-micromamba activate um2nc_dev
-```
-
-### Install um2nc as a development package
-```
-pip install --no-deps --no-build-isolation -e .
-```
-
-### Running the tests
-
-The `um2nc-standalone` project uses `pytest` and `pytest-cov`.<br>
-To run the tests and generate a coverage report (with missing lines) run:
-
-```
-python3 -m pytest --cov-report=term-missing --cov=um2nc
-```
-> [!TIP]
-> To generate an HTML coverage report substitute `term-missing` with `html`.
-
 ## Usage instructions
 
 `um2nc` utilities for converting UM files to netCDF can be accessed through the command line or as a `Python3` API. This user documentation details the available command line utilities:
@@ -137,6 +103,41 @@ esmp1p5_convert_nc [options] current_output_dir
 ### Supported files
 
 `um2nc` supports the conversion of Unified Model output and restart files. Ancillary files and files containing timeseries are currently not supported.
+
+
+## Development/Testing instructions
+For development/testing, it is recommended to install `um2nc` as a development package within a `micromamba`/`conda` testing environment.
+
+### Clone um2nc-standalone GitHub repo
+```
+git clone git@github.com:ACCESS-NRI/um2nc-standalone.git
+```
+
+### Create a micromamba/conda testing environment
+> [!TIP]  
+> In the following instructions `micromamba` can be replaced with `conda`.
+
+```
+cd um2nc-standalone
+micromamba env create -n um2nc_dev --file .conda/env_dev.yml
+micromamba activate um2nc_dev
+```
+
+### Install um2nc as a development package
+```
+pip install --no-deps --no-build-isolation -e .
+```
+
+### Running the tests
+
+The `um2nc-standalone` project uses `pytest` and `pytest-cov`.<br>
+To run the tests and generate a coverage report (with missing lines) run:
+
+```
+python3 -m pytest --cov-report=term-missing --cov=um2nc
+```
+> [!TIP]
+> To generate an HTML coverage report substitute `term-missing` with `html`.
 
 ## Further information
 `um2nc` is developed and supported by [ACCESS-NRI](https://www.access-nri.org.au/) to facilitate the use of [ACCESS models](https://access-hive.org.au/models/) and data.
