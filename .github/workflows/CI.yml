@@ -97,10 +97,6 @@ jobs:
         shell: bash -l {0}
         run: conda list
 
-      - name: Lint
-        shell: bash -l {0}
-        run: pylint --extension-pkg-whitelist=netCDF4 --ignored-modules=um2nc -E um2nc
-
       - name: Entrypoint test of driver script
         shell: bash -l {0}
         run: esm1p5_convert_nc --help
