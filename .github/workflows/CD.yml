@@ -30,6 +30,8 @@ jobs:
     env:
       BUILD_FOLDER: ${{github.workspace}}/build
       PACKAGE_PATH: ${{github.workspace}}/build/noarch/*.tar.bz2
+    permissions:
+      contents: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
