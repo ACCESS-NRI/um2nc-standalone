@@ -42,7 +42,7 @@ jobs:
         with:
           miniconda-version: "latest"
           python-version: ${{ vars.PY_VERSION }}
-          environment-file: conda/env_build.yml
+          environment-file: .conda/env_build.yml
           auto-update-conda: false
           auto-activate-base: false
           show-channel-urls: true
