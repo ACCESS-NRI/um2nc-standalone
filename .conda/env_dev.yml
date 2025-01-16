@@ -12,6 +12,7 @@ dependencies:
     - cf-units
     - cftime
     - f90nml
+    - mo_pack
     - mule
     - netcdf4
     - numpy <2
