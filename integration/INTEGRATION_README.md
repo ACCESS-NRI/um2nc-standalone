@@ -78,4 +78,4 @@ prior to the development of `um2nc`: https://github.com/ACCESS-NRI/um2nc-standal
 The conversion was performed within the following `payu1.1.5` environment, active on Gadi:
 https://github.com/ACCESS-NRI/payu-condaenv/releases/tag/1.1.5
 
-All test data is located in `/g/data/vk83/testing/um2nc/integration-tests`.
+All test data is located in `/g/data/vk83/testing/data/um2nc/integration-tests`.

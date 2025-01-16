@@ -28,7 +28,7 @@ EOF
 
 
 
-TEST_DATA_PARENT_DIR=/g/data/vk83/testing/um2nc/integration-tests
+TEST_DATA_PARENT_DIR=/g/data/vk83/testing/data/um2nc/integration-tests
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
