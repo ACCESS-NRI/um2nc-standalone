@@ -27,9 +27,6 @@ jobs:
     name: Build with conda and upload
     runs-on: ubuntu-latest
     needs: get-package-name
-    env:
-      BUILD_FOLDER: ${{github.workspace}}/build
-      PACKAGE_PATH: ${{github.workspace}}/build/noarch/*.tar.bz2
     permissions:
       contents: write
     steps:
@@ -49,16 +46,16 @@ jobs:
           auto-activate-base: false
           show-channel-urls: true
 
-      - name: Build conda package
-        shell: bash -el {0}
-        run: |
-          conda build . --no-anaconda-upload --output-folder=${{env.BUILD_FOLDER}} -c accessnri -c conda-forge -c coecms
-        
-      - name: Upload conda package to Anaconda.org
-        shell: bash -el {0}
-        run: |
-            anaconda -t ${{ secrets.ANACONDA_TOKEN }} upload --user ${{ secrets.ANACONDA_USER_NAME }} ${{env.PACKAGE_PATH}}
-        
+      - name: Build and upload conda package
+        id: build-and-upload
+        uses: uibcdf/action-build-and-upload-conda-packages@b06165145a25b9c8bcb2d2b24682ad0d8e494ce7 #v1.4.0
+        with:
+            meta_yaml_dir: .conda
+            python-version: ${{ vars.PY_VERSION }}
+            user: ${{ secrets.ANACONDA_USER_NAME }}
+            token: ${{ secrets.ANACONDA_TOKEN }}
+            platform_all: true
+          
       - name: Create Release
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 #v2.0.8
         with:
@@ -66,5 +63,4 @@ jobs:
             name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
             generate_release_notes: true
             fail_on_unmatched_files: true
-            files: |
-              ${{env.PACKAGE_PATH}}
+            files: ${{steps.build-and-upload.outputs.paths}}
