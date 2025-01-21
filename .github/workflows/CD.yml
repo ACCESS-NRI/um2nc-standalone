@@ -70,6 +70,7 @@ jobs:
             python-version: ${{ vars.PY_VERSION }}
             user: ${{ secrets.ANACONDA_USER_NAME }}
             token: ${{ secrets.ANACONDA_TOKEN }}
+            label: main
             platform_all: true
           
       - name: Create Release
