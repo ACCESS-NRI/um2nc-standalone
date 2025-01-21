@@ -67,7 +67,7 @@ jobs:
         uses: uibcdf/action-build-and-upload-conda-packages@b06165145a25b9c8bcb2d2b24682ad0d8e494ce7 #v1.4.0
         with:
             meta_yaml_dir: .conda
-            python-version: 3.10 # mule is incompatible with py3.11
+            python-version: ${{ vars.PY_VERSION }}
             user: ${{ secrets.ANACONDA_USER_NAME }}
             token: ${{ secrets.ANACONDA_TOKEN }}
             platform_all: true
