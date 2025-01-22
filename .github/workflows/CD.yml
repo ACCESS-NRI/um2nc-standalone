@@ -29,6 +29,8 @@ jobs:
     needs: get-package-name
     permissions:
       contents: write
+    outputs:
+        newline-separated-paths: ${{ steps.reformat-paths.outputs.paths }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -72,7 +74,14 @@ jobs:
             token: ${{ secrets.ANACONDA_TOKEN }}
             label: main
             platform_all: true
-          
+      
+      - name: Re-format output paths
+        id: reformat-paths
+        # Needed to have the correct newline-separated files format for the following release step
+        run: |
+            paths=$(tr ' ' '\n' <<< "${{steps.build-and-upload.outputs.paths}}")
+            echo "paths=$paths" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 #v2.0.8
         with:
@@ -80,4 +89,4 @@ jobs:
             name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
             generate_release_notes: true
             fail_on_unmatched_files: true
-            files: ${{steps.build-and-upload.outputs.paths}}
+            files: ${{steps.reformat-paths.outputs.newline-separated-paths}}
