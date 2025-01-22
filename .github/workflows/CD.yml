@@ -73,7 +73,6 @@ jobs:
             user: ${{ secrets.ANACONDA_USER_NAME }}
             token: ${{ secrets.ANACONDA_TOKEN }}
             label: main
-            platform_all: true
       
       - name: Re-format output paths
         id: reformat-paths
