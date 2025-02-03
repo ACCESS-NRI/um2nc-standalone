@@ -381,17 +381,6 @@ def test_get_z_sea_constants():
 
     assert um2nc.get_z_sea_constants(ff) == (z_rho, z_theta)
 
-
-def test_ancillary_files_no_support():
-    af = mule.ancil.AncilFile()
-
-    with mock.patch("mule.load_umfile") as mload:
-        mload.return_value = af
-
-        with pytest.raises(NotImplementedError):
-            um2nc.process("fake_infile", "fake_outfile", args=None)
-
-
 def test_stash_code_to_item_code_conversion():
     m_stash_code = mock.Mock()
     m_stash_code.section = 30

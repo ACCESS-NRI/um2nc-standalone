@@ -622,9 +622,6 @@ def process_mule_vars(fields_file: mule.ff.FieldsFile):
     -------
     A MuleVars data structure.
     """
-    if isinstance(fields_file, mule.ancil.AncilFile):
-        raise NotImplementedError("Ancillary files are currently not supported")
-
     if mule.__version__ == "2020.01.1":
         msg = "mule 2020.01.1 doesn't handle pathlib Paths properly"
         raise NotImplementedError(msg)  # fail fast
@@ -677,7 +674,7 @@ def get_grid_spacing(ff):
         raise NotImplementedError(msg) from err
 
 
-def get_z_sea_constants(ff):
+def get_z_sea_constants(ff: mule.ff.FieldsFile):
     """
     Helper function to obtain z axis/ocean altitude constants.
 
@@ -694,13 +691,17 @@ def get_z_sea_constants(ff):
     -------
     (z_rho, z_theta) tuple of array of floating point values.
     """
-    try:
-        z_rho = ff.level_dependent_constants.zsea_at_rho
-        z_theta = ff.level_dependent_constants.zsea_at_theta
-        return z_rho, z_theta
-    except AttributeError as err:
-        msg = f"Mule {type(ff)} file lacks z sea rho or theta. File type not yet supported."
-        raise NotImplementedError(msg) from err
+    # z_rho and z_theta are not present in ancillary files
+    if not isinstance(ff, mule.ancil.AncilFile):
+        try:
+            z_rho = ff.level_dependent_constants.zsea_at_rho
+            z_theta = ff.level_dependent_constants.zsea_at_theta
+            return z_rho, z_theta
+        except AttributeError as err:
+            msg = f"Mule {type(ff)} file lacks z sea rho or theta. File type not yet supported."
+            raise NotImplementedError(msg) from err
+    else:
+        return None, None
 
 
 def to_item_code(stash_code):
@@ -1100,7 +1101,6 @@ def fix_time_coord(cube, verbose):
         unlimited_dimensions = None
 
     return cube, unlimited_dimensions
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netCDF.")
