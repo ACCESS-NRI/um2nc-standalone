@@ -26,6 +26,7 @@ import netCDF4
 import numpy as np
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
+from iris.fileformats import pp_load_rules
 
 import um2nc
 from um2nc.stashmasters import StashVar, STASHmaster
@@ -126,24 +127,82 @@ class EnumAction(argparse.Action):
         member = self._enum(value)
         setattr(namespace, self.dest, member)
 
+# TODO: Delete when iris PR 5138 (info below) gets merged
+def fix_iris_calendar():
+    """
+    Function to apply fixes to the scitools-iris calendar library to include proleptic gregorian calendar.
+    For information on the issue see: https://github.com/SciTools/iris/issues/3561 and https://github.com/SciTools/iris/pull/5138
+    """
+    def new_pg_calendar(self):
+        """Fixed function for iris.fileformats.pp.PPField.pg_calendar property method."""
+        calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
+        if self.lbtim.ic == 2:
+            calendar = cf_units.CALENDAR_360_DAY
+        elif self.lbtim.ic == 4:
+            calendar = cf_units.CALENDAR_365_DAY
+        return calendar
+    
+    def new_epoch_date_hours_internals(epoch_hours_unit, datetime):
+        """Fixed function for the _epoch_date_hours_internals function of the iris.fileformats.pp_load_rules module."""
+        days_offset = None
+        if datetime.year == 0 or datetime.month == 0 or datetime.day == 0:
+            # cftime > 1.0.1 no longer allows non-calendar dates.
+            # Add 1 to year/month/day, to get a valid date, and adjust the result
+            # according to the actual epoch and calendar.  This reproduces 'old'
+            # results that were produced with cftime <= 1.0.1.
+            days_offset = 0
+            y, m, d = datetime.year, datetime.month, datetime.day
+            calendar = epoch_hours_unit.calendar
+            if d == 0:
+                # Add one day, by changing day=0 to 1.
+                d = 1
+                days_offset += 1
+            if m == 0:
+                # Add a 'January', by changing month=0 to 1.
+                m = 1
+                if calendar in (cf_units.CALENDAR_STANDARD, cf_units.CALENDAR_PROLEPTIC_GREGORIAN):
+                    days_offset += 31
+                elif calendar == cf_units.CALENDAR_360_DAY:
+                    days_offset += 30
+                elif calendar == cf_units.CALENDAR_365_DAY:
+                    days_offset += 31
+                else:
+                    msg = "unrecognised calendar : {}"
+                    raise ValueError(msg.format(calendar))
 
-# Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
-# This matters for control runs with model years < 1600.
-@property
-def pg_calendar(self):
-    """Return the calendar of the field."""
-    # TODO #577 What calendar to return when ibtim.ic in [0, 3]
-    calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
-    if self.lbtim.ic == 2:
-        calendar = cf_units.CALENDAR_360_DAY
-    elif self.lbtim.ic == 4:
-        calendar = cf_units.CALENDAR_365_DAY
-    return calendar
+            if y == 0:
+                # Add a 'Year 0', by changing year=0 to 1.
+                y = 1
+                if calendar in (cf_units.CALENDAR_STANDARD, cf_units.CALENDAR_PROLEPTIC_GREGORIAN):
+                    days_in_year_0 = 366
+                elif calendar == cf_units.CALENDAR_360_DAY:
+                    days_in_year_0 = 360
+                elif calendar == cf_units.CALENDAR_365_DAY:
+                    days_in_year_0 = 365
+                else:
+                    msg = "unrecognised calendar : {}"
+                    raise ValueError(msg.format(calendar))
 
+                days_offset += days_in_year_0
 
-# TODO: Is dynamically overwriting PPField acceptable?
-PPField.calendar = pg_calendar
+            # Replace y/m/d with a modified date, that cftime will accept.
+            datetime = datetime.replace(year=y, month=m, day=d)
 
+        # netcdf4python has changed it's behaviour, at version 1.2, such
+        # that a date2num calculation returns a python float, not
+        # numpy.float64.  The behaviour of round is to recast this to an
+        # int, which is not the desired behaviour for PP files.
+        # So, cast the answer to numpy.float_ to be safe.
+        epoch_hours = np.float64(epoch_hours_unit.date2num(datetime))
+
+        if days_offset is not None:
+            # Correct for any modifications to achieve a valid date.
+            epoch_hours -= 24.0 * days_offset
+
+        return epoch_hours
+            
+    PPField.pg_calendar = property(new_pg_calendar)
+    pp_load_rules._epoch_date_hours_internals = new_epoch_date_hours_internals
 
 def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     """
@@ -1174,6 +1233,7 @@ def parse_args():
 
 
 def main():
+    fix_iris_calendar()
     args = parse_args()
     process(args.infile, args.outfile, args)
 
