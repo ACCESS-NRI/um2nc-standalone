@@ -590,6 +590,7 @@ def process(infile, outfile, args):
         ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
+    is_ancillary = is_ancil(ff)
     cubes = iris.load(infile)
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
@@ -599,27 +600,28 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({"Conventions": "CF-1.6"})
 
-        for c, fill, dims in process_cubes(cubes, mv, args):
+        for c, fill, dims in process_cubes(cubes, mv, args, is_ancillary):
             # if args.verbose:
             #     print(c.name(), c.item_code)
 
             sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
 
-def process_cubes(cubes, mv, args):
+def process_cubes(cubes, mv, args, is_ancillary):
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
     if args.include_list or args.exclude_list:
         cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
-
+    
     do_masking = not args.nomask
-    heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
-
-    if do_masking:
-        # drop cubes which cannot be pressure masked if heaviside uv or t is missing
-        # otherwise keep all cubes when masking is off
-        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+    
+    if not is_ancillary:
+        heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
+        if do_masking:
+            # drop cubes which cannot be pressure masked if heaviside uv or t is missing
+            # otherwise keep all cubes when masking is off
+            cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
     if not cubes:
         print("No cubes left to process after filtering")
@@ -636,26 +638,27 @@ def process_cubes(cubes, mv, args):
         # Interval in cell methods isn't reliable so better to remove it.
         c.cell_methods = fix_cell_methods(c.cell_methods)
 
-        fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
-        fix_level_coord(c, mv.z_rho, mv.z_theta)
+        if not is_ancillary:
+            fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
+            fix_level_coord(c, mv.z_rho, mv.z_theta)
+            if do_masking:
+                # Pressure level data should be masked
+                if require_heaviside_uv(c.item_code) and heaviside_uv:
+                    apply_mask(c, heaviside_uv, args.hcrit)
 
-        if do_masking:
-            # Pressure level data should be masked
-            if require_heaviside_uv(c.item_code) and heaviside_uv:
-                apply_mask(c, heaviside_uv, args.hcrit)
+                if require_heaviside_t(c.item_code) and heaviside_t:
+                    apply_mask(c, heaviside_t, args.hcrit)
 
-            if require_heaviside_t(c.item_code) and heaviside_t:
-                apply_mask(c, heaviside_t, args.hcrit)
-
-        # TODO: some cubes lose item_code when replaced with new cubes
-        c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
+            # TODO: some cubes lose item_code when replaced with new cubes
+            c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
 
         # TODO: flag warnings as an error for the driver script?
         if not args.use64bit:
             convert_32_bit(c)
 
         fill_value = fix_fill_value(c)
-        fix_forecast_reference_time(c)
+        if not is_ancillary:
+            fix_forecast_reference_time(c)
 
         # Check whether any of the coordinates is a pseudo-dimension with integer values and
         # if so, reset to int32 to prevent problems with possible later conversion to netCDF3

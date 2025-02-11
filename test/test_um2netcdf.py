@@ -223,7 +223,7 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     # include cubes requiring both heaviside uv & t cubes to filter, to
     # ensure both uv/t dependent cubes are dropped
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
-
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -233,13 +233,12 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         std_args.verbose = True  # test some warning branches
-
         # trying to mask None will break in numpy
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
         with pytest.warns(RuntimeWarning):
-            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
+            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary))
 
     assert len(processed) == 1
     cube, _, dim = processed[0]
@@ -256,8 +255,8 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
     """
     Ensure process_cubes() exits early if all cubes are removed in filtering.
     """
-
     cubes = [ta_plev_cube, geo_potential_cube]
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -267,7 +266,7 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
     # all cubes should be dropped
-    assert list(um2nc.process_cubes(cubes, mule_vars, std_args)) == []
+    assert list(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary)) == []
 
 
 def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
@@ -280,7 +279,7 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
     # masking, include both to enable code execution for both masks
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube,
              heaviside_uv_cube, heaviside_t_cube]
-
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -291,7 +290,7 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         # all cubes should be processed & not dropped
-        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args))
+        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary))
 
     assert len(processed) == len(cubes)
 
@@ -306,7 +305,7 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
 
     # air temp and geo potential would need heaviside uv & t respectively
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
-
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -316,7 +315,7 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         std_args.nomask = True
-        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args))
+        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary))
 
     # all cubes should be kept with masking off
     assert len(processed) == len(cubes)
