@@ -1,4 +1,5 @@
 import unittest.mock as mock
+from unittest.mock import MagicMock
 import warnings
 from dataclasses import dataclass
 from collections import namedtuple
@@ -366,20 +367,45 @@ def test_get_grid_spacing():
 
     assert um2nc.get_grid_spacing(ff) == (r_spacing, c_spacing)
 
-
-def test_get_z_sea_constants():
+def test_get_z_sea_constants_with_supported_file():
+    """
+    Test `get_z_sea_constants` with a supported file format.
+    """
     z_rho = 5.5
     z_theta = 7.5
+    mock_ff = MagicMock()
+    mock_ff.level_dependent_constants.zsea_at_rho = z_rho
+    mock_ff.level_dependent_constants.zsea_at_theta = z_theta
+    result = um2nc.get_z_sea_constants(mock_ff)
+    assert result == (z_rho, z_theta)
 
-    # NB: use mocking while finding method to create synthetic mule objects from real data
-    m_level_constants = mock.Mock()
-    m_level_constants.zsea_at_rho = z_rho
-    m_level_constants.zsea_at_theta = z_theta
+def test_get_z_sea_constants_with_ancillary_file():
+    """
+    Test `get_z_sea_constants` with a supported file format.
+    """
+    mock_ff = MagicMock(spec=mule.ancil.AncilFile)
+    result = um2nc.get_z_sea_constants(mock_ff)
+    assert result == (None, None)
 
-    ff = mule.ff.FieldsFile()
-    ff.level_dependent_constants = m_level_constants
+def test_get_z_sea_constants_with_missing_z_rho():
+    """
+    Test `get_z_sea_constants` with a file missing `z_rho`.
+    """
+    mock_ff = MagicMock()
+    del mock_ff.level_dependent_constants.zsea_at_rho
+    with pytest.raises(NotImplementedError):
+        um2nc.get_z_sea_constants(mock_ff)
 
-    assert um2nc.get_z_sea_constants(ff) == (z_rho, z_theta)
+def test_get_z_sea_constants_with_missing_z_theta():
+    """
+    Test `get_z_sea_constants` with a file missing `z_theta`.
+    """
+    mock_ff = MagicMock()
+    del mock_ff.level_dependent_constants.zsea_at_theta
+    with pytest.raises(NotImplementedError):
+        um2nc.get_z_sea_constants(mock_ff)
+
+
 
 def test_stash_code_to_item_code_conversion():
     m_stash_code = mock.Mock()
@@ -1321,3 +1347,17 @@ def test_enum_action_no_enum_type():
             "--enum2",
             action=um2nc.EnumAction
         )
+
+def test_is_ancil_with_ancil_fieldsfile():
+    """
+    Test the 'is_ancil' function when an ancillary fields file is passed.
+    """
+    ancil_mock = MagicMock(spec=mule.ancil.AncilFile)
+    assert um2nc.is_ancil(ancil_mock) is True
+
+def test_is_ancil_with_non_ancil_fieldsfile():
+    """
+    Test the 'is_ancil' function when a non-ancillary fields file is passed.
+    """
+    non_ancil_mock = MagicMock(spec=mule.ff.FieldsFile)
+    assert um2nc.is_ancil(non_ancil_mock) is False

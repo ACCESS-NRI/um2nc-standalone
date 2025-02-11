@@ -127,6 +127,12 @@ class EnumAction(argparse.Action):
         member = self._enum(value)
         setattr(namespace, self.dest, member)
 
+def is_ancil(infile: mule.ff.FieldsFile) -> bool:
+    """
+    Check if the mule file is an ancillary file.
+    """
+    return isinstance(infile, mule.ancil.AncilFile)
+
 # TODO: Delete when iris PR 5138 (info below) gets merged
 def fix_iris_calendar():
     """
@@ -751,7 +757,7 @@ def get_z_sea_constants(ff: mule.ff.FieldsFile):
     (z_rho, z_theta) tuple of array of floating point values.
     """
     # z_rho and z_theta are not present in ancillary files
-    if not isinstance(ff, mule.ancil.AncilFile):
+    if not is_ancil(ff):
         try:
             z_rho = ff.level_dependent_constants.zsea_at_rho
             z_theta = ff.level_dependent_constants.zsea_at_theta
