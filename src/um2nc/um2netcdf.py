@@ -139,8 +139,8 @@ def fix_iris_calendar():
     Function to apply fixes to the scitools-iris calendar library to include proleptic gregorian calendar.
     For information on the issue see: https://github.com/SciTools/iris/issues/3561 and https://github.com/SciTools/iris/pull/5138
     """
-    def new_pg_calendar(self):
-        """Fixed function for iris.fileformats.pp.PPField.pg_calendar property method."""
+    def new_calendar(self):
+        """Fixed function for iris.fileformats.pp.PPField.calendar property method."""
         calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
         if self.lbtim.ic == 2:
             calendar = cf_units.CALENDAR_360_DAY
@@ -207,7 +207,7 @@ def fix_iris_calendar():
 
         return epoch_hours
             
-    PPField.pg_calendar = property(new_pg_calendar)
+    PPField.calendar = property(new_calendar)
     pp_load_rules._epoch_date_hours_internals = new_epoch_date_hours_internals
 
 def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
