@@ -126,6 +126,11 @@ class EnumAction(argparse.Action):
         member = self._enum(value)
         setattr(namespace, self.dest, member)
 
+def is_dump(infile: mule.ff.FieldsFile) -> bool:
+    """
+    Check if the mule file is a dump (restart) file.
+    """
+    return isinstance(infile, mule.dump.DumpFile)
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
 # This matters for control runs with model years < 1600.
@@ -525,7 +530,12 @@ def process(infile, outfile, args):
         ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
-    cubes = iris.load(infile)
+    if is_dump(ff):
+        # Process only the instantaneous (prognostic) fields
+        instantaneous = iris.Constraint(cube_func=lambda cube: not cube.cell_methods)
+        cubes = iris.load(infile, constraints=instantaneous)
+    else:
+        cubes = iris.load(infile)
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
         # Add global attributes
