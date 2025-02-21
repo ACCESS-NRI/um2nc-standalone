@@ -657,8 +657,7 @@ def process_cubes(cubes, mv, args, is_ancillary):
             convert_32_bit(c)
 
         fill_value = fix_fill_value(c)
-        if not is_ancillary:
-            fix_forecast_reference_time(c)
+        fix_forecast_reference_time(c)
 
         # Check whether any of the coordinates is a pseudo-dimension with integer values and
         # if so, reset to int32 to prevent problems with possible later conversion to netCDF3
