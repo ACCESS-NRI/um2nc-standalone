@@ -1,4 +1,5 @@
 import unittest.mock as mock
+from unittest.mock import MagicMock
 import warnings
 from dataclasses import dataclass
 from collections import namedtuple
@@ -222,7 +223,7 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     # include cubes requiring both heaviside uv & t cubes to filter, to
     # ensure both uv/t dependent cubes are dropped
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
-
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -232,13 +233,12 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         std_args.verbose = True  # test some warning branches
-
         # trying to mask None will break in numpy
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
         with pytest.warns(RuntimeWarning):
-            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
+            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary))
 
     assert len(processed) == 1
     cube, _, dim = processed[0]
@@ -255,8 +255,8 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
     """
     Ensure process_cubes() exits early if all cubes are removed in filtering.
     """
-
     cubes = [ta_plev_cube, geo_potential_cube]
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -266,7 +266,7 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
     # all cubes should be dropped
-    assert list(um2nc.process_cubes(cubes, mule_vars, std_args)) == []
+    assert list(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary)) == []
 
 
 def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
@@ -279,7 +279,7 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
     # masking, include both to enable code execution for both masks
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube,
              heaviside_uv_cube, heaviside_t_cube]
-
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -290,7 +290,7 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         # all cubes should be processed & not dropped
-        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args))
+        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary))
 
     assert len(processed) == len(cubes)
 
@@ -305,7 +305,7 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
 
     # air temp and geo potential would need heaviside uv & t respectively
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
-
+    is_ancillary = False
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -315,7 +315,7 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         std_args.nomask = True
-        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args))
+        processed = list(um2nc.process_cubes(cubes, mule_vars, std_args, is_ancillary))
 
     # all cubes should be kept with masking off
     assert len(processed) == len(cubes)
@@ -366,30 +366,44 @@ def test_get_grid_spacing():
 
     assert um2nc.get_grid_spacing(ff) == (r_spacing, c_spacing)
 
-
-def test_get_z_sea_constants():
+def test_get_z_sea_constants_with_supported_file():
+    """
+    Test `get_z_sea_constants` with a supported file format.
+    """
     z_rho = 5.5
     z_theta = 7.5
+    mock_ff = MagicMock()
+    mock_ff.level_dependent_constants.zsea_at_rho = z_rho
+    mock_ff.level_dependent_constants.zsea_at_theta = z_theta
+    result = um2nc.get_z_sea_constants(mock_ff)
+    assert result == (z_rho, z_theta)
 
-    # NB: use mocking while finding method to create synthetic mule objects from real data
-    m_level_constants = mock.Mock()
-    m_level_constants.zsea_at_rho = z_rho
-    m_level_constants.zsea_at_theta = z_theta
+def test_get_z_sea_constants_with_ancillary_file():
+    """
+    Test `get_z_sea_constants` with a supported file format.
+    """
+    mock_ff = MagicMock(spec=mule.ancil.AncilFile)
+    result = um2nc.get_z_sea_constants(mock_ff)
+    assert result == (None, None)
 
-    ff = mule.ff.FieldsFile()
-    ff.level_dependent_constants = m_level_constants
+def test_get_z_sea_constants_with_missing_z_rho():
+    """
+    Test `get_z_sea_constants` with a file missing `z_rho`.
+    """
+    mock_ff = MagicMock()
+    del mock_ff.level_dependent_constants.zsea_at_rho
+    with pytest.raises(NotImplementedError):
+        um2nc.get_z_sea_constants(mock_ff)
 
-    assert um2nc.get_z_sea_constants(ff) == (z_rho, z_theta)
+def test_get_z_sea_constants_with_missing_z_theta():
+    """
+    Test `get_z_sea_constants` with a file missing `z_theta`.
+    """
+    mock_ff = MagicMock()
+    del mock_ff.level_dependent_constants.zsea_at_theta
+    with pytest.raises(NotImplementedError):
+        um2nc.get_z_sea_constants(mock_ff)
 
-
-def test_ancillary_files_no_support():
-    af = mule.ancil.AncilFile()
-
-    with mock.patch("mule.load_umfile") as mload:
-        mload.return_value = af
-
-        with pytest.raises(NotImplementedError):
-            um2nc.process("fake_infile", "fake_outfile", args=None)
 
 
 def test_stash_code_to_item_code_conversion():
@@ -1332,3 +1346,17 @@ def test_enum_action_no_enum_type():
             "--enum2",
             action=um2nc.EnumAction
         )
+
+def test_is_ancil_with_ancil_fieldsfile():
+    """
+    Test the 'is_ancil' function when an ancillary fields file is passed.
+    """
+    ancil_mock = MagicMock(spec=mule.ancil.AncilFile)
+    assert um2nc.is_ancil(ancil_mock) is True
+
+def test_is_ancil_with_non_ancil_fieldsfile():
+    """
+    Test the 'is_ancil' function when a non-ancillary fields file is passed.
+    """
+    non_ancil_mock = MagicMock(spec=mule.ff.FieldsFile)
+    assert um2nc.is_ancil(non_ancil_mock) is False
