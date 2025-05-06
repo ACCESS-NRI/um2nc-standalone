@@ -4970,7 +4970,9 @@ class StashVar:
         if var[1]:
             self.name = var[1]
         else:
-            self.name = "field%d" % code
+            item = code %1000
+            section = code//1000
+            self.name = f"fld_s{section:02}i{item:03}"
         self.units = var[2]
         self.standard_name = var[3]
         self.code = code
