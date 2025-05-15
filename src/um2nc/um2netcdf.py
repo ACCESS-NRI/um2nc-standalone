@@ -522,23 +522,38 @@ def process(infile, outfile, args):
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
         warnings.filterwarnings(action="ignore", category=UserWarning, message=r"\sUnable to load STASHmaster")
-        ff = mule.load_umfile(str(infile))
+        ff = mule.load_umfile(str(infile[0]))
 
     mv = process_mule_vars(ff)
     cubes = iris.load(infile)
 
-    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
-        # Add global attributes
-        if not args.nohist:
-            add_global_history(infile, sman)
-
-        sman.update_global_attributes({"Conventions": "CF-1.6"})
-
+    if args.singlevar:
+        nf = 0
         for c, fill, dims in process_cubes(cubes, mv, args):
-            # if args.verbose:
-            #     print(c.name(), c.item_code)
+            nf += 1
+            # In this case outfile is really a prefix. Assume no .nc suffix
+            filename = f'{outfile}_{c.var_name}.nc'
+            with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.nckind]) as sman:
+                print(c.name(), c.var_name, nf)
+                # Add global attributes
+                if not args.nohist:
+                    add_global_history(infile, sman)
 
-            sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+                sman.update_global_attributes({"Conventions": "CF-1.6"})
+                sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+    else:
+        with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
+            # Add global attributes
+            if not args.nohist:
+                add_global_history(infile, sman)
+
+            sman.update_global_attributes({"Conventions": "CF-1.6"})
+
+            for c, fill, dims in process_cubes(cubes, mv, args):
+                # if args.verbose:
+                #     print(c.name(), c.item_code)
+
+                sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
 
 def process_cubes(cubes, mv, args):
@@ -1149,6 +1164,9 @@ def parse_args():
         "--simple", dest="simple", action="store_true", default=False, help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
     )
     parser.add_argument(
+        "--single-var", dest="singlevar", action="store_true", default=False, help="Create single variable output files"
+    )
+    parser.add_argument(
         "--hcrit",
         dest="hcrit",
         type=float,
@@ -1167,7 +1185,7 @@ def parse_args():
         ),
     )
 
-    parser.add_argument("infile", help="Input file")
+    parser.add_argument("infile", nargs='+', help="Input file(s)")
     parser.add_argument("outfile", help="Output file")
 
     return parser.parse_args()
