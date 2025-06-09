@@ -1099,9 +1099,12 @@ def fix_time_coord(cube, verbose):
                 neworder.insert(0, tdim)
 
                 if verbose > 1:
-                    # TODO: fix I/O, is this better as a warning?
-                    print("Incorrect dimension order", cube)
-                    print("Transpose to", neworder)
+                    dnames = ', '.join([d.name() for d in cube.dim_coords])
+                    msg = (
+                        f"Incorrect dimension order {cube.name()} ({dnames}), "
+                        "transposing to time first."
+                    )
+                    warnings.warn(msg)
 
                 cube.transpose(neworder)
         else:
