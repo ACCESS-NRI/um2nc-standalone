@@ -1,93 +1,24 @@
-import um2nc.conversion_driver_esm1p5 as esm1p5_convert
+import um2nc.drivers.common as drivers_common
 
 import pytest
 from pathlib import Path
 import unittest.mock as mock
 import um2nc.um2netcdf as um2nc
 
+# Dummy arguments for use in conversion wrapper
+from um2nc.drivers.conversion_driver_esm1p5 import ARG_VALS
 
-def test_get_esm1p5_fields_file_pattern():
+
+def test_get_fields_file_pattern():
     run_id = "abcde"
-    fields_file_pattern = esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
+    fields_file_pattern = drivers_common.get_fields_file_pattern(run_id)
     assert fields_file_pattern == r"^abcdea.p[a-z0-9]+$"
 
 
 @pytest.mark.parametrize("run_id", ["", "a", "ab", "567873"])
-def test_get_esm1p5_fields_file_pattern_wrong_id_length(run_id):
+def test_get_fields_file_pattern_wrong_id_length(run_id):
     with pytest.raises(ValueError):
-        esm1p5_convert.get_esm1p5_fields_file_pattern(run_id)
-
-
-@pytest.mark.parametrize("ff_path,ff_date,nc_write_dir,expected",
-                         [
-                            (
-                                Path("/test/aiihca.paa1feb"),
-                                (101, 2, 1),
-                                Path("/test/netCDF"),
-                                Path("/test/netCDF/aiihca.pa-010102_mon.nc")
-                            ),
-                            (
-                                Path("aiihca.pe50dec"),
-                                (1850, 12, 21),
-                                Path("netCDF"),
-                                Path("netCDF/aiihca.pe-185012_dai.nc")
-                            ),
-                            (
-                                Path("abc/aiihca.pi87jun"),
-                                (1887, 6, 12),
-                                Path("./netCDF"),
-                                Path("./netCDF/aiihca.pi-188706_3hr.nc")
-                            ),
-                            (
-                                Path("abc/aiihca.pjc0jan"),
-                                (120, 1, 7),
-                                Path("./netCDF"),
-                                Path("./netCDF/aiihca.pj-012001_6hr.nc")
-                            ),
-                            (
-                                Path("abc/aiihca.pjc0jan"),
-                                None,
-                                Path("./netCDF"),
-                                Path("./netCDF/aiihca.pjc0jan.nc")
-                            ),
-                         ])
-def test_get_nc_write_path_recognized_unit(ff_path, ff_date,
-                                           nc_write_dir, expected):
-    """
-    Check that netCDF file naming produces expected file paths for various
-    expected unit keys.
-    """
-    nc_write_path = esm1p5_convert.get_nc_write_path(
-                        ff_path,
-                        nc_write_dir,
-                        ff_date
-                    )
-
-    assert nc_write_path == expected
-
-
-def test_get_nc_write_path_unrecognized_unit():
-    """
-    Check that netCDF file naming falls back to simpler naming scheme
-    when unit key in fields file name not recognized.
-    """
-    unknown_key = "w"
-    assert unknown_key not in esm1p5_convert.FF_UNIT_SUFFIX.keys()
-
-    ff_name = f"aiihca.p{unknown_key}abcd"
-    ff_year = 50
-    ff_month = 7
-    nc_write_dir = Path("netCDF")
-    expected_nc_write_path = nc_write_dir / f"aiihca.p{unknown_key}-005007.nc"
-
-    with pytest.warns(RuntimeWarning):
-        nc_write_path = esm1p5_convert.get_nc_write_path(
-                            Path(ff_name),
-                            nc_write_dir,
-                            (ff_year, ff_month, 1)
-                        )
-
-    assert nc_write_path == expected_nc_write_path
+        drivers_common.get_fields_file_pattern(run_id)
 
 
 def test_find_matching_fields_files():
@@ -133,7 +64,7 @@ def test_find_matching_fields_files():
 
     fields_file_pattern = r"^aiihca.p[a-z0-9]+$"
 
-    found_fields_files = esm1p5_convert.find_matching_fields_files(
+    found_fields_files = drivers_common.find_matching_files(
         dir_contents, fields_file_pattern
     )
 
@@ -184,7 +115,7 @@ def test_convert_fields_file_list_success(mock_process,
     """
     input_output_paths = [(Path(p1), Path(p2)) for p1, p2 in input_output_list]
 
-    succeeded, _ = esm1p5_convert.convert_fields_file_list(input_output_paths)
+    succeeded, _ = drivers_common.convert_fields_file_list(input_output_paths, ARG_VALS)
 
     assert mock_process.call_count == len(input_output_list)
 
@@ -196,8 +127,8 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
                                 "timeseries error")
     fake_input_output_paths = [(Path("fake_file"), Path("fake_file.nc"))]
 
-    _, failed = esm1p5_convert.convert_fields_file_list(
-        fake_input_output_paths)
+    _, failed = drivers_common.convert_fields_file_list(
+        fake_input_output_paths, ARG_VALS)
 
     assert failed[0][0] == fake_input_output_paths[0][0]
 
@@ -208,17 +139,10 @@ def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
     generic_error_message = "Test error"
     mock_process_with_exception(Exception, generic_error_message)
     with pytest.raises(Exception) as exc_info:
-        esm1p5_convert.convert_fields_file_list(
-            [("fake_file", "fake_file.nc")])
+        drivers_common.convert_fields_file_list(
+            [("fake_file", "fake_file.nc")], ARG_VALS)
 
     assert str(exc_info.value) == generic_error_message
-
-
-def test_convert_esm1p5_output_dir_error():
-    with pytest.raises(FileNotFoundError):
-        esm1p5_convert.convert_esm1p5_output_dir(
-            "/test_convert_esm1p5_output_dir_error/fake/path/"
-        )
 
 
 @pytest.mark.parametrize(
@@ -257,7 +181,7 @@ def test_filter_naming_collisions(input_output_pairs, expected_pairs):
     """
     with pytest.warns(match="Multiple inputs have same output path"):
         filtered_paths = list(
-            esm1p5_convert.filter_name_collisions(input_output_pairs)
+            drivers_common.filter_name_collisions(input_output_pairs)
         )
 
     assert filtered_paths == expected_pairs
@@ -277,7 +201,7 @@ def test_format_successes():
 
     succeeded_pairs = list(zip(succeeded_inputs, succeeded_outputs))
 
-    success_reports = list(esm1p5_convert.format_successes(succeeded_pairs))
+    success_reports = list(drivers_common.format_successes(succeeded_pairs))
 
     assert len(success_reports) == len(succeeded_pairs)
     # Check that the successful inputs and outputs make it into the report
@@ -294,7 +218,7 @@ def test_format_failures_quiet_mode():
     ]
 
     formatted_failure_reports = list(
-        esm1p5_convert.format_failures(failed, True)
+        drivers_common.format_failures(failed, True)
     )
 
     assert len(failed) == len(formatted_failure_reports)
@@ -320,7 +244,7 @@ def test_format_failures_standard_mode():
     failed_conversion = [(failed_file, exc_with_traceback)]
 
     formatted_failure_report_list = list(
-        esm1p5_convert.format_failures(failed_conversion, quiet=False)
+        drivers_common.format_failures(failed_conversion, quiet=False)
     )
     formatted_failure_report = formatted_failure_report_list[0]
 
@@ -340,7 +264,7 @@ def test_success_fail_overlap():
                  (success_and_fail_path, Path("success_and_fail.nc"))]
     failures = [(success_and_fail_path, "Exception_placeholder")]
 
-    result = esm1p5_convert.safe_removal(successes, failures)
+    result = drivers_common.safe_removal(successes, failures)
 
     assert success_and_fail_path not in result
     assert success_only_path in result
