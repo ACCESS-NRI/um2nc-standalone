@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 """
-ESM1.5 conversion driver
-
-Wrapper script for automated fields file to netCDF conversion
-during ESM1.5 simulations. Runs conversion module
-on each atmospheric output in a specified directory.
-
-Adapted from Martin Dix's conversion driver for CM2:
-https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
+Common functions used across model conversion drivers
 """
 
 import collections
@@ -44,9 +37,33 @@ def get_fields_file_pattern(run_id: str):
             f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
         )
 
-    fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
+    fields_file_name_pattern = rf"^{run_id}a.p(?P<stream>[a-z])[a-z0-9]+$"
 
     return fields_file_name_pattern
+
+
+def get_stream(filepath, pattern):
+    """
+    Extract the output file stream from the file name.
+
+    Parameters
+    ----------
+    filepath : Pathlib Path
+    pattern : Regex pattern with a 'stream' group
+
+    Returns
+    -------
+    stream: string
+    """
+    name_match = re.match(pattern, filepath.name)
+
+    if not name_match:
+        raise RuntimeError(
+            f"File {filepath} does not match provided pattern {pattern}."
+        )
+    else:
+        # TODO: Does it matter that we're not checking that the stream attribute exists?
+        return name_match.group("stream")
 
 
 def find_matching_files(dir_contents, fields_file_name_pattern):
