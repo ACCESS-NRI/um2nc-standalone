@@ -3,7 +3,6 @@ name: um2nc-dev
 channels:
     - accessnri
     - conda-forge
-    - coecms
     - nodefaults
 
 
@@ -17,7 +16,6 @@ dependencies:
     - netcdf4
     - numpy <2
     - scitools-iris
-    - versioneer
     - ipykernel
     - nccmp
     - pip
