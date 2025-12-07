@@ -31,10 +31,8 @@ jobs:
         with:
           filters: |
             files:
-              - 'setup.py'
               - 'pyproject.toml'
-              - '.conda/env_build.yml'
-              - '.conda/meta.yml'
+              - '.conda/*'
 
   verify-conda-build:
     name: Conda Build
@@ -58,10 +56,22 @@ jobs:
       - name: Verify conda recipe
         shell: bash -el {0}
         run: conda-verify .conda --ignore C2105,C2122
+        
+      # conda build cannot get the version from setuptools_scm so we have 
+      # to set it in an env var (PACKAGE_VERSION) prior to building 
+      # and use it in the meta.yaml
+      - name: Get package version
+        id: get-version
+        shell: micromamba-shell {0}
+        run:
+          version=$(python3 -m setuptools_scm) 
+          echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Run conda build
+        env:
+          PACKAGE_VERSION: ${{ steps.get-version.outputs.version }}
         shell: bash -el {0}
-        run: conda build . --no-anaconda-upload --output-folder=./build -c conda-forge -c accessnri -c coecms
+        run: conda build . --no-anaconda-upload --output-folder=./build -c conda-forge -c accessnri
 
       - name: Verify conda package
         shell: bash -el {0}

@@ -26,7 +26,6 @@ dependencies = [
     "scitools-iris",
 ]
 
-
 [project.scripts]
 esm1p5_convert_nc = "um2nc.conversion_driver_esm1p5:main"
 um2nc = "um2nc.um2netcdf:main"
@@ -38,7 +37,7 @@ Repository = "https://github.com/ACCESS-NRI/um2nc-standalone"
 build-backend = "setuptools.build_meta"
 requires = [
     "setuptools>=80", 
-    "setuptools-scm>=8"
+    "setuptools-scm[simple]>=8",
 ]
 
 [tool.setuptools.packages.find]
@@ -47,3 +46,7 @@ namespaces = false
 
 [tool.pytest.ini_options]
 pythonpath = "src"
+
+[tool.setuptools_scm]
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"

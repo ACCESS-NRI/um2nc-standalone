@@ -1,3 +1,5 @@
+name: build-env
+
 channels:
     - accessnri
     - conda-forge
@@ -6,4 +8,5 @@ channels:
 dependencies:
     - anaconda-client
     - conda-build
-    - conda-verify
+    - setuptools >=80
+    - setuptools-scm >=8
