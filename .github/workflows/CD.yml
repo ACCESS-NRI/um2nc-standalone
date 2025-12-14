@@ -36,15 +36,12 @@ jobs:
             fetch-tags: true
             fetch-depth: 0 
 
-      - name: Setup conda environment
-        uses: conda-incubator/setup-miniconda@11b562958363ec5770fef326fe8ef0366f8cbf8a
+      - name: Setup conda build environment
+        uses: mamba-org/setup-micromamba@7f29b8b80078b1b601dfa018b0f7425c587c63bb # v2.0.6
         with:
-          miniconda-version: "latest"
-          python-version: ${{ vars.PY_VERSION }}
           environment-file: .conda/env_build.yml
-          auto-update-conda: false
-          auto-activate-base: false
-          show-channel-urls: true
+          create-args: >-
+            python=${{vars.PY_VERSION}}
       
       - name: Enforce .tar.bz2 packages
         # Temporary work-arounds while the action uibcdf/action-build-and-upload-conda-packages gets updated:
@@ -67,7 +64,7 @@ jobs:
       - name: Get package version
         id: get-version
         shell: micromamba-shell {0}
-        run:
+        run: |
           version=$(python3 -m setuptools_scm) 
           echo "version=$version" >> $GITHUB_OUTPUT
 
