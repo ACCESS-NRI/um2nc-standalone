@@ -8,5 +8,4 @@ channels:
 dependencies:
     - anaconda-client
     - conda-build
-    - setuptools >=80
     - setuptools-scm >=8

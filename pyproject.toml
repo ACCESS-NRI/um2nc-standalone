@@ -49,4 +49,4 @@ pythonpath = "src"
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
-local_scheme = "no-local-version"
+local_scheme = "node-and-date"
