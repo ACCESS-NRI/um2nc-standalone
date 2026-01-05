@@ -50,3 +50,10 @@ pythonpath = "src"
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
 local_scheme = "node-and-date"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.html]
+title = "Coverage report: um2nc-standalone"
+directory = "coverage_html"
