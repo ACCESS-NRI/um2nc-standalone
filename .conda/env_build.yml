@@ -1,11 +1,11 @@
+name: build-env
+
 channels:
     - accessnri
     - conda-forge
-    - coecms
     - nodefaults
 
 dependencies:
     - anaconda-client
     - conda-build
-    - conda-verify
-    - versioneer
+    - setuptools-scm >=8

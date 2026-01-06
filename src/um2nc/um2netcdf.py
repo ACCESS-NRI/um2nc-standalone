@@ -1105,6 +1105,11 @@ def fix_time_coord(cube, verbose):
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netCDF.")
     parser.add_argument(
+        "--version","-V",
+        action="version",
+        version=um2nc.__version__,
+    )
+    parser.add_argument(
         "-k",
         dest="nckind",
         required=False,

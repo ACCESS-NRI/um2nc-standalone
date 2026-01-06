@@ -3,12 +3,11 @@ name: um2nc-dev
 channels:
     - accessnri
     - conda-forge
-    - coecms
     - nodefaults
 
 
 dependencies:
-    - python >=3.10
+    - python >=3.10,<3.13
     - cf-units
     - cftime
     - f90nml
@@ -17,7 +16,7 @@ dependencies:
     - netcdf4
     - numpy <2
     - scitools-iris
-    - versioneer
+    - setuptools-scm >=8
     - ipykernel
     - nccmp
     - pip
