@@ -30,6 +30,7 @@ requirements:
 test:
     imports:
         - um2nc
+        - um2nc.drivers
     commands:
     {% for name, script in project.get('scripts').items() %}
         - {{ name }} --help
