@@ -43,21 +43,6 @@ jobs:
           create-args: >-
             python=${{vars.PY_VERSION}}
       
-      - name: Enforce .tar.bz2 packages
-        # Temporary work-arounds while the action uibcdf/action-build-and-upload-conda-packages gets updated:
-        # We create a `~/.condarc` file with the correct options to enforce the use of `.tar.bz2` packages
-        # and we set the channels to be used by conda build
-        shell: bash
-        run: |
-            cat > ~/.condarc << EOF
-            conda-build:
-                pkg_format: .tar.bz2
-            channels:
-                - accessnri
-                - conda-forge
-                - nodefaults
-            EOF
-
       # conda build cannot get the version from setuptools_scm so we have 
       # to set it in an env var (PACKAGE_VERSION) prior to building 
       # and use it in the meta.yaml
@@ -72,13 +57,13 @@ jobs:
         id: build-and-upload
         env:
           PACKAGE_VERSION: ${{ steps.get-version.outputs.version }}
-        uses: uibcdf/action-build-and-upload-conda-packages@b06165145a25b9c8bcb2d2b24682ad0d8e494ce7 #v1.4.0
+        uses: ACCESS-NRI/action-build-and-upload-conda-packages@v3.0.0
         with:
-            meta_yaml_dir: .conda
-            python-version: ${{ vars.PY_VERSION }}
-            user: ${{ secrets.ANACONDA_USER_NAME }}
-            token: ${{ secrets.ANACONDA_TOKEN }}
-            label: main
+          meta_yaml_dir: .conda
+          user: ${{ secrets.ANACONDA_USER_NAME }}
+          token: ${{ secrets.ANACONDA_TOKEN }}
+          label: main
+          conda_build_args: -c accessnri -c conda-forge -c nodefaults
       
       - name: Re-format output paths
         id: reformat-paths
