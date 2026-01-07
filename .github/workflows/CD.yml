@@ -43,12 +43,13 @@ jobs:
           create-args: >-
             python=${{vars.PY_VERSION}}
       
-      # conda build cannot get the version from setuptools_scm so we have to set it in an env var
-      # (PACKAGE_VERSION) prior to building and use it in meta.yaml
+      # conda build cannot get the version from setuptools_scm so we have 
+      # to set it in an env var (PACKAGE_VERSION) prior to building 
+      # and use it in the meta.yaml
       - name: Get package version
         id: get-version
         shell: micromamba-shell {0}
-        run:
+        run: |
           version=$(python3 -m setuptools_scm) 
           echo "version=$version" >> $GITHUB_OUTPUT
 
