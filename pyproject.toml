@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.scripts]
-esm1p5_convert_nc = "um2nc.conversion_driver_esm1p5:main"
+esm1p5_convert_nc = "um2nc.drivers.conversion_driver_esm1p5:main"
 um2nc = "um2nc.um2netcdf:main"
 
 [project.urls]
