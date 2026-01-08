@@ -14,6 +14,7 @@ import argparse
 import collections
 import datetime
 import os
+import sys
 import warnings
 from enum import Enum
 
@@ -517,7 +518,7 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
-def process(infile, outfile, args):
+def process(infile, outfile, args, error_on_missing=False):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
@@ -534,14 +535,14 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({"Conventions": "CF-1.6"})
 
-        for c, fill, dims in process_cubes(cubes, mv, args):
+        for c, fill, dims in process_cubes(cubes, mv, args, error_on_missing):
             # if args.verbose:
             #     print(c.name(), c.item_code)
 
             sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
 
-def process_cubes(cubes, mv, args):
+def process_cubes(cubes, mv, args, error_on_missing=False):
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
@@ -554,7 +555,7 @@ def process_cubes(cubes, mv, args):
     if do_masking:
         # drop cubes which cannot be pressure masked if heaviside uv or t is missing
         # otherwise keep all cubes when masking is off
-        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+        cubes = non_masking_cubes(cubes, heaviside_uv, heaviside_t, error_on_missing)
 
     if not cubes:
         print("No cubes left to process after filtering")
@@ -766,14 +767,17 @@ def get_heaviside_cubes(cubes):
     return heaviside_uv, heaviside_t
 
 
+HEAVISIDE_UV_CODE = 30301
+HEAVISIDE_T_CODE = 30304
+
+
 def require_heaviside_uv(item_code):
     # TODO: constants for magic numbers?
     return 30201 <= item_code <= 30288 or 30302 <= item_code <= 30303
 
 
 def is_heaviside_uv(item_code):
-    # TODO: constants for magic numbers
-    return item_code == 30301
+    return item_code == HEAVISIDE_UV_CODE
 
 
 def require_heaviside_t(item_code):
@@ -782,11 +786,10 @@ def require_heaviside_t(item_code):
 
 
 def is_heaviside_t(item_code):
-    # TODO: constants for magic numbers
-    return item_code == 30304
+    return item_code == HEAVISIDE_T_CODE
 
 
-def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
+def non_masking_cubes(cubes, heaviside_uv, heaviside_t, error_on_missing=False):
     """
     Yields cubes that:
     * do not require pressure level masking
@@ -799,22 +802,53 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     cubes : sequence of iris cubes for filtering
     heaviside_uv : heaviside_uv cube or None if it's missing
     heaviside_t : heaviside_t cube or None if it's missing
-    verbose : True to emit warnings to indicate a cube has been removed
-    """
-    msg = "{} field needed for masking pressure level data is missing. " "Excluding cube '{}' as it cannot be masked"
+    error_on_missing : Raise an exception when required heaviside cubes are missing when True.
+                       If False, raise a warning and drop the problematic cubes.
 
+    """
+
+    msg = "{} field (code {}) needed for masking pressure level data in cube {} (code {}) is missing."
+    keep_cubes = []
+    cubes_missing = False
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
-            if verbose:
-                warnings.warn(msg.format("heaviside_uv", c.name()), category=RuntimeWarning)
+            warnings.warn(
+                msg.format("heaviside_uv", HEAVISIDE_UV_CODE, c.name(), c.item_code),
+                RuntimeWarning
+            )
+            cubes_missing = True
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
-            if verbose:
-                warnings.warn(msg.format("heaviside_t", c.name()), category=RuntimeWarning)
+            warnings.warn(
+                msg.format("heaviside_T", HEAVISIDE_T_CODE, c.name(), c.item_code),
+                RuntimeWarning
+            )
+            cubes_missing = True
             continue
 
-        yield c
+        keep_cubes.append(c)
+
+    if cubes_missing:
+        if error_on_missing:
+            raise RuntimeError(
+                (
+                    "Heaviside field required to mask pressure level data is missing. "
+                    "The --nomask option allows for masking to be skipped, however "
+                    "lower level data which falls below ground level will be incorrect."
+                )
+            )
+
+        else:
+            warnings.warn(
+                (
+                    "Heaviside field required to mask pressure level data is missing. "
+                    "Pressure level data which cannot be masked will be dropped"
+                ),
+                RuntimeWarning
+            )
+
+    return keep_cubes
 
 
 def filtered_cubes(cubes, include=None, exclude=None):

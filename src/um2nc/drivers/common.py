@@ -108,7 +108,7 @@ def convert_fields_file_list(input_output_paths, process_args):
 
     for ff_path, nc_path in input_output_paths:
         try:
-            um2netcdf.process(ff_path, nc_path, process_args)
+            um2netcdf.process(ff_path, nc_path, process_args, error_on_missing=True)
             succeeded.append((ff_path, nc_path))
 
         except um2netcdf.UnsupportedTimeSeriesError as exc:
