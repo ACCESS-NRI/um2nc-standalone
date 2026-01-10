@@ -26,6 +26,7 @@ import netCDF4
 import numpy as np
 from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
+from iris.fileformats import pp_load_rules
 
 import um2nc
 from um2nc.stashmasters import StashVar, STASHmaster
@@ -126,24 +127,88 @@ class EnumAction(argparse.Action):
         member = self._enum(value)
         setattr(namespace, self.dest, member)
 
+def is_ancil(infile: mule.ff.FieldsFile) -> bool:
+    """
+    Check if the mule file is an ancillary file.
+    """
+    return isinstance(infile, mule.ancil.AncilFile)
 
-# Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
-# This matters for control runs with model years < 1600.
-@property
-def pg_calendar(self):
-    """Return the calendar of the field."""
-    # TODO #577 What calendar to return when ibtim.ic in [0, 3]
-    calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
-    if self.lbtim.ic == 2:
-        calendar = cf_units.CALENDAR_360_DAY
-    elif self.lbtim.ic == 4:
-        calendar = cf_units.CALENDAR_365_DAY
-    return calendar
+# TODO: Delete when iris PR 5138 (info below) gets merged
+def fix_iris_calendar():
+    """
+    Function to apply fixes to the scitools-iris calendar library to include proleptic gregorian calendar.
+    For information on the issue see: https://github.com/SciTools/iris/issues/3561 and https://github.com/SciTools/iris/pull/5138
+    """
+    def new_calendar(self):
+        """Fixed function for iris.fileformats.pp.PPField.calendar property method."""
+        calendar = cf_units.CALENDAR_PROLEPTIC_GREGORIAN
+        if self.lbtim.ic == 2:
+            calendar = cf_units.CALENDAR_360_DAY
+        elif self.lbtim.ic == 4:
+            calendar = cf_units.CALENDAR_365_DAY
+        return calendar
+    
+    def new_epoch_date_hours_internals(epoch_hours_unit, datetime):
+        """Fixed function for the _epoch_date_hours_internals function of the iris.fileformats.pp_load_rules module."""
+        days_offset = None
+        if datetime.year == 0 or datetime.month == 0 or datetime.day == 0:
+            # cftime > 1.0.1 no longer allows non-calendar dates.
+            # Add 1 to year/month/day, to get a valid date, and adjust the result
+            # according to the actual epoch and calendar.  This reproduces 'old'
+            # results that were produced with cftime <= 1.0.1.
+            days_offset = 0
+            y, m, d = datetime.year, datetime.month, datetime.day
+            calendar = epoch_hours_unit.calendar
+            if d == 0:
+                # Add one day, by changing day=0 to 1.
+                d = 1
+                days_offset += 1
+            if m == 0:
+                # Add a 'January', by changing month=0 to 1.
+                m = 1
+                if calendar in (cf_units.CALENDAR_STANDARD, cf_units.CALENDAR_PROLEPTIC_GREGORIAN):
+                    days_offset += 31
+                elif calendar == cf_units.CALENDAR_360_DAY:
+                    days_offset += 30
+                elif calendar == cf_units.CALENDAR_365_DAY:
+                    days_offset += 31
+                else:
+                    msg = "unrecognised calendar : {}"
+                    raise ValueError(msg.format(calendar))
 
+            if y == 0:
+                # Add a 'Year 0', by changing year=0 to 1.
+                y = 1
+                if calendar in (cf_units.CALENDAR_STANDARD, cf_units.CALENDAR_PROLEPTIC_GREGORIAN):
+                    days_in_year_0 = 366
+                elif calendar == cf_units.CALENDAR_360_DAY:
+                    days_in_year_0 = 360
+                elif calendar == cf_units.CALENDAR_365_DAY:
+                    days_in_year_0 = 365
+                else:
+                    msg = "unrecognised calendar : {}"
+                    raise ValueError(msg.format(calendar))
 
-# TODO: Is dynamically overwriting PPField acceptable?
-PPField.calendar = pg_calendar
+                days_offset += days_in_year_0
 
+            # Replace y/m/d with a modified date, that cftime will accept.
+            datetime = datetime.replace(year=y, month=m, day=d)
+
+        # netcdf4python has changed it's behaviour, at version 1.2, such
+        # that a date2num calculation returns a python float, not
+        # numpy.float64.  The behaviour of round is to recast this to an
+        # int, which is not the desired behaviour for PP files.
+        # So, cast the answer to numpy.float_ to be safe.
+        epoch_hours = np.float64(epoch_hours_unit.date2num(datetime))
+
+        if days_offset is not None:
+            # Correct for any modifications to achieve a valid date.
+            epoch_hours -= 24.0 * days_offset
+
+        return epoch_hours
+            
+    PPField.calendar = property(new_calendar)
+    pp_load_rules._epoch_date_hours_internals = new_epoch_date_hours_internals
 
 def fix_lat_coord_name(lat_coordinate, grid_type, dlat):
     """
@@ -525,6 +590,7 @@ def process(infile, outfile, args):
         ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
+    is_ancillary = is_ancil(ff)
     cubes = iris.load(infile)
 
     with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
@@ -534,27 +600,28 @@ def process(infile, outfile, args):
 
         sman.update_global_attributes({"Conventions": "CF-1.6"})
 
-        for c, fill, dims in process_cubes(cubes, mv, args):
+        for c, fill, dims in process_cubes(cubes, mv, args, is_ancillary):
             # if args.verbose:
             #     print(c.name(), c.item_code)
 
             sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
 
-def process_cubes(cubes, mv, args):
+def process_cubes(cubes, mv, args, is_ancillary):
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
     if args.include_list or args.exclude_list:
         cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
-
+    
     do_masking = not args.nomask
-    heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
-
-    if do_masking:
-        # drop cubes which cannot be pressure masked if heaviside uv or t is missing
-        # otherwise keep all cubes when masking is off
-        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+    
+    if not is_ancillary:
+        heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
+        if do_masking:
+            # drop cubes which cannot be pressure masked if heaviside uv or t is missing
+            # otherwise keep all cubes when masking is off
+            cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
 
     if not cubes:
         print("No cubes left to process after filtering")
@@ -571,19 +638,19 @@ def process_cubes(cubes, mv, args):
         # Interval in cell methods isn't reliable so better to remove it.
         c.cell_methods = fix_cell_methods(c.cell_methods)
 
-        fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
-        fix_level_coord(c, mv.z_rho, mv.z_theta)
+        if not is_ancillary:
+            fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
+            fix_level_coord(c, mv.z_rho, mv.z_theta)
+            if do_masking:
+                # Pressure level data should be masked
+                if require_heaviside_uv(c.item_code) and heaviside_uv:
+                    apply_mask(c, heaviside_uv, args.hcrit)
 
-        if do_masking:
-            # Pressure level data should be masked
-            if require_heaviside_uv(c.item_code) and heaviside_uv:
-                apply_mask(c, heaviside_uv, args.hcrit)
+                if require_heaviside_t(c.item_code) and heaviside_t:
+                    apply_mask(c, heaviside_t, args.hcrit)
 
-            if require_heaviside_t(c.item_code) and heaviside_t:
-                apply_mask(c, heaviside_t, args.hcrit)
-
-        # TODO: some cubes lose item_code when replaced with new cubes
-        c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
+            # TODO: some cubes lose item_code when replaced with new cubes
+            c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
 
         # TODO: flag warnings as an error for the driver script?
         if not args.use64bit:
@@ -622,9 +689,6 @@ def process_mule_vars(fields_file: mule.ff.FieldsFile):
     -------
     A MuleVars data structure.
     """
-    if isinstance(fields_file, mule.ancil.AncilFile):
-        raise NotImplementedError("Ancillary files are currently not supported")
-
     if mule.__version__ == "2020.01.1":
         msg = "mule 2020.01.1 doesn't handle pathlib Paths properly"
         raise NotImplementedError(msg)  # fail fast
@@ -677,7 +741,7 @@ def get_grid_spacing(ff):
         raise NotImplementedError(msg) from err
 
 
-def get_z_sea_constants(ff):
+def get_z_sea_constants(ff: mule.ff.FieldsFile):
     """
     Helper function to obtain z axis/ocean altitude constants.
 
@@ -694,13 +758,17 @@ def get_z_sea_constants(ff):
     -------
     (z_rho, z_theta) tuple of array of floating point values.
     """
-    try:
-        z_rho = ff.level_dependent_constants.zsea_at_rho
-        z_theta = ff.level_dependent_constants.zsea_at_theta
-        return z_rho, z_theta
-    except AttributeError as err:
-        msg = f"Mule {type(ff)} file lacks z sea rho or theta. File type not yet supported."
-        raise NotImplementedError(msg) from err
+    # z_rho and z_theta are not present in ancillary files
+    if not is_ancil(ff):
+        try:
+            z_rho = ff.level_dependent_constants.zsea_at_rho
+            z_theta = ff.level_dependent_constants.zsea_at_theta
+            return z_rho, z_theta
+        except AttributeError as err:
+            msg = f"Mule {type(ff)} file lacks z sea rho or theta. File type not yet supported."
+            raise NotImplementedError(msg) from err
+    else:
+        return None, None
 
 
 def to_item_code(stash_code):
@@ -1101,7 +1169,6 @@ def fix_time_coord(cube, verbose):
 
     return cube, unlimited_dimensions
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netCDF.")
     parser.add_argument(
@@ -1179,6 +1246,7 @@ def parse_args():
 
 
 def main():
+    fix_iris_calendar()
     args = parse_args()
     process(args.infile, args.outfile, args)
 
