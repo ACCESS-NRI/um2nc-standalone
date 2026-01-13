@@ -78,9 +78,9 @@ TIME = "time"
 DEFAULT_FILL_VAL_FLOAT = 1.0e20
 
 # Options for pressure level masking
-NO_MASK = "no_mask"
-ERROR_MISSING = "error_missing"
-DROP_MISSING = "drop_missing"
+NO_MASK = "no-mask"
+ERROR_MISSING = "error-missing"
+DROP_MISSING = "drop-missing"
 
 
 class PostProcessingError(Exception):
