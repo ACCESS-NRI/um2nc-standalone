@@ -176,7 +176,7 @@ function diff_warn {
 # Test 1:
 # Execute nomask variant, pressure masking is turned OFF & all cubes are kept.
 run_um2nc    --nohist \
-             --nomask \
+             --mask-option no-mask \
              "$source_ff" \
              "$out_nomask_nc"
 

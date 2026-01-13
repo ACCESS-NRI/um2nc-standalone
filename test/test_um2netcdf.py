@@ -255,7 +255,7 @@ def test_process_cubes_no_heaviside_error(ta_plev_cube, precipitation_flux_cube,
                                                geo_potential_cube, mule_vars, std_args):
     """
     Attempt end-to-end process_cubes() test. Check that an error is raised when the
-    mask_option is set to error_missing and the relevant heaviside variables are missing.
+    mask_option is set to ERROR_MISSING and the relevant heaviside variables are missing.
     """
 
     # include cubes requiring both heaviside uv & t cubes to filter

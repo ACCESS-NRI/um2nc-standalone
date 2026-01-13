@@ -78,9 +78,9 @@ TIME = "time"
 DEFAULT_FILL_VAL_FLOAT = 1.0e20
 
 # Options for pressure level masking
-NO_MASK = "no_mask"
-ERROR_MISSING = "error_missing"
-DROP_MISSING = "drop_missing"
+NO_MASK = "no-mask"
+ERROR_MISSING = "error-missing"
+DROP_MISSING = "drop-missing"
 
 
 class PostProcessingError(Exception):
@@ -795,7 +795,7 @@ def is_heaviside_t(item_code):
 
 def non_masking_cubes(cubes, heaviside_uv, heaviside_t, mask_option):
     """
-    Yields cubes that:
+    Returns cubes that:
     * do not require pressure level masking
     * require pressure level masking & the relevant masking cube exists
 

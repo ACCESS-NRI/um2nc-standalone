@@ -67,7 +67,7 @@ Points on a pressure level grid may fall below ground-level in some fields of th
 By default, variables on pressure level grids that fall below-ground level will be masked with the appropriate Heaviside variable found in the input file. If the Heaviside variable cannot be found, these variables will be omitted from the output. This behaviour can be controlled by the following options:
 
 * `--hcrit HCRIT` Minimum fraction of the time spent above ground-level for a pressure grid data point to be considered valid.  Data points in pressure grid variables will be masked if they were above ground-level for less than the critical fraction `HCRIT` of the time. This option has no effect when used together with the `--nomask` option. Default `0.5`.
-* `--nomask` Don't mask variables on pressure level grids. When selected, unmasked pressure level variables will be written to the output file regardless of the presence of the Heaviside variable.
+* `--mask-option` Option for masking pressure level variables. Choose from `drop-missing` (drop pressure level variables which require masking if the required heaviside variables are missing), `error-missing` (produce an error if pressure level variables require masking but the heaviside variables are missing), `no-mask` (don't mask variables on pressure level grids. When selected, unmasked pressure level variables will be written to the output file regardless of the presence of the Heaviside variable). Default: `drop-missing`.
 
 
 _Metadata options:_

@@ -60,7 +60,7 @@ fields file, and can be used for faster but less in-depth testing. It includes:
 For each of the above data choices, the following netCDF variants were produced:
 
 * `mask`: produced with the `--nohist` flag only.
-* `nomask`: produced with the `--nomask` and `--nohist` flags.
+* `nomask`: produced with the `--mask-option no-mask` and `--nohist` options.
 * `hist`: produced with no flags. These files will have a conversion datestamp
 in their history attribute.
 
