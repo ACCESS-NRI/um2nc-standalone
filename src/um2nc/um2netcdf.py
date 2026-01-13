@@ -14,7 +14,6 @@ import argparse
 import collections
 import datetime
 import os
-import sys
 import warnings
 from enum import Enum
 
@@ -77,6 +76,11 @@ FORECAST_PERIOD = "forecast_period"
 TIME = "time"
 
 DEFAULT_FILL_VAL_FLOAT = 1.0e20
+
+# Options for pressure level masking
+NO_MASK = "no_mask"
+ERROR_MISSING = "error_missing"
+DROP_MISSING = "drop_missing"
 
 
 class PostProcessingError(Exception):
@@ -518,7 +522,7 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
-def process(infile, outfile, args, error_on_missing=False):
+def process(infile, outfile, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
@@ -535,27 +539,27 @@ def process(infile, outfile, args, error_on_missing=False):
 
         sman.update_global_attributes({"Conventions": "CF-1.6"})
 
-        for c, fill, dims in process_cubes(cubes, mv, args, error_on_missing):
+        for c, fill, dims in process_cubes(cubes, mv, args):
             # if args.verbose:
             #     print(c.name(), c.item_code)
 
             sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
 
-def process_cubes(cubes, mv, args, error_on_missing=False):
+def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
     cubes.sort(key=lambda cs: cs.item_code)
 
     if args.include_list or args.exclude_list:
         cubes = [c for c in filtered_cubes(cubes, args.include_list, args.exclude_list)]
 
-    do_masking = not args.nomask
+    do_masking = (args.mask_option != NO_MASK)
     heaviside_uv, heaviside_t = get_heaviside_cubes(cubes)
 
     if do_masking:
         # drop cubes which cannot be pressure masked if heaviside uv or t is missing
         # otherwise keep all cubes when masking is off
-        cubes = non_masking_cubes(cubes, heaviside_uv, heaviside_t, error_on_missing)
+        cubes = non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.mask_option)
 
     if not cubes:
         print("No cubes left to process after filtering")
@@ -789,7 +793,7 @@ def is_heaviside_t(item_code):
     return item_code == HEAVISIDE_T_CODE
 
 
-def non_masking_cubes(cubes, heaviside_uv, heaviside_t, error_on_missing=False):
+def non_masking_cubes(cubes, heaviside_uv, heaviside_t, mask_option):
     """
     Yields cubes that:
     * do not require pressure level masking
@@ -802,51 +806,39 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, error_on_missing=False):
     cubes : sequence of iris cubes for filtering
     heaviside_uv : heaviside_uv cube or None if it's missing
     heaviside_t : heaviside_t cube or None if it's missing
-    error_on_missing : Raise an exception when required heaviside cubes are missing when True.
-                       If False, raise a warning and drop the problematic cubes.
-
+    mask_option : option for treating cubes when the required heaviside is missing
     """
 
-    msg = "{} field (code {}) needed for masking pressure level data in cube {} (code {}) is missing."
+    cubes_missing_uv = []
+    cubes_missing_t = []
     keep_cubes = []
-    cubes_missing = False
+
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
-            warnings.warn(
-                msg.format("heaviside_uv", HEAVISIDE_UV_CODE, c.name(), c.item_code),
-                RuntimeWarning
-            )
-            cubes_missing = True
-            continue
+            cubes_missing_uv.append(c.item_code)
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
-            warnings.warn(
-                msg.format("heaviside_T", HEAVISIDE_T_CODE, c.name(), c.item_code),
-                RuntimeWarning
-            )
-            cubes_missing = True
-            continue
-
-        keep_cubes.append(c)
-
-    if cubes_missing:
-        if error_on_missing:
-            raise RuntimeError(
-                (
-                    "Heaviside field required to mask pressure level data is missing. "
-                    "The --nomask option allows for masking to be skipped, however "
-                    "lower level data which falls below ground level will be incorrect."
-                )
-            )
+            cubes_missing_t.append(c.item_code)
 
         else:
-            warnings.warn(
-                (
-                    "Heaviside field required to mask pressure level data is missing. "
-                    "Pressure level data which cannot be masked will be dropped"
-                ),
-                RuntimeWarning
-            )
+            keep_cubes.append(c)
+
+    if cubes_missing_uv or cubes_missing_t:
+        msg = ""
+        if cubes_missing_uv:
+            msg += f"Heaviside_UV field (code {HEAVISIDE_UV_CODE}) required for masking fields {cubes_missing_uv} is missing."
+
+        if cubes_missing_t:
+            msg += f"Heaviside_T field (code {HEAVISIDE_T_CODE}) required for masking fields {cubes_missing_t} is missing."
+
+        if mask_option == ERROR_MISSING:
+            msg += "See 'mask_option' argument for pressure level masking options."
+            raise RuntimeError(msg)
+        elif mask_option == DROP_MISSING:
+            msg += "These cubes will be dropped. See 'mask_option' argument for pressure level masking options."
+            warnings.warn(msg, category=RuntimeWarning)
+        else:
+            raise ValueError(f"Invalid masking option '{mask_option}'. Expected '{DROP_MISSING}' or '{ERROR_MISSING}'")
 
     return keep_cubes
 
@@ -1175,11 +1167,17 @@ def parse_args():
     group.add_argument("--exclude", dest="exclude_list", type=int, nargs="+", help="List of stash codes to exclude")
 
     parser.add_argument(
-        "--nomask",
-        dest="nomask",
-        action="store_true",
-        default=False,
-        help="Don't mask variables on pressure level grids.",
+        "--mask-option",
+        dest="mask_option",
+        type=str,
+        default=DROP_MISSING,
+        choices=[DROP_MISSING, ERROR_MISSING, NO_MASK],
+        help=(
+                f"Option for applying heaviside mask to pressure level variables: default '{DROP_MISSING}'\n"
+                f"   {DROP_MISSING}: Drop pressure level variables needing masking if the required heaviside variable is missing\n"
+                f"   {ERROR_MISSING}: Produce an error if a heaviside variable required for masking is missing\n"
+                f"   {NO_MASK}: Don't apply heaviside mask to any variables"
+            )
     )
     parser.add_argument(
         "--nohist", dest="nohist", action="store_true", default=False, help="Don't add/update the global 'history' attribute in the output netCDF."

@@ -192,7 +192,7 @@ def heaviside_t_cube(lat_standard_eg_coord, lon_standard_eg_coord):
 def std_args():
     # TODO: make args namedtuple?
     args = mock.Mock()
-    args.nomask = False  # perform masking if possible
+    args.mask_option = um2nc.DROP_MISSING  # perform masking if possible
     args.nohist = False
     args.nckind = 3
     args.include_list = None
@@ -223,6 +223,8 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     # ensure both uv/t dependent cubes are dropped
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
 
+    std_args.mask_option = um2nc.DROP_MISSING
+
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
     with (
@@ -231,13 +233,12 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
-        std_args.verbose = True  # test some warning branches
-
         # trying to mask None will break in numpy
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
-        with pytest.warns(RuntimeWarning):
+        pattern = f"(?=.*These cubes will be dropped)(?=.*{ta_plev_cube.item_code})(?=.*{geo_potential_cube.item_code})"
+        with pytest.warns(RuntimeWarning, match=pattern):
             processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
 
     assert len(processed) == 1
@@ -248,6 +249,32 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     # contrived testing: if the masking code was reached for some reason,
     # the test would fail during process()
     assert cube.data is None  # masking wasn't called/nothing changed
+
+
+def test_process_cubes_no_heaviside_error(ta_plev_cube, precipitation_flux_cube,
+                                               geo_potential_cube, mule_vars, std_args):
+    """
+    Attempt end-to-end process_cubes() test. Check that an error is raised when the
+    mask_option is set to error_missing and the relevant heaviside variables are missing.
+    """
+
+    # include cubes requiring both heaviside uv & t cubes to filter
+    cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube]
+
+    std_args.mask_option = um2nc.ERROR_MISSING
+
+    # mock fix_time_coord to avoid adding difficult to replicate
+    # iris methods in DummyCube.
+    with (
+        mock.patch("um2nc.um2netcdf.fix_fill_value"),
+        mock.patch("um2nc.um2netcdf.fix_time_coord") as m_time_coord,
+    ):
+        m_time_coord.side_effect = mock_fix_time_no_time_dim
+
+        pattern = f"(?=.*{ta_plev_cube.item_code})(?=.*{geo_potential_cube.item_code})"
+        # Missing heaviside's for air temp & geo potential should raise an error
+        with pytest.raises(RuntimeError, match=pattern):
+            processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
 
 
 def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
@@ -265,6 +292,7 @@ def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
+    std_args.mask_option == um2nc.DROP_MISSING
     # all cubes should be dropped
     assert list(um2nc.process_cubes(cubes, mule_vars, std_args)) == []
 
@@ -279,6 +307,9 @@ def test_process_mask_with_heaviside(ta_plev_cube, precipitation_flux_cube,
     # masking, include both to enable code execution for both masks
     cubes = [ta_plev_cube, precipitation_flux_cube, geo_potential_cube,
              heaviside_uv_cube, heaviside_t_cube]
+
+    # Ensure that the masking is applied
+    std_args.mask_option = um2nc.ERROR_MISSING
 
     # mock fix_time_coord to avoid adding difficult to replicate
     # iris methods in DummyCube.
@@ -314,7 +345,7 @@ def test_process_no_masking_keep_all_cubes(ta_plev_cube, precipitation_flux_cube
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
-        std_args.nomask = True
+        std_args.mask_option = um2nc.NO_MASK
         processed = list(um2nc.process_cubes(cubes, mule_vars, std_args))
 
     # all cubes should be kept with masking off
