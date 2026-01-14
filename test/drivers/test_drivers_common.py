@@ -210,7 +210,12 @@ def test_format_successes():
         assert str(successful_io_pair[1]) in success_reports[i]
 
 
-def test_format_failures_quiet_mode():
+def test_format_failures_short_report():
+    """
+    format_failures yields tuples containing a short report
+    and full traceback. Test that the short report contains
+    the required information.
+    """
     failed = [
         (Path("fake_file_1"), Exception("Error 1")),
         (Path("fake_file_2"), Exception("Error 2")),
@@ -218,20 +223,22 @@ def test_format_failures_quiet_mode():
     ]
 
     formatted_failure_reports = list(
-        drivers_common.format_failures(failed, True)
+        drivers_common.format_failures(failed)
     )
 
     assert len(failed) == len(formatted_failure_reports)
     for i, (file, exception) in enumerate(failed):
-        assert str(file) in formatted_failure_reports[i]
-        assert repr(exception) in formatted_failure_reports[i]
+        formatted_short_report = formatted_failure_reports[i][0]
+        assert str(file) in formatted_short_report
+        assert repr(exception) in formatted_short_report
 
 
-def test_format_failures_standard_mode():
-    # Test that a multiple exceptions are reported when present in
-    # stack trace and standard error reporting is requested
-    # (i.e. quiet is false).
-
+def test_format_failures_full_traceback():
+    """
+    format_failures yields tuples containing a short report
+    and full traceback. Test that a multiple exceptions are
+    reported when present in stack trace.
+    """
     # Set up chained exceptions
     exception_1 = ValueError("Error 1")
     exception_2 = TypeError("Error_2")
@@ -244,15 +251,15 @@ def test_format_failures_standard_mode():
     failed_conversion = [(failed_file, exc_with_traceback)]
 
     formatted_failure_report_list = list(
-        drivers_common.format_failures(failed_conversion, quiet=False)
+        drivers_common.format_failures(failed_conversion)
     )
-    formatted_failure_report = formatted_failure_report_list[0]
+    formatted_traceback_report = formatted_failure_report_list[0][1]
 
-    assert type(exception_1).__name__ in formatted_failure_report
-    assert type(exception_2).__name__ in formatted_failure_report
+    assert type(exception_1).__name__ in formatted_traceback_report
+    assert type(exception_2).__name__ in formatted_traceback_report
 
-    assert exception_1.args[0] in formatted_failure_report
-    assert exception_2.args[0] in formatted_failure_report
+    assert exception_1.args[0] in formatted_traceback_report
+    assert exception_2.args[0] in formatted_traceback_report
 
 
 def test_success_fail_overlap():

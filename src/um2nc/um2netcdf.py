@@ -13,6 +13,7 @@ Note that um2netcdf depends on the following data access libraries:
 import argparse
 import collections
 import datetime
+import logging
 import os
 import warnings
 from enum import Enum
@@ -91,6 +92,38 @@ class UnsupportedTimeSeriesError(PostProcessingError):
     """
 
     pass
+
+
+class StrictWarning(UserWarning):
+    """
+    Warnings which should be promoted to errors when the strict flag is True.
+    """
+    pass
+
+
+def setup_logging(verbose: bool, quiet: bool, strict: bool):
+    """Setup logging levels"""
+    level = logging.WARNING
+
+    if verbose and quiet:
+        raise RuntimeError("'verbose' and 'quiet' options cannot be simultaneously active")
+
+    if verbose:
+        level = logging.INFO
+    if quiet:
+        level = logging.ERROR # Suppress WARNING
+
+    logging.basicConfig(
+        level=level,
+        format="%(levelname)s: %(message)s",
+    )
+
+    # Route warnings → logging
+    logging.captureWarnings(True)
+
+    # Apply strict option
+    if strict:
+        warnings.filterwarnings("error", category=StrictWarning)
 
 
 # TODO: Move this to a separate helper file?
@@ -554,19 +587,19 @@ def process_cubes(cubes, mv, args):
     if do_masking:
         # drop cubes which cannot be pressure masked if heaviside uv or t is missing
         # otherwise keep all cubes when masking is off
-        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t))
 
     if not cubes:
-        print("No cubes left to process after filtering")
+        warnings.warn("No cubes left to process after filtering")
         return
 
     # cube processing & modification
     for c in cubes:
         st = StashVar(c.item_code, stashmaster=args.model)
         fix_var_name(c, st.uniquename, args.simple)
-        fix_standard_name(c, st.standard_name, args.verbose)
+        fix_standard_name(c, st.standard_name)
         fix_long_name(c, st.long_name)
-        fix_units(c, st.units, args.verbose)
+        fix_units(c, st.units)
 
         # Interval in cell methods isn't reliable so better to remove it.
         c.cell_methods = fix_cell_methods(c.cell_methods)
@@ -599,7 +632,7 @@ def process_cubes(cubes, mv, args):
                 coord.points = coord.points.astype(np.int32)
 
         # TODO: can item code get removed here when new cubes returned?
-        c, unlimited_dimensions = fix_time_coord(c, args.verbose)
+        c, unlimited_dimensions = fix_time_coord(c)
 
         yield c, fill_value, unlimited_dimensions
 
@@ -766,14 +799,17 @@ def get_heaviside_cubes(cubes):
     return heaviside_uv, heaviside_t
 
 
+HEAVISIDE_UV_CODE = 30301
+HEAVISIDE_T_CODE = 30304
+
+
 def require_heaviside_uv(item_code):
     # TODO: constants for magic numbers?
     return 30201 <= item_code <= 30288 or 30302 <= item_code <= 30303
 
 
 def is_heaviside_uv(item_code):
-    # TODO: constants for magic numbers
-    return item_code == 30301
+    return item_code == HEAVISIDE_UV_CODE
 
 
 def require_heaviside_t(item_code):
@@ -782,11 +818,10 @@ def require_heaviside_t(item_code):
 
 
 def is_heaviside_t(item_code):
-    # TODO: constants for magic numbers
-    return item_code == 30304
+    return item_code == HEAVISIDE_T_CODE
 
 
-def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
+def non_masking_cubes(cubes, heaviside_uv, heaviside_t):
     """
     Yields cubes that:
     * do not require pressure level masking
@@ -799,19 +834,16 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     cubes : sequence of iris cubes for filtering
     heaviside_uv : heaviside_uv cube or None if it's missing
     heaviside_t : heaviside_t cube or None if it's missing
-    verbose : True to emit warnings to indicate a cube has been removed
     """
-    msg = "{} field needed for masking pressure level data is missing. " "Excluding cube '{}' as it cannot be masked"
+    msg = "{} field (code {}) needed for masking pressure level data is missing. " "Field '{}' (code {}) cannot be processed"
 
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
-            if verbose:
-                warnings.warn(msg.format("heaviside_uv", c.name()), category=RuntimeWarning)
+            warnings.warn(msg.format("heaviside_uv", HEAVISIDE_UV_CODE, c.name(), c.item_code), category=StrictWarning)
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
-            if verbose:
-                warnings.warn(msg.format("heaviside_t", c.name()), category=RuntimeWarning)
+            warnings.warn(msg.format("heaviside_t", HEAVISIDE_T_CODE, c.name(), c.item_code), category=StrictWarning)
             continue
 
         yield c
@@ -880,7 +912,7 @@ def fix_var_name(cube, um_unique_name, simple: bool):
             cube.var_name += "_min"
 
 
-def fix_standard_name(cube, um_standard_name, verbose: bool):
+def fix_standard_name(cube, um_standard_name):
     """
     Modify cube `standard_name` attr to change naming for NetCDF output.
 
@@ -888,7 +920,6 @@ def fix_standard_name(cube, um_standard_name, verbose: bool):
     ----------
     cube : iris cube to modify (changes the name in place)
     um_standard_name : the UM Stash standard name
-    verbose : True to turn warnings on
     """
     stash_code = cube.attributes[STASH]
 
@@ -900,15 +931,14 @@ def fix_standard_name(cube, um_standard_name, verbose: bool):
             cube.standard_name = "northward_wind"
 
         if um_standard_name and cube.standard_name != um_standard_name:
-            # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
-            if verbose:
-                # TODO: show combined stash code instead?
-                msg = (
-                    f"Standard name mismatch section={stash_code.section}"
-                    f" item={stash_code.item} standard_name={cube.standard_name}"
-                    f" UM var name={um_standard_name}"
-                )
-                warnings.warn(msg)
+            # TODO: show combined stash code instead?
+            # TODO: Should this be a warning?
+            msg = (
+                f"Standard name mismatch section={stash_code.section}"
+                f" item={stash_code.item} standard_name={cube.standard_name}"
+                f" UM var name={um_standard_name}"
+            )
+            logging.info(msg)
 
             cube.standard_name = um_standard_name
     elif um_standard_name:
@@ -934,14 +964,14 @@ def fix_long_name(cube, um_long_name):
         cube.long_name = um_long_name
 
 
-def fix_units(cube, um_var_units, verbose: bool):
+def fix_units(cube, um_var_units):
     if cube.units and um_var_units:
         # Simple testing c.units == um_var_units doesn't catch format differences because
         # the Unit type works around them. repr is also unreliable
         if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
-            if verbose:
-                msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
-                warnings.warn(msg)
+            msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
+            logging.info(msg)
+
             cube.units = um_var_units
 
 
@@ -1054,7 +1084,7 @@ def convert_32_bit(cube):
         cube.data = cube.data.astype(np.int32)
 
 
-def fix_time_coord(cube, verbose):
+def fix_time_coord(cube):
     """
     Ensures cube has a 'time' coordinate dimension.
 
@@ -1065,7 +1095,6 @@ def fix_time_coord(cube, verbose):
     Parameters
     ----------
     cube : iris Cube object
-    verbose : True to display information on stdout
 
     Returns
     -------
@@ -1083,10 +1112,10 @@ def fix_time_coord(cube, verbose):
                 neworder.remove(tdim)
                 neworder.insert(0, tdim)
 
-                if verbose > 1:
-                    # TODO: fix I/O, is this better as a warning?
-                    print("Incorrect dimension order", cube)
-                    print("Transpose to", neworder)
+                logging.info(
+                    f"Incorrect dimension order on {cube.item_code}."
+                    f"Transposing to {neworder}"
+                )
 
                 cube.transpose(neworder)
         else:
@@ -1132,9 +1161,16 @@ def parse_args():
     parser.add_argument(
         "--64", dest="use64bit", action="store_true", default=False, help="Write 64 bit output when input is 64 bit"
     )
-    parser.add_argument(
-        "-v", "--verbose", dest="verbose", action="count", default=0, help="Display verbose output (use '-vv' for extra verbosity)."
+
+    verbosity_group = parser.add_mutually_exclusive_group()
+    verbosity_group.add_argument(
+        "-v", "--verbose", dest="verbose", action="store_true", default=False, help="Display verbose output."
     )
+    verbosity_group.add_argument(
+        "-q", "--quiet", dest="quiet", action="store_true", default=False, help="Suppress warnings arising from um2nc."
+    )
+
+    parser.add_argument("--strict", dest="strict", action="store_true", default=False, help="Promote the StrictWarning class of warnings to errors.")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--include", dest="include_list", type=int, nargs="+", help="List of stash codes to include")
@@ -1180,6 +1216,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    setup_logging(args.verbose, args.quiet, args.strict)
     process(args.infile, args.outfile, args)
 
 

@@ -138,7 +138,7 @@ def format_successes(succeeded):
         yield success_report
 
 
-def format_failures(failed, quiet):
+def format_failures(failed):
     """
     Format reports of conversions which failed with permitted exceptions.
 
@@ -146,33 +146,24 @@ def format_failures(failed, quiet):
     ----------
     failed: list of tuples of form (filepath, exception) for files which failed
             to convert due to an allowable exception.
-    quiet: boolean. Report only final exception type and message rather than
-           full stack trace when true.
-
     Yields
     -------
     failure_report: Formatted reports of failed conversion.
     """
 
-    if quiet:
-
-        for fields_file_path, exception in failed:
-            failure_report = (
+    for fields_file_path, exception in failed:
+        short_report = (
                 f"Failed to convert {fields_file_path}. Final reported error: \n"
                 f"{repr(exception)}"
             )
-            yield failure_report
-    else:
 
-        for fields_file_path, exception in failed:
-            formatted_traceback = "".join(
+        formatted_traceback = "".join(
                 traceback.format_exception(exception)
             )
-            failure_report = (
-                f"Failed to convert {fields_file_path}. Final reported error: \n"
-                f"{formatted_traceback}"
-            )
-            yield failure_report
+
+        traceback_report = f"Traceback: \n{formatted_traceback}"
+
+        yield (short_report, traceback_report)
 
 
 def _resolve_path(path):
