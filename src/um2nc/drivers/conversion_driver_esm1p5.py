@@ -40,7 +40,7 @@ ARG_NAMES = collections.namedtuple(
     "nckind compression simple nomask hcrit verbose quiet strict include_list exclude_list nohist use64bit model",
 )
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
-ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, False, True, None, None, False, False,
+ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, True, False, True, None, None, False, False,
                      STASHmaster.ACCESS_ESM1p5)
 
 
@@ -195,16 +195,16 @@ def parse_args():
 
 def main():
     args = parse_args()
+    # TODO: Set up a single logger when implementing subcommands
     setup_logging(ARG_VALS.verbose, ARG_VALS.quiet, ARG_VALS.strict)
 
     successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
 
     # Report results to user
     for success_message in format_successes(successes):
-        print(success_message)
-    for short_report, traceback_report in format_failures(failures):
-        warnings.warn(short_report)
-        logging.info(traceback_report)
+        logging.info(success_message)
+    for failure_report in format_failures(failures):
+        warnings.warn(failure_report, category=RuntimeWarning)
 
     if args.delete_ff:
         # Remove files that appear only as successful conversions

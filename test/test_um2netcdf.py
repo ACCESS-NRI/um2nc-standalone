@@ -511,16 +511,14 @@ def test_fix_standard_name_update_y_wind():
     assert m_cube.standard_name == "northward_wind"
 
 
-def test_fix_standard_name_with_mismatch(x_wind_cube, caplog):
+def test_fix_standard_name_with_mismatch(x_wind_cube):
     # ensure mismatching standard names between cube & um uses the um std name
-    # and that the the mismatch is logged
+    # and that a warning is given
     standard_name = "fake"
     assert x_wind_cube.standard_name != standard_name
 
-    caplog.set_level(logging.INFO)
-    um2nc.fix_standard_name(x_wind_cube, standard_name)
-
-    assert standard_name in caplog.text
+    with pytest.warns(RuntimeWarning, match=standard_name):
+        um2nc.fix_standard_name(x_wind_cube, standard_name)
 
     assert x_wind_cube.standard_name == standard_name
 
@@ -582,14 +580,12 @@ def ua_plev_alt(ua_plev_cube):
     return ua_plev_cube
 
 
-def test_fix_units_update_units(ua_plev_alt, caplog):
-    # ensure UM Stash units override cube units. Check that the missmatch is logged
+def test_fix_units_update_units(ua_plev_alt):
+    # ensure UM Stash units override cube units. Check that a warning is given
     um_var_units = "Metres-fake"
-    caplog.set_level(logging.INFO)
-    um2nc.fix_units(ua_plev_alt, um_var_units)
+    with pytest.warns(RuntimeWarning, match=um_var_units):
+        um2nc.fix_units(ua_plev_alt, um_var_units)
     assert ua_plev_alt.units == um_var_units
-    assert str(ua_plev_alt.item_code) in caplog.text
-    assert um_var_units in caplog.text
 
 
 def test_fix_units_do_nothing_no_cube_units(ua_plev_cube):

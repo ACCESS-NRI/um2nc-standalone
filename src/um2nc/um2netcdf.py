@@ -110,8 +110,8 @@ def setup_logging(verbose: bool, quiet: bool, strict: bool):
 
     if verbose:
         level = logging.INFO
-    if quiet:
-        level = logging.ERROR # Suppress WARNING
+    elif quiet:
+        level = logging.ERROR  # Suppress WARNING
 
     logging.basicConfig(
         level=level,
@@ -921,7 +921,6 @@ def fix_standard_name(cube, um_standard_name):
     cube : iris cube to modify (changes the name in place)
     um_standard_name : the UM Stash standard name
     """
-    stash_code = cube.attributes[STASH]
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
     if cube.standard_name:
@@ -931,14 +930,13 @@ def fix_standard_name(cube, um_standard_name):
             cube.standard_name = "northward_wind"
 
         if um_standard_name and cube.standard_name != um_standard_name:
-            # TODO: show combined stash code instead?
-            # TODO: Should this be a warning?
             msg = (
-                f"Standard name mismatch section={stash_code.section}"
-                f" item={stash_code.item} standard_name={cube.standard_name}"
-                f" UM var name={um_standard_name}"
+                f"Standard name mismatch for cube {cube.item_code}. "
+                f"standard_name from Iris: {cube.standard_name}, "
+                f"standard_name from un2nc: {um_standard_name}. "
+                "Using um2nc standard_name."
             )
-            logging.info(msg)
+            warnings.warn(msg, category=RuntimeWarning)
 
             cube.standard_name = um_standard_name
     elif um_standard_name:
@@ -969,8 +967,11 @@ def fix_units(cube, um_var_units):
         # Simple testing c.units == um_var_units doesn't catch format differences because
         # the Unit type works around them. repr is also unreliable
         if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
-            msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
-            logging.info(msg)
+            msg = (
+                    f"Units mismatch for cube {cube.item_code}. Units from Iris: {cube.units}, "
+                    f"units from um2nc: {um_var_units}. Using units from um2nc."
+                  )
+            warnings.warn(msg, category=RuntimeWarning)
 
             cube.units = um_var_units
 
@@ -1216,6 +1217,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    # TODO: Set up a single logger when implementing subcommands
     setup_logging(args.verbose, args.quiet, args.strict)
     process(args.infile, args.outfile, args)
 

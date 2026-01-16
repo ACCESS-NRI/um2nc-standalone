@@ -210,10 +210,9 @@ def test_format_successes():
         assert str(successful_io_pair[1]) in success_reports[i]
 
 
-def test_format_failures_short_report():
+def test_format_failures():
     """
-    format_failures yields tuples containing a short report
-    and full traceback. Test that the short report contains
+    Test that format_failures produces error reports with
     the required information.
     """
     failed = [
@@ -227,39 +226,9 @@ def test_format_failures_short_report():
     )
 
     assert len(failed) == len(formatted_failure_reports)
-    for i, (file, exception) in enumerate(failed):
-        formatted_short_report = formatted_failure_reports[i][0]
-        assert str(file) in formatted_short_report
-        assert repr(exception) in formatted_short_report
-
-
-def test_format_failures_full_traceback():
-    """
-    format_failures yields tuples containing a short report
-    and full traceback. Test that a multiple exceptions are
-    reported when present in stack trace.
-    """
-    # Set up chained exceptions
-    exception_1 = ValueError("Error 1")
-    exception_2 = TypeError("Error_2")
-    try:
-        raise exception_2 from exception_1
-    except Exception as exc:
-        exc_with_traceback = exc
-
-    failed_file = Path("fake_file")
-    failed_conversion = [(failed_file, exc_with_traceback)]
-
-    formatted_failure_report_list = list(
-        drivers_common.format_failures(failed_conversion)
-    )
-    formatted_traceback_report = formatted_failure_report_list[0][1]
-
-    assert type(exception_1).__name__ in formatted_traceback_report
-    assert type(exception_2).__name__ in formatted_traceback_report
-
-    assert exception_1.args[0] in formatted_traceback_report
-    assert exception_2.args[0] in formatted_traceback_report
+    for ((file, exception), report) in zip(failed, formatted_failure_reports):
+        assert str(file) in report
+        assert repr(exception) in report
 
 
 def test_success_fail_overlap():

@@ -6,7 +6,6 @@ Common functions used across model conversion drivers
 import collections
 import os
 import re
-import traceback
 import warnings
 
 import mule
@@ -148,22 +147,16 @@ def format_failures(failed):
             to convert due to an allowable exception.
     Yields
     -------
-    failure_report: Formatted reports of failed conversion.
+    failure_report: Formatted reports of failed conversions.
     """
 
     for fields_file_path, exception in failed:
-        short_report = (
+        failure_report = (
                 f"Failed to convert {fields_file_path}. Final reported error: \n"
                 f"{repr(exception)}"
             )
 
-        formatted_traceback = "".join(
-                traceback.format_exception(exception)
-            )
-
-        traceback_report = f"Traceback: \n{formatted_traceback}"
-
-        yield (short_report, traceback_report)
+        yield failure_report
 
 
 def _resolve_path(path):
