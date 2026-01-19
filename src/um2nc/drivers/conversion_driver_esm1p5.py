@@ -14,7 +14,6 @@ https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 import os
 import collections
 import f90nml
-import logging
 import warnings
 import argparse
 import errno
@@ -24,7 +23,6 @@ from um2nc.stashmasters import STASHmaster
 from um2nc.um2netcdf import setup_logging
 
 from um2nc.drivers.common import find_matching_files, get_ff_date
-from um2nc.drivers.common import format_successes, format_failures
 from um2nc.drivers.common import filter_name_collisions, safe_removal
 from um2nc.drivers.common import get_fields_file_pattern
 from um2nc.drivers.common import convert_fields_file_list
@@ -199,12 +197,6 @@ def main():
     setup_logging(ARG_VALS.verbose, ARG_VALS.quiet, ARG_VALS.strict)
 
     successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
-
-    # Report results to user
-    for success_message in format_successes(successes):
-        logging.info(success_message)
-    for failure_report in format_failures(failures):
-        warnings.warn(failure_report, category=RuntimeWarning)
 
     if args.delete_ff:
         # Remove files that appear only as successful conversions

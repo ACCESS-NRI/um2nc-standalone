@@ -4,6 +4,7 @@ Common functions used across model conversion drivers
 """
 
 import collections
+import logging
 import os
 import re
 import warnings
@@ -96,10 +97,9 @@ def convert_fields_file_list(input_output_paths, process_args):
 
     Returns
     -------
-    succeeded: list of tuples of (input, output) filepaths for successful
-               conversions.
-    failed: list of tuples of form (input path, exception) for files which
-            failed to convert due to an allowed exception.
+    succeeded: list of input filepaths which were successfully converted.
+    failed: list of input filepaths which could not be converted due to an
+            allowed exception.
     """
 
     succeeded = []
@@ -108,55 +108,21 @@ def convert_fields_file_list(input_output_paths, process_args):
     for ff_path, nc_path in input_output_paths:
         try:
             um2netcdf.process(ff_path, nc_path, process_args)
-            succeeded.append((ff_path, nc_path))
 
         except um2netcdf.UnsupportedTimeSeriesError as exc:
-            failed.append((ff_path, exc))
+            failed.append(ff_path)
+            warnings.warn(
+                f"Failed to convert {ff_path} with error:\n{repr(exc)}",
+                category=RuntimeWarning
+            )
+
+        else:
+            succeeded.append(ff_path)
+            logging.info(f"Successfully converted {ff_path} to {nc_path}")
 
         # Any unexpected errors will be raised
 
     return succeeded, failed
-
-
-def format_successes(succeeded):
-    """
-    Format reports of successful conversions to be shared with user.
-
-    Parameters
-    ----------
-    succeeded: list of (input, output) tuples of filepaths for successful
-               conversions.
-
-    Yields
-    -------
-    success_report: formatted report of successful conversion.
-    """
-
-    for input_path, output_path in succeeded:
-        success_report = f"Successfully converted {input_path} to {output_path}"
-        yield success_report
-
-
-def format_failures(failed):
-    """
-    Format reports of conversions which failed with permitted exceptions.
-
-    Parameters
-    ----------
-    failed: list of tuples of form (filepath, exception) for files which failed
-            to convert due to an allowable exception.
-    Yields
-    -------
-    failure_report: Formatted reports of failed conversions.
-    """
-
-    for fields_file_path, exception in failed:
-        failure_report = (
-                f"Failed to convert {fields_file_path}. Final reported error: \n"
-                f"{repr(exception)}"
-            )
-
-        yield failure_report
 
 
 def _resolve_path(path):
@@ -206,16 +172,15 @@ def safe_removal(succeeded, failed):
 
     Parameters
     ----------
-    succeeded: List of (input_file, output_file) tuples of filepaths from
-        successful conversions.
-    failed: List of (input_file, Exception) tuples from failed conversions.
+    succeeded: List of input filepaths from successful conversions.
+    failed: List of input filepaths from failed conversions.
 
     Returns
     -------
     successful_only: set of input filepaths which appear in succeeded but
         not failed.
     """
-    succeeded_inputs = {succeed_path for succeed_path, _ in succeeded}
-    failed_inputs = {fail_path for fail_path, _ in failed}
+    succeeded_inputs = set(succeeded)
+    failed_inputs = set(failed)
 
     return succeeded_inputs - failed_inputs

@@ -1,5 +1,6 @@
 import um2nc.drivers.common as drivers_common
 
+import logging
 import pytest
 from pathlib import Path
 import unittest.mock as mock
@@ -119,18 +120,46 @@ def test_convert_fields_file_list_success(mock_process,
 
     assert mock_process.call_count == len(input_output_list)
 
-    assert succeeded == input_output_paths
+    assert succeeded == [input_path for input_path, _ in input_output_paths]
+
+
+def test_convert_fields_file_list_logging(mock_process, caplog):
+    """
+    Test that conversion successes are correctly logged at different verbosity levels
+    """
+    input_output = [(Path("fake_file"), Path("fake_file.nc"))]
+
+    # --quiet
+    with caplog.at_level(logging.ERROR):
+        drivers_common.convert_fields_file_list(input_output, ARG_VALS)
+        assert not caplog.records
+
+    # default
+    with caplog.at_level(logging.WARNING):
+        drivers_common.convert_fields_file_list(input_output, ARG_VALS)
+        assert not caplog.records
+
+    # --verbose
+    with caplog.at_level(logging.INFO):
+        drivers_common.convert_fields_file_list(input_output, ARG_VALS)
+        assert len(caplog.records) == 1
+        assert input_output[0][0].name in caplog.text
 
 
 def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
+    """
+    Test that failed conversions due to the UnsupportedTimeSeriesError are returned
+    by convert_fields_file_list and that a warning is given.
+    """
     mock_process_with_exception(um2nc.UnsupportedTimeSeriesError,
                                 "timeseries error")
     fake_input_output_paths = [(Path("fake_file"), Path("fake_file.nc"))]
 
-    _, failed = drivers_common.convert_fields_file_list(
-        fake_input_output_paths, ARG_VALS)
+    with pytest.warns(RuntimeWarning, match="UnsupportedTimeSeriesError"):
+        _, failed = drivers_common.convert_fields_file_list(
+            fake_input_output_paths, ARG_VALS)
 
-    assert failed[0][0] == fake_input_output_paths[0][0]
+    assert failed[0] == fake_input_output_paths[0][0]
 
 
 def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
@@ -187,58 +216,13 @@ def test_filter_naming_collisions(input_output_pairs, expected_pairs):
     assert filtered_paths == expected_pairs
 
 
-def test_format_successes():
-    succeeded_inputs = [
-        Path("dir_1/fake_file_1"),
-        Path("./dir_2/fake_file_2"),
-        Path("/dir_3/fake_file_3")
-    ]
-    succeeded_outputs = [
-        Path("./fake_output_dir/file1.nc"),
-        Path("fake_dir_2/output_file.nc"),
-        Path("/dir_500/ncfile.nc")
-    ]
-
-    succeeded_pairs = list(zip(succeeded_inputs, succeeded_outputs))
-
-    success_reports = list(drivers_common.format_successes(succeeded_pairs))
-
-    assert len(success_reports) == len(succeeded_pairs)
-    # Check that the successful inputs and outputs make it into the report
-    for i, successful_io_pair in enumerate(succeeded_pairs):
-        assert str(successful_io_pair[0]) in success_reports[i]
-        assert str(successful_io_pair[1]) in success_reports[i]
-
-
-def test_format_failures():
-    """
-    Test that format_failures produces error reports with
-    the required information.
-    """
-    failed = [
-        (Path("fake_file_1"), Exception("Error 1")),
-        (Path("fake_file_2"), Exception("Error 2")),
-        (Path("fake_file_3"), Exception("Error 3"))
-    ]
-
-    formatted_failure_reports = list(
-        drivers_common.format_failures(failed)
-    )
-
-    assert len(failed) == len(formatted_failure_reports)
-    for ((file, exception), report) in zip(failed, formatted_failure_reports):
-        assert str(file) in report
-        assert repr(exception) in report
-
-
 def test_success_fail_overlap():
     # Test that inputs listed as both successes and failures
     # are removed as candidates for deletion.
     success_only_path = Path("success_only")
     success_and_fail_path = Path("success_and_fail")
-    successes = [(success_only_path, Path("success_only.nc")),
-                 (success_and_fail_path, Path("success_and_fail.nc"))]
-    failures = [(success_and_fail_path, "Exception_placeholder")]
+    successes = [success_only_path, success_and_fail_path]
+    failures = [success_and_fail_path]
 
     result = drivers_common.safe_removal(successes, failures)
 
