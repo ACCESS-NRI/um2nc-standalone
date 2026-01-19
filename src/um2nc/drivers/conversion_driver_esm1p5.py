@@ -20,9 +20,9 @@ import errno
 
 from pathlib import Path
 from um2nc.stashmasters import STASHmaster
+from um2nc.um2netcdf import setup_logging
 
 from um2nc.drivers.common import find_matching_files, get_ff_date
-from um2nc.drivers.common import format_successes, format_failures
 from um2nc.drivers.common import filter_name_collisions, safe_removal
 from um2nc.drivers.common import get_fields_file_pattern
 from um2nc.drivers.common import convert_fields_file_list
@@ -35,10 +35,10 @@ from um2nc.drivers.common import convert_fields_file_list
 # Named tuple to hold the argument list
 ARG_NAMES = collections.namedtuple(
     "Args",
-    "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit model",
+    "nckind compression simple nomask hcrit verbose quiet strict include_list exclude_list nohist use64bit model",
 )
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
-ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False,
+ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, True, False, True, None, None, False, False,
                      STASHmaster.ACCESS_ESM1p5)
 
 
@@ -184,14 +184,6 @@ def parse_args():
         "current_output_dir", help="ESM1.5 output directory to be converted",
         type=str
     )
-    parser.add_argument("--quiet", "-q", action="store_true",
-                        help=(
-                            "Report only final exception type and message for "
-                            "any expected `um2nc` exceptions raised during "
-                            "conversion. If absent, full stack traces "
-                            "are reported"
-                        )
-                        )
     parser.add_argument("--delete-ff", "-d", action="store_true",
                         help="Delete fields files upon successful conversion"
                         )
@@ -201,13 +193,10 @@ def parse_args():
 
 def main():
     args = parse_args()
-    successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
+    # TODO: Set up a single logger when implementing subcommands
+    setup_logging(ARG_VALS.verbose, ARG_VALS.quiet, ARG_VALS.strict)
 
-    # Report results to user
-    for success_message in format_successes(successes):
-        print(success_message)
-    for failure_message in format_failures(failures, args.quiet):
-        warnings.warn(failure_message)
+    successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
 
     if args.delete_ff:
         # Remove files that appear only as successful conversions

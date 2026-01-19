@@ -1,4 +1,5 @@
 import unittest.mock as mock
+import logging
 import warnings
 from dataclasses import dataclass
 from collections import namedtuple
@@ -199,10 +200,12 @@ def std_args():
     args.exclude_list = None
     args.simple = False
     args.verbose = False
+    args.quiet = False
+    args.strict = False
     args.model = None
     return args
 
-def mock_fix_time_no_time_dim(cube, verbose):
+def mock_fix_time_no_time_dim(cube):
     """
     Side effect for fix_time_coord() mocks in process_cube() tests.
     Replicates fix_time_coord()'s behaviour on cube's with no
@@ -231,13 +234,11 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
-        std_args.verbose = True  # test some warning branches
-
         # trying to mask None will break in numpy
         assert precipitation_flux_cube.data is None
 
         # air temp & geo potential should be dropped in process()
-        with pytest.warns(RuntimeWarning):
+        with pytest.warns(um2nc.StrictWarning):
             processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
 
     assert len(processed) == 1
@@ -496,7 +497,7 @@ def test_fix_var_name_unique(x_wind_cube):
 def test_fix_standard_name_update_x_wind(x_wind_cube):
     # test cube wind renaming block only
     # use empty std name to bypass renaming logic
-    um2nc.fix_standard_name(x_wind_cube, "", verbose=False)
+    um2nc.fix_standard_name(x_wind_cube, "")
     assert x_wind_cube.standard_name == "eastward_wind"
 
 
@@ -506,25 +507,18 @@ def test_fix_standard_name_update_y_wind():
     m_cube = DummyCube(3)
     m_cube.standard_name = "y_wind"
 
-    um2nc.fix_standard_name(m_cube, "", verbose=False)
+    um2nc.fix_standard_name(m_cube, "")
     assert m_cube.standard_name == "northward_wind"
 
 
 def test_fix_standard_name_with_mismatch(x_wind_cube):
     # ensure mismatching standard names between cube & um uses the um std name
-    standard_name = "fake"
-    assert x_wind_cube.standard_name != standard_name
-    um2nc.fix_standard_name(x_wind_cube, standard_name, verbose=False)
-    assert x_wind_cube.standard_name == standard_name
-
-
-def test_fix_standard_name_with_mismatch_warn(x_wind_cube):
-    # as per standard name mismatch, ensuring a warning is raised
+    # and that a warning is given
     standard_name = "fake"
     assert x_wind_cube.standard_name != standard_name
 
-    with pytest.warns():
-        um2nc.fix_standard_name(x_wind_cube, standard_name, verbose=True)
+    with pytest.warns(RuntimeWarning, match=standard_name):
+        um2nc.fix_standard_name(x_wind_cube, standard_name)
 
     assert x_wind_cube.standard_name == standard_name
 
@@ -534,7 +528,7 @@ def test_fix_standard_name_add_missing_name_from_um(x_wind_cube):
     for std_name in ("", None):
         x_wind_cube.standard_name = std_name
         expected = "standard-name-slot"
-        um2nc.fix_standard_name(x_wind_cube, expected, verbose=False)
+        um2nc.fix_standard_name(x_wind_cube, expected)
         assert x_wind_cube.standard_name == expected
 
 
@@ -587,37 +581,27 @@ def ua_plev_alt(ua_plev_cube):
 
 
 def test_fix_units_update_units(ua_plev_alt):
-    # ensure UM Stash units override cube units
+    # ensure UM Stash units override cube units. Check that a warning is given
     um_var_units = "Metres-fake"
-    um2nc.fix_units(ua_plev_alt, um_var_units, verbose=False)
-    assert ua_plev_alt.units == um_var_units
-
-
-def test_fix_units_update_units_with_warning(ua_plev_alt):
-    um_var_units = "Metres-fake"
-
-    with pytest.warns():
-        um2nc.fix_units(ua_plev_alt, um_var_units, verbose=True)
-
+    with pytest.warns(RuntimeWarning, match=um_var_units):
+        um2nc.fix_units(ua_plev_alt, um_var_units)
     assert ua_plev_alt.units == um_var_units
 
 
 def test_fix_units_do_nothing_no_cube_units(ua_plev_cube):
     # ensure nothing happens if cube lacks units
-    # verbose=True is skipped as it only issues a warning
     for unit in ("", None):
         ua_plev_cube.units = unit
-        um2nc.fix_units(ua_plev_cube, "fake_units", verbose=False)
+        um2nc.fix_units(ua_plev_cube, "fake_units")
         assert ua_plev_cube.units == unit  # nothing should happen as there's no cube.units
 
 
 def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
     # ensure nothing happens if the UM Stash lacks units
-    # verbose=True is skipped as it only issues a warning
     orig = "fake-metres"
     ua_plev_cube.units = orig
     for unit in ("", None):
-        um2nc.fix_units(ua_plev_cube, unit, verbose=False)
+        um2nc.fix_units(ua_plev_cube, unit)
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
 
 
