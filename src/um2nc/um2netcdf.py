@@ -10,13 +10,11 @@ Note that um2netcdf depends on the following data access libraries:
 * Iris https://github.com/SciTools/iris
 """
 
-import argparse
 import collections
 import datetime
 import logging
 import os
 import warnings
-from enum import Enum
 
 import cf_units
 import cftime
@@ -29,7 +27,7 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 import um2nc
-from um2nc.stashmasters import StashVar, STASHmaster
+from um2nc.stashmasters import StashVar
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -99,65 +97,6 @@ class StrictWarning(UserWarning):
     Warnings which should be promoted to errors when the strict flag is True.
     """
     pass
-
-
-def setup_logging(verbose: bool, quiet: bool, strict: bool):
-    """Setup logging levels"""
-    level = logging.WARNING
-
-    if verbose and quiet:
-        raise RuntimeError("'verbose' and 'quiet' options cannot be simultaneously active")
-
-    if verbose:
-        level = logging.INFO
-    elif quiet:
-        level = logging.ERROR  # Suppress WARNING
-
-    logging.basicConfig(
-        level=level,
-        format="%(levelname)s: %(message)s",
-    )
-
-    # Route warnings → logging
-    logging.captureWarnings(True)
-
-    # Apply strict option
-    if strict:
-        warnings.filterwarnings("error", category=StrictWarning)
-
-
-# TODO: Move this to a separate helper file?
-class EnumAction(argparse.Action):
-    """
-    Argparse action for handling Enums.
-    It automatically produces choices based on the Enum values.
-    """
-
-    def __init__(self, **kwargs):
-        # If 'choices' were declared explicitely, raise an error
-        if "choices" in kwargs:
-            raise ValueError(
-                f"Cannot use 'choices' keyword together with {self.__class__.__name__}. "
-                f"Choices are automatically generated from the Enum values."
-            )
-        # Pop the 'type' keyword
-        enum_type = kwargs.pop("type", None)
-        # Ensure an Enum subclass is provided
-        if not enum_type or not issubclass(enum_type, Enum):
-            raise TypeError(
-                f"The 'type' keyword must be assigned to Enum (or any Enum subclass) when using {self.__class__.__name__}."
-            )
-        # Generate choices from the Enum values
-        kwargs.setdefault("choices", tuple(e.value for e in enum_type))
-        # Call the argparse.Action constructor with the remaining keyword arguments
-        super().__init__(**kwargs)
-        # Store Enum subclass for use in the __call__ method
-        self._enum = enum_type
-
-    def __call__(self, parser, namespace, value, option_string=None):
-        # Convert value to the associated Enum member
-        member = self._enum(value)
-        setattr(namespace, self.dest, member)
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -1130,97 +1069,3 @@ def fix_time_coord(cube):
         unlimited_dimensions = None
 
     return cube, unlimited_dimensions
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netCDF.")
-    parser.add_argument(
-        "--version","-V",
-        action="version",
-        version=um2nc.__version__,
-    )
-    parser.add_argument(
-        "-k",
-        dest="nckind",
-        required=False,
-        type=int,
-        default=3,
-        help=(
-            "NetCDF output format. Choose among '1' (classic), '2' (64-bit offset),"
-            "'3' (netCDF-4), '4' (netCDF-4 classic). Default: '3' (netCDF-4)."
-        ),
-        choices=[1, 2, 3, 4],
-    )
-    parser.add_argument(
-        "-c",
-        dest="compression",
-        required=False,
-        type=int,
-        default=4,
-        help="Compression level. '0' (none) to '9' (max). Default: '4'",
-    )
-    parser.add_argument(
-        "--64", dest="use64bit", action="store_true", default=False, help="Write 64 bit output when input is 64 bit"
-    )
-
-    verbosity_group = parser.add_mutually_exclusive_group()
-    verbosity_group.add_argument(
-        "-v", "--verbose", dest="verbose", action="store_true", default=False, help="Display verbose output."
-    )
-    verbosity_group.add_argument(
-        "-q", "--quiet", dest="quiet", action="store_true", default=False, help="Suppress warnings arising from um2nc."
-    )
-
-    parser.add_argument("--strict", dest="strict", action="store_true", default=False, help="Promote the StrictWarning class of warnings to errors.")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--include", dest="include_list", type=int, nargs="+", help="List of stash codes to include")
-    group.add_argument("--exclude", dest="exclude_list", type=int, nargs="+", help="List of stash codes to exclude")
-
-    parser.add_argument(
-        "--nomask",
-        dest="nomask",
-        action="store_true",
-        default=False,
-        help="Don't mask variables on pressure level grids.",
-    )
-    parser.add_argument(
-        "--nohist", dest="nohist", action="store_true", default=False, help="Don't add/update the global 'history' attribute in the output netCDF."
-    )
-    parser.add_argument(
-        "--simple", dest="simple", action="store_true", default=False, help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
-    )
-    parser.add_argument(
-        "--hcrit",
-        dest="hcrit",
-        type=float,
-        default=0.5,
-        help=("Critical value of the Heaviside variable for pressure level masking. Default: '0.5'."),
-    )
-
-    parser.add_argument(
-        "--model",
-        dest="model",
-        type=STASHmaster,
-        action=EnumAction,
-        help=(
-            "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
-            f"Options: {[v.value for v in STASHmaster]}. If omitted, the '{STASHmaster.DEFAULT.value}' STASHmaster will be used."
-        ),
-    )
-
-    parser.add_argument("infile", help="Input file")
-    parser.add_argument("outfile", help="Output file")
-
-    return parser.parse_args()
-
-
-def main():
-    args = parse_args()
-    # TODO: Set up a single logger when implementing subcommands
-    setup_logging(args.verbose, args.quiet, args.strict)
-    process(args.infile, args.outfile, args)
-
-
-if __name__ == "__main__":
-    main()

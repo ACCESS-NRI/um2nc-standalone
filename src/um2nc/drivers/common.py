@@ -93,7 +93,8 @@ def convert_fields_file_list(input_output_paths, process_args):
     ----------
     input_output_paths : list of tuples of form (input_path, output_path). Fields file
                          at input_path will be written to netCDF at ouput_path.
-    process_args : namedtuple of control argument values supplied to um2nc.process
+    process_args : namedtuple or argparse Namespace of control argument values
+                   which are supplied to um2nc.process.
 
     Returns
     -------

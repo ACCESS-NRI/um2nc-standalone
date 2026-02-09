@@ -1,12 +1,9 @@
 import unittest.mock as mock
-import logging
 import warnings
 from dataclasses import dataclass
 from collections import namedtuple
-from enum import Enum
 
 import cf_units
-import argparse
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
@@ -1248,71 +1245,3 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
 
     # Check that missing value attribute set to expected fill_value
     assert fake_cube.attributes["missing_value"][0] == expected_fill_val
-
-@pytest.fixture
-def test_enum():
-    class Test(Enum):
-        ON = "on"
-        OFF = "off"
-    return Test
-
-@pytest.fixture
-def enum_parser(test_enum):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--enum", 
-        type=test_enum, 
-        action=um2nc.EnumAction
-    )
-    return parser
-
-def test_enum_action_valid_input(enum_parser, test_enum):
-    """
-    Test that the EnumAction returns the correct value for valid input.
-    """
-    args = enum_parser.parse_args(["--enum", "on"])
-    assert args.enum is test_enum.ON
-
-def test_enum_action_invalid_input(enum_parser):
-    """
-    Test that the EnumAction raises an error for a not valid input.
-    """
-    with pytest.raises(SystemExit):
-        enum_parser.parse_args(["--enum", "fake_enum"])
-
-def test_enum_action_choices(enum_parser, test_enum):
-    """
-    Test that the EnumAction sets the correct choices.
-    """
-    enum_action = [act for act in enum_parser._actions if act.dest == "enum"][0]
-    assert enum_action.choices == tuple(c.value for c in test_enum)
-
-def test_enum_action_choices_set(test_enum):
-    """
-    Test that the EnumAction raises a ValueError if 'choices' keyword is supplied.
-    """
-    parser = argparse.ArgumentParser()
-    with pytest.raises(ValueError):
-        parser.add_argument(
-            "--enum",
-            type=test_enum,
-            choices=['fake','choices',1,None],
-            action=um2nc.EnumAction,
-        )
-
-def test_enum_action_no_enum_type():
-    """
-    Test that the EnumAction raises an error if type is not Enum.
-    """
-    parser = argparse.ArgumentParser()
-    with pytest.raises(TypeError):
-        parser.add_argument(
-            "--enum", 
-            type=str, 
-            action=um2nc.EnumAction
-        )
-    with pytest.raises(TypeError):
-        parser.add_argument(
-            "--enum2",
-            action=um2nc.EnumAction
-        )

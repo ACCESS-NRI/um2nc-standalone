@@ -1,13 +1,22 @@
-import um2nc.drivers.common as drivers_common
-
+import collections
 import logging
 import pytest
+
 from pathlib import Path
 import unittest.mock as mock
-import um2nc.um2netcdf as um2nc
 
-# Dummy arguments for use in conversion wrapper
-from um2nc.drivers.conversion_driver_esm1p5 import ARG_VALS
+import um2nc.um2netcdf as um2nc
+import um2nc.drivers.common as drivers_common
+from um2nc.stashmasters import STASHmaster
+
+
+# Arguments for use in tests of the conversion wrapper
+ARG_NAMES = collections.namedtuple(
+    "Args",
+    "nckind compression simple nomask hcrit verbose quiet strict include_list exclude_list nohist use64bit model",
+)
+ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, True, False, True, None, None, False, False,
+                     STASHmaster.ACCESS_ESM1p5.value)
 
 
 def test_get_fields_file_pattern():
