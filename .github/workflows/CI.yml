@@ -92,13 +92,13 @@ jobs:
         shell: micromamba-shell {0}
         run: micromamba list
 
-      - name: Entrypoint test of driver script
+      - name: Entrypoint test of driver command
         shell: micromamba-shell {0}
-        run: esm1p5_convert_nc --help
+        run: um2nc driver esm1p5 --help
 
-      - name: Entrypoint test of um2netcdf script
+      - name: Entrypoint test of um2netcdf command
         shell: micromamba-shell {0}
-        run: um2nc --help
+        run: um2nc convert --help
 
       - name: Run tests
         shell: micromamba-shell {0}
