@@ -499,7 +499,7 @@ def process(infile, outfile, args):
     mv = process_mule_vars(ff)
     cubes = iris.load(infile)
 
-    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
+    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
         # Add global attributes
         if not args.nohist:
             add_global_history(infile, sman)

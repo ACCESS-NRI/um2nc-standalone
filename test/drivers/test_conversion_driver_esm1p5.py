@@ -1,5 +1,5 @@
 import um2nc.drivers.esm1p5 as esm1p5_convert
-from test.drivers.test_drivers_common import ARG_VALS
+from test.drivers.test_drivers_common import ARGS
 
 import pytest
 from pathlib import Path
@@ -80,5 +80,5 @@ def test_get_nc_write_path_unrecognized_unit():
 def test_convert_esm1p5_output_dir_error():
     with pytest.raises(FileNotFoundError):
         esm1p5_convert.convert_esm1p5_output_dir(
-            "/test_convert_esm1p5_output_dir_error/fake/path/", ARG_VALS
+            "/test_convert_esm1p5_output_dir_error/fake/path/", ARGS
         )

@@ -192,7 +192,7 @@ def std_args():
     args = mock.Mock()
     args.nomask = False  # perform masking if possible
     args.nohist = False
-    args.nckind = 3
+    args.ncformat = 3
     args.include_list = None
     args.exclude_list = None
     args.simple = False

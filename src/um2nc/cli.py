@@ -48,11 +48,11 @@ class EnumAction(argparse.Action):
 # Define arguments
 
 # Arguments for the convert command which are also shared with the drivers
-convert_args = argparse.ArgumentParser(add_help=False)
+common_args = argparse.ArgumentParser(add_help=False)
 
-convert_args.add_argument(
-    "-k",
-    dest="nckind",
+common_args.add_argument(
+    "-f", "--format", "--nc-format", "--k",
+    dest="ncformat",
     required=False,
     type=int,
     default=3,
@@ -62,7 +62,7 @@ convert_args.add_argument(
         "'3' (netCDF-4), '4' (netCDF-4 classic)."
     )
 )
-convert_args.add_argument(
+common_args.add_argument(
     "-c", "--compression",
     dest="compression",
     required=False,
@@ -70,7 +70,7 @@ convert_args.add_argument(
     default=4,
     help="Compression level. '0' (none) to '9' (max).",
 )
-convert_args.add_argument(
+common_args.add_argument(
     "--64",
     dest="use64bit",
     action="store_true",
@@ -78,7 +78,7 @@ convert_args.add_argument(
     help="Write 64 bit output when input is 64 bit"
 )
 
-restrict_group = convert_args.add_mutually_exclusive_group()
+restrict_group = common_args.add_mutually_exclusive_group()
 restrict_group.add_argument(
     "--include",
     dest="include_list",
@@ -94,41 +94,41 @@ restrict_group.add_argument(
     help="List of stash codes to exclude"
 )
 
-convert_args.add_argument(
+common_args.add_argument(
     "--nomask",
     dest="nomask",
     action="store_true",
     default=False,
     help="Don't mask variables on pressure level grids.",
 )
-convert_args.add_argument(
+common_args.add_argument(
     "--nohist",
     dest="nohist",
     action="store_true",
     default=False,
     help="Don't add/update the global 'history' attribute in the output netCDF."
 )
-convert_args.add_argument(
+common_args.add_argument(
     "--hcrit",
     dest="hcrit",
     type=float,
     default=0.5,
     help="Critical value of the Heaviside variable for pressure level masking."
 )
-convert_args.add_argument(
+common_args.add_argument(
     "--simple",
     dest="simple",
     action="store_true",
     help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
 )
-convert_args.add_argument(
+common_args.add_argument(
     "--strict",
     dest="strict",
     action="store_true",
     default=False,
     help="Promote the StrictWarning class of warnings to errors.")
 
-verbosity_group = convert_args.add_mutually_exclusive_group()
+verbosity_group = common_args.add_mutually_exclusive_group()
 verbosity_group.add_argument(
     "-v", "--verbose",
     dest="verbose",
@@ -143,7 +143,7 @@ verbosity_group.add_argument(
     help="Suppress warnings arising from um2nc."
 )
 
-convert_args.add_argument(
+common_args.add_argument(
     "--model",
     dest="model",
     type=STASHmaster,
@@ -153,6 +153,11 @@ convert_args.add_argument(
         f"Options: {[v.value for v in STASHmaster]}."
     ),
 )
+
+# Arguments for the convert command
+convert_args = argparse.ArgumentParser(add_help=False)
+convert_args.add_argument("infile", help="Input file")
+convert_args.add_argument("outfile", help="Output file")
 
 # Arguments shared between model drivers
 driver_args = argparse.ArgumentParser(add_help=False)
@@ -181,9 +186,8 @@ parser.add_argument(
 subparsers = parser.add_subparsers(dest="command", required=True)
 
 # convert subcommand
-convert = subparsers.add_parser("convert", parents=[copy.deepcopy(convert_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-convert.add_argument("infile", help="Input file")
-convert.add_argument("outfile", help="Output file")
+convert = subparsers.add_parser("convert", parents=[copy.deepcopy(common_args), convert_args],
+                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # Set defaults which are specific for the convert command
 convert.set_defaults(simple=False, strict=False, verbose=False, model=STASHmaster.DEFAULT.value)
 
@@ -191,9 +195,13 @@ convert.set_defaults(simple=False, strict=False, verbose=False, model=STASHmaste
 driver = subparsers.add_parser("driver")
 
 # esm1p5
-model_subparsers = driver.add_subparsers(dest="command", required=True)
-esm1p5 = model_subparsers.add_parser("esm1p5", parents=[copy.deepcopy(convert_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+driver_subparsers = driver.add_subparsers(dest="command", required=True)
+esm1p5 = driver_subparsers.add_parser("esm1p5", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 esm1p5.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
+
+
+# Keep track of all um2nc subcommands
+all_subcommands = tuple(subparsers.choices.keys())
 
 
 def setup_logging(verbose: bool, quiet: bool, strict: bool):
@@ -218,14 +226,15 @@ def setup_logging(verbose: bool, quiet: bool, strict: bool):
         warnings.filterwarnings("error", category=StrictWarning)
 
 
-def parse_args(argv=None):
-    in_args = argv if argv is not None else sys.argv[1:]
+def parse_args():
     # Allow for the 'convert' command to be ommited by adding it if missing.
     try:
-        args = parser.parse_args(in_args)
+        args = parser.parse_args()
     except argparse.ArgumentError as e:
         if str(e).startswith('argument command: invalid choice:'):
-            args = parser.parse_args(['convert'] + in_args)
+            arg_str = " ".join(sys.argv[1:])
+            warnings.warn(f"No command recognised among {all_subcommands}. Running `um2nc convert {arg_str}`")
+            args = parser.parse_args(['convert'] + sys.argv[1:])
         else:
             raise e
 
@@ -242,7 +251,3 @@ def main():
         process(args.infile, args.outfile, args)
     elif args.command == "esm1p5":
         convert_esm1p5_output_dir(args.current_output_dir, args)
-    else:
-        raise RuntimeError(
-            f"Unrecognised command {args.command}."
-        )
