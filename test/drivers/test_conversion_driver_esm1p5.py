@@ -1,4 +1,4 @@
-import um2nc.drivers.conversion_driver_esm1p5 as esm1p5_convert
+import um2nc.drivers.esm1p5 as esm1p5_convert
 from test.drivers.test_drivers_common import ARG_VALS
 
 import pytest

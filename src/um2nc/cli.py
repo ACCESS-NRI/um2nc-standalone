@@ -9,7 +9,7 @@ from enum import Enum
 import um2nc
 from um2nc.stashmasters import STASHmaster
 from um2nc.um2netcdf import process, StrictWarning
-from um2nc.drivers.conversion_driver_esm1p5 import convert_esm1p5_output_dir
+from um2nc.drivers.esm1p5 import convert_esm1p5_output_dir
 
 
 class EnumAction(argparse.Action):
