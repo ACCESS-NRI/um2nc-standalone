@@ -63,7 +63,7 @@ convert_args.add_argument(
     )
 )
 convert_args.add_argument(
-    "-c",
+    "-c", "--compression",
     dest="compression",
     required=False,
     type=int,
@@ -180,14 +180,14 @@ parser.add_argument(
 
 subparsers = parser.add_subparsers(dest="command", required=True)
 
-# convert
+# convert subcommand
 convert = subparsers.add_parser("convert", parents=[copy.deepcopy(convert_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 convert.add_argument("infile", help="Input file")
 convert.add_argument("outfile", help="Output file")
 # Set defaults which are specific for the convert command
 convert.set_defaults(simple=False, strict=False, verbose=False, model=STASHmaster.DEFAULT.value)
 
-# driver
+# driver subcommand
 driver = subparsers.add_parser("driver")
 
 # esm1p5
@@ -239,12 +239,9 @@ def main():
 
     # Run selected command
     if args.command == "convert":
-        infile = args.infile
-        outfile = args.outfile
-        process(infile, outfile, args)
+        process(args.infile, args.outfile, args)
     elif args.command == "esm1p5":
-        output_dir = args.current_output_dir
-        convert_esm1p5_output_dir(output_dir, args)
+        convert_esm1p5_output_dir(args.current_output_dir, args)
     else:
         raise RuntimeError(
             f"Unrecognised command {args.command}."

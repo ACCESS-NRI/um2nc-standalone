@@ -91,12 +91,14 @@ jobs:
       - name: List installed packages
         shell: micromamba-shell {0}
         run: micromamba list
-
+      - name: Entrypoint test of um2nc
+         shell: micromamba-shell {0}
+         run: um2nc --help
       - name: Entrypoint test of driver command
         shell: micromamba-shell {0}
         run: um2nc driver esm1p5 --help
 
-      - name: Entrypoint test of um2netcdf command
+      - name: Entrypoint test of convert command
         shell: micromamba-shell {0}
         run: um2nc convert --help
 
