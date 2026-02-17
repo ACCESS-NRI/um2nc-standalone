@@ -1,13 +1,31 @@
-import um2nc.drivers.common as drivers_common
-
 import logging
 import pytest
+
 from pathlib import Path
 import unittest.mock as mock
-import um2nc.um2netcdf as um2nc
+from types import SimpleNamespace
 
-# Dummy arguments for use in conversion wrapper
-from um2nc.drivers.conversion_driver_esm1p5 import ARG_VALS
+import um2nc.um2netcdf as um2nc
+import um2nc.drivers.common as drivers_common
+from um2nc.stashmasters import STASHmaster
+
+
+# Arguments for use in tests of the conversion wrapper
+ARGS = SimpleNamespace(
+    ncformat=3,
+    compression=4,
+    simple=True,
+    nomask=False,
+    hcrit=0.5,
+    verbose=True,
+    quiet=False,
+    strict=True,
+    include_list=None,
+    exclude_list=None,
+    nohist=False,
+    use64bit=False,
+    model=STASHmaster.ACCESS_ESM1p5.value
+)
 
 
 def test_get_fields_file_pattern():
@@ -116,7 +134,7 @@ def test_convert_fields_file_list_success(mock_process,
     """
     input_output_paths = [(Path(p1), Path(p2)) for p1, p2 in input_output_list]
 
-    succeeded, _ = drivers_common.convert_fields_file_list(input_output_paths, ARG_VALS)
+    succeeded, _ = drivers_common.convert_fields_file_list(input_output_paths, ARGS)
 
     assert mock_process.call_count == len(input_output_list)
 
@@ -131,17 +149,17 @@ def test_convert_fields_file_list_logging(mock_process, caplog):
 
     # --quiet
     with caplog.at_level(logging.ERROR):
-        drivers_common.convert_fields_file_list(input_output, ARG_VALS)
+        drivers_common.convert_fields_file_list(input_output, ARGS)
         assert not caplog.records
 
     # default
     with caplog.at_level(logging.WARNING):
-        drivers_common.convert_fields_file_list(input_output, ARG_VALS)
+        drivers_common.convert_fields_file_list(input_output, ARGS)
         assert not caplog.records
 
     # --verbose
     with caplog.at_level(logging.INFO):
-        drivers_common.convert_fields_file_list(input_output, ARG_VALS)
+        drivers_common.convert_fields_file_list(input_output, ARGS)
         assert len(caplog.records) == 1
         assert input_output[0][0].name in caplog.text
 
@@ -157,7 +175,7 @@ def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
 
     with pytest.warns(RuntimeWarning, match="UnsupportedTimeSeriesError"):
         _, failed = drivers_common.convert_fields_file_list(
-            fake_input_output_paths, ARG_VALS)
+            fake_input_output_paths, ARGS)
 
     assert failed[0] == fake_input_output_paths[0][0]
 
@@ -169,7 +187,7 @@ def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
     mock_process_with_exception(Exception, generic_error_message)
     with pytest.raises(Exception) as exc_info:
         drivers_common.convert_fields_file_list(
-            [("fake_file", "fake_file.nc")], ARG_VALS)
+            [("fake_file", "fake_file.nc")], ARGS)
 
     assert str(exc_info.value) == generic_error_message
 

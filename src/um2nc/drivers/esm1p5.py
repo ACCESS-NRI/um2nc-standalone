@@ -12,34 +12,16 @@ https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 
 
 import os
-import collections
 import f90nml
 import warnings
-import argparse
 import errno
 
 from pathlib import Path
-from um2nc.stashmasters import STASHmaster
-from um2nc.um2netcdf import setup_logging
 
 from um2nc.drivers.common import find_matching_files, get_ff_date
 from um2nc.drivers.common import filter_name_collisions, safe_removal
 from um2nc.drivers.common import get_fields_file_pattern
 from um2nc.drivers.common import convert_fields_file_list
-
-
-# TODO: um2netcdf will update the way arguments are fed to `process`.
-# https://github.com/ACCESS-NRI/um2nc-standalone/issues/17
-# Update the below arguments once the changes are added.
-
-# Named tuple to hold the argument list
-ARG_NAMES = collections.namedtuple(
-    "Args",
-    "nckind compression simple nomask hcrit verbose quiet strict include_list exclude_list nohist use64bit model",
-)
-# TODO: Confirm with Martin the below arguments are appropriate defaults.
-ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, True, False, True, None, None, False, False,
-                     STASHmaster.ACCESS_ESM1p5)
 
 
 # Character in filenames specifying the unit key
@@ -115,7 +97,7 @@ def get_nc_filename(fields_file_name, date=None):
     return f"{stem}-{year:04d}{month:02d}{suffix}.nc"
 
 
-def convert_esm1p5_output_dir(esm1p5_output_dir):
+def convert_esm1p5_output_dir(esm1p5_output_dir, process_args):
     """
     Driver function for converting ESM1.5 atmospheric outputs during a simulation.
 
@@ -124,6 +106,7 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     esm1p5_output_dir: an "outputXYZ" directory produced by an ESM1.5 simulation.
             Fields files in the "atmosphere" subdirectory will be
             converted to netCDF.
+    process_args: argparse Namespace object carrying processing arguments.
 
     Returns
     -------
@@ -170,40 +153,9 @@ def convert_esm1p5_output_dir(esm1p5_output_dir):
     input_output_pairs = zip(atm_dir_fields_files, output_paths)
     input_output_pairs = filter_name_collisions(input_output_pairs)
 
-    succeeded, failed = convert_fields_file_list(input_output_pairs, ARG_VALS)
+    succeeded, failed = convert_fields_file_list(input_output_pairs, process_args)
 
-    return succeeded, failed
-
-
-def parse_args():
-    """
-    Parse arguments given as list (args)
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "current_output_dir", help="ESM1.5 output directory to be converted",
-        type=str
-    )
-    parser.add_argument("--delete-ff", "-d", action="store_true",
-                        help="Delete fields files upon successful conversion"
-                        )
-
-    return parser.parse_args()
-
-
-def main():
-    args = parse_args()
-    # TODO: Set up a single logger when implementing subcommands
-    setup_logging(ARG_VALS.verbose, ARG_VALS.quiet, ARG_VALS.strict)
-
-    successes, failures = convert_esm1p5_output_dir(args.current_output_dir)
-
-    if args.delete_ff:
+    if process_args.delete_ff:
         # Remove files that appear only as successful conversions
-        for path in safe_removal(successes, failures):
+        for path in safe_removal(succeeded, failed):
             os.remove(path)
-
-
-if __name__ == "__main__":
-
-    main()
