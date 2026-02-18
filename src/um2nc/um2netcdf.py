@@ -511,6 +511,7 @@ def process(infile, outfile, args):
             #     print(c.name(), c.item_code)
 
             sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+            del c
 
 
 def process_cubes(cubes, mv, args):
