@@ -15,12 +15,12 @@ Compares 'um2nc' output against previous versions.
 Usage: regression_tests.sh [--keep] [-d DATA_CHOICE] [-v DATA_VERSION]
 
 Options:
--k, --keep            Keep output netCDF data upon test completion. 
+-k, --keep            Keep output netCDF data upon test completion.
                       If absent, output netCDF data will only be kept for failed test sessions.
--d    DATA_CHOICE     Choice of test reference data. 
+-d    DATA_CHOICE     Choice of test reference data.
                       Options: "full", "intermediate", "light".
                       Default: "intermediate".
--v    DATA_VERSION    Version of test reference data to use. 
+-v    DATA_VERSION    Version of test reference data to use.
                       Options: "0".
                       Default: latest release version.
 EOF
@@ -32,7 +32,7 @@ TEST_DATA_PARENT_DIR=/g/data/vk83/testing/data/um2nc/integration-tests
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
-TEST_DATA_VERSION_DEFAULT=0
+TEST_DATA_VERSION_DEFAULT=1
 CLEAN_OUTPUT=true
 
 while getopts ":-:d:hkv:" opt; do
@@ -177,6 +177,7 @@ function diff_warn {
 # Execute nomask variant, pressure masking is turned OFF & all cubes are kept.
 run_um2nc    --nohist \
              --nomask \
+             --simple \
              "$source_ff" \
              "$out_nomask_nc"
 
@@ -186,6 +187,7 @@ diff_warn -degh "$orig_nomask_nc"  "$out_nomask_nc"
 # Test 2:
 # Execute pressure masking variant: cubes which cannot be pressure masked are dropped.
 run_um2nc    --nohist \
+             --simple \
              "$source_ff" \
              "$out_mask_nc"
 
@@ -194,7 +196,7 @@ diff_warn -degh "$orig_mask_nc"  "$out_mask_nc"
 
 # Test 3:
 # Run without --nohist flag, and ignore history in nccmp comparison
-run_um2nc     \
+run_um2nc    --simple \
              "$source_ff" \
              "$out_hist_nc"
 

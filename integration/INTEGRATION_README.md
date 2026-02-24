@@ -6,7 +6,7 @@ package. The script warns the user if the conversion output does
 not match an earlier version's reference output.
 
 The tests are designed to be run on Gadi within a Python environment where `um2nc` is installed as a development package (for instructions refer to the Installation paragraph in the README.md).
-The tests also require `nccmp` to be installed. 
+The tests also require `nccmp` to be installed.
 To make sure the `nccmp` requirement is satisfied, it is recommended to install `um2nc` within the `.conda/env_dev.yml` conda environment.
 
 Usage:
@@ -14,7 +14,7 @@ Usage:
 
 Options:
     -k, --keep            Keep output netCDF data upon test completion.
-                          If absent, output netCDF data will only be kept for failed test sessions. 
+                          If absent, output netCDF data will only be kept for failed test sessions.
     -d    DATA_CHOICE     Choice of test reference data.
                           Options: "full", "intermediate", "light".
                           Default: "intermediate".
@@ -77,5 +77,14 @@ prior to the development of `um2nc`: https://github.com/ACCESS-NRI/um2nc-standal
 
 The conversion was performed within the following `payu1.1.5` environment, active on Gadi:
 https://github.com/ACCESS-NRI/payu-condaenv/releases/tag/1.1.5
+
+This version of `um2netcdf.py` is also available with
+```
+module use ~access/modules
+module load pythonlib/um2netcdf4/xp65
+```
+
+### Version `1`
+As for version `0` but using the `--simple` option to get more consistent variable names.
 
 All test data is located in `/g/data/vk83/testing/data/um2nc/integration-tests`.
