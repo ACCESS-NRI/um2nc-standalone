@@ -29,6 +29,9 @@ from iris.fileformats.pp import PPField
 import um2nc
 from um2nc.stashmasters import StashVar
 
+# Opt-in to the new behaviour to avoid warnings
+iris.FUTURE.date_microseconds = True
+
 # Iris cube attribute names
 STASH = "STASH"
 ITEM_CODE = "item_code"
