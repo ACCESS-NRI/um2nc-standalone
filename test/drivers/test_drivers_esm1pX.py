@@ -20,7 +20,7 @@ esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
                                 "aiihca.paa1feb",
                                 (101, 2, 1),
                                 esm1p6_suffixes,
-                                "aiihca.pa-010102_1monthly.nc"
+                                "aiihca.pa-010102_1mon.nc"
                             ),
                             (
                                 "aiihca.pe50dec",
@@ -32,7 +32,7 @@ esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
                                 "aiihca.pe50dec",
                                 (1850, 12, 21),
                                 esm1p6_suffixes,
-                                "aiihca.pe-185012_1daily.nc"
+                                "aiihca.pe-185012_1day.nc"
                             ),
                             (
                                 "aiihca.pi87jun",
@@ -44,7 +44,7 @@ esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
                                 "aiihca.pi87jun",
                                 (1887, 6, 12),
                                 esm1p6_suffixes,
-                                "aiihca.pi-188706_3hourly.nc"
+                                "aiihca.pi-188706_3hr.nc"
                             ),
                             (
                                 "aiihca.pjc0jan",
@@ -56,7 +56,7 @@ esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
                                 "aiihca.pjc0jan",
                                 (120, 1, 7),
                                 esm1p6_suffixes,
-                                "aiihca.pj-012001_6hourly.nc"
+                                "aiihca.pj-012001_6hr.nc"
                             ),
                             (
                                 "aiihca.pjc0jan",
@@ -68,7 +68,7 @@ esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
                                 "aiihca.pcc0jan",
                                 (200, 5, 1),
                                 esm1p6_suffixes,
-                                "aiihca.pc-020005_1hourly.nc"
+                                "aiihca.pc-020005_1hr.nc"
                             ),
                          ])
 def test_get_nc_filename(ff_name, ff_date, unit_suffix, expected):
