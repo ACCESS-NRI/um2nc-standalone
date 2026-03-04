@@ -12,11 +12,11 @@ class Esm1p6Driver(Esm1p5Driver):
 
     # Output file suffix for each type of unit.
     UNIT_SUFFIXES = {
-        "a": "1monthly",
-        "e": "1daily",
-        "j": "6hourly",
-        "i": "3hourly",
-        "c": "1hourly"
+        "a": "1mon",
+        "e": "1day",
+        "j": "6hr",
+        "i": "3hr",
+        "c": "1hr"
     }
 
     def get_output_dir(self, parent_dir):
