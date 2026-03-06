@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Common functions used across model conversion drivers
+Common utilities used across model conversion drivers
 """
 
 import collections
@@ -13,6 +13,70 @@ import mule
 
 from pathlib import Path
 from um2nc import um2netcdf
+
+
+class ModelDriver:
+    """
+    Generic model conversion driver class. Defines a general sequence of steps
+    which are followed by the drivers.
+    """
+
+    def get_input_dir(self, parent_directory):
+        """
+        Given a path to an experiment parent directory, return the atmosphere output directory
+        containing model output to be converted.
+        """
+        raise NotImplementedError
+
+    def get_output_dir(self, parent_directory):
+        """
+        Given a path to an experiment parent directory, set up a directory for writing
+        netCDF outputs and return its path.
+        """
+        raise NotImplementedError
+
+    def get_input_files(self, input_directory):
+        """
+        Find atmosphere fields files for conversion in a given model output directory.
+        """
+        raise NotImplementedError
+
+    def set_output_path(self, input_file):
+        """
+        Given an input fields file, set the path to save its netCDF conversion.
+        """
+        raise NotImplementedError
+
+    def run_conversion(self, parent_directory, delete_ff, convert_args):
+        """
+        Run the conversion by finding input files, setting paths for the output
+        netCDF files, and calling the conversion command.
+        """
+
+        input_dir = self.get_input_dir(parent_directory)
+
+        # Find fields file outputs to be converted
+        input_files = self.get_input_files(input_dir)
+
+        output_dir = self.get_output_dir(input_dir)
+
+        if len(input_files) == 0:
+            return [], []  # Don't try to run the conversion
+
+        # Set the output path for each input file
+        input_output_pairs = [
+            (input_file, self.set_output_path(input_file, output_dir)) for input_file in input_files
+        ]
+
+        filter_name_collisions(input_output_pairs)
+
+        # Run the conversions
+        succeeded, failed = convert_fields_file_list(input_output_pairs, convert_args)
+
+        if delete_ff:
+            # Remove files that appear only as successful conversions
+            for path in safe_removal(succeeded, failed):
+                os.remove(path)
 
 
 def get_fields_file_pattern(run_id: str):
