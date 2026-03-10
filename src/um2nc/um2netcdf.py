@@ -514,7 +514,8 @@ def process(infile, outfile, args):
             #     print(c.name(), c.item_code)
 
             sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
-
+            # Save memory by setting this to None after use
+            c.data = None
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
@@ -557,6 +558,9 @@ def process_cubes(cubes, mv, args):
             if require_heaviside_t(c.item_code) and heaviside_t:
                 apply_mask(c, heaviside_t, args.hcrit)
 
+        # TODO: can item code get removed here when new cubes returned?
+        c, unlimited_dimensions = fix_time_coord(c)
+
         # TODO: some cubes lose item_code when replaced with new cubes
         c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
 
@@ -572,9 +576,6 @@ def process_cubes(cubes, mv, args):
         for coord in c.coords():
             if coord.points.dtype == np.int64:
                 coord.points = coord.points.astype(np.int32)
-
-        # TODO: can item code get removed here when new cubes returned?
-        c, unlimited_dimensions = fix_time_coord(c)
 
         yield c, fill_value, unlimited_dimensions
 
