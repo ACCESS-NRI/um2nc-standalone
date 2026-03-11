@@ -1,84 +1,47 @@
 import um2nc.drivers.esm1p5 as esm1p5_convert
-from um2nc.drivers.esm1p6 import Esm1p6Driver
 from test.drivers.test_drivers_common import ARGS
 
 import pytest
 from pathlib import Path
 
 esm1p5_suffixes = esm1p5_convert.Esm1p5Driver().UNIT_SUFFIXES
-esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
 
-@pytest.mark.parametrize("ff_name,ff_date,unit_suffix,expected",
+@pytest.mark.parametrize("ff_name,ff_date,expected",
                          [
                             (
                                 "aiihca.paa1feb",
                                 (101, 2, 1),
-                                esm1p5_suffixes,
                                 "aiihca.pa-010102_mon.nc"
                             ),
                             (
-                                "aiihca.paa1feb",
-                                (101, 2, 1),
-                                esm1p6_suffixes,
-                                "aiihca.pa-010102_1mon.nc"
-                            ),
-                            (
                                 "aiihca.pe50dec",
                                 (1850, 12, 21),
-                                esm1p5_suffixes,
                                 "aiihca.pe-185012_dai.nc"
                             ),
                             (
-                                "aiihca.pe50dec",
-                                (1850, 12, 21),
-                                esm1p6_suffixes,
-                                "aiihca.pe-185012_1day.nc"
-                            ),
-                            (
                                 "aiihca.pi87jun",
                                 (1887, 6, 12),
-                                esm1p5_suffixes,
-                                "aiihca.pi-188706_3hr.nc"
-                            ),
-                            (
-                                "aiihca.pi87jun",
-                                (1887, 6, 12),
-                                esm1p6_suffixes,
                                 "aiihca.pi-188706_3hr.nc"
                             ),
                             (
                                 "aiihca.pjc0jan",
                                 (120, 1, 7),
-                                esm1p5_suffixes,
-                                "aiihca.pj-012001_6hr.nc"
-                            ),
-                            (
-                                "aiihca.pjc0jan",
-                                (120, 1, 7),
-                                esm1p6_suffixes,
                                 "aiihca.pj-012001_6hr.nc"
                             ),
                             (
                                 "aiihca.pjc0jan",
                                 None,
-                                esm1p5_suffixes,
                                 "aiihca.pjc0jan.nc"
                             ),
-                            (
-                                "aiihca.pcc0jan",
-                                (200, 5, 1),
-                                esm1p6_suffixes,
-                                "aiihca.pc-020005_1hr.nc"
-                            ),
                          ])
-def test_get_nc_filename(ff_name, ff_date, unit_suffix, expected):
+def test_get_esm1p5_nc_filename(ff_name, ff_date, expected):
     """
     Check that netCDF file naming produces expected file paths for various
     expected unit keys.
     """
     nc_name = esm1p5_convert.get_nc_filename(
                         ff_name,
-                        unit_suffix,
+                        esm1p5_suffixes,
                         ff_date
                     )
 

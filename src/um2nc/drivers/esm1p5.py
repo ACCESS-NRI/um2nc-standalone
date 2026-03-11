@@ -2,8 +2,8 @@
 """
 ESM1.5 conversion driver
 
-Defines a ModelDriver class for running the conversion on ESM1.5 output directories
-and ESM specific functions used during the conversion.
+Defines a ModelDriver class for running the conversion on ESM1.5 history
+directories and ESM specific functions used during the conversion.
 
 Adapted from Martin Dix's conversion driver for CM2:
 https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
@@ -34,44 +34,62 @@ class Esm1p5Driver(ModelDriver):
         "j": "6hr",
     }
 
-    def get_input_dir(self, parent_dir):
+    def get_input_files(self, model_directory):
         """
-        Given a path to an experiment parent directory, return the atmosphere output directory
-        containing fields files to be converted.
+        Find atmosphere fields files for conversion in a given model history directory.
+
+        Parameters:
+        ----------
+        model_directory: Path to a payu 'outputXYZ' model history directory.
+
+        Returns:
+        --------
+        input_files: List of paths to UM fields files to be converted.
         """
-
-        current_atm_dir = parent_dir / "atmosphere"
-
-        if not current_atm_dir.exists():
+        # Get the atmosphere subdirectory
+        atmosphere_dir = get_atmosphere_input_dir(model_directory)
+        if not atmosphere_dir.exists():
             raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), current_atm_dir
+                errno.ENOENT, os.strerror(errno.ENOENT), atmosphere_dir
             )
 
-        return current_atm_dir
+        input_files = find_esm1pX_fields_files(atmosphere_dir)
+        return input_files
 
-    def get_input_files(self, input_dir):
+    def get_output_dir(self, model_directory):
         """
-        Find atmosphere fields files for conversion in a given model output directory.
-        """
-        return find_esm1pX_fields_files(input_dir)
-
-    def get_output_dir(self, parent_dir):
-        """
-        Given a path to an experiment parent directory, set up a directory for writing
+        Given a path to a model history directory, set up a directory for writing
         netCDF outputs and return its path.
+
+        Parameters:
+        -----------
+        model_directory: Path to a payu 'outputXYZ' model history directory.
+
+        Returns:
+        --------
+        nc_write_dir: Path to subdirectory for writing netCDF files to.
         """
-        nc_write_dir = parent_dir / "netCDF"
+        atmosphere_dir = get_atmosphere_input_dir(model_directory)
+        nc_write_dir = atmosphere_dir / "netCDF"
         nc_write_dir.mkdir(exist_ok=True)
 
         return nc_write_dir
 
     def set_output_path(self, input_file, output_dir):
         """
-        Given an input fields file, set the path to save the converted netCDF.
+        Given an input fields file, set the path to save the output netCDF.
         """
         output_name = get_nc_filename(input_file.name, self.UNIT_SUFFIXES, get_ff_date(input_file))
 
         return output_dir / output_name
+
+
+def get_atmosphere_input_dir(model_directory):
+    """
+    Return the path to the atmosphere subdirectory in a payu "outputXYZ"
+    directory.
+    """
+    return model_directory / "atmosphere"
 
 
 def get_nc_filename(fields_file_name, unit_suffixes, date=None):
@@ -115,25 +133,26 @@ def get_nc_filename(fields_file_name, unit_suffixes, date=None):
     return f"{stem}-{year:04d}{month:02d}{suffix}.nc"
 
 
-def find_esm1pX_fields_files(atm_output_dir):
+def find_esm1pX_fields_files(input_atm_dir):
     """
     Find ESM1.5/6 fields files for conversion in a given atmosphere
-    output directory.
+    history directory.
 
     Parameters
     ----------
-    atm_output_dir: Path to atmospheric output dir.
+    input_atm_dir: Path to atmospheric directory containing input fields files
+    for conversion.
 
     Returns
     -------
     atm_dir_fields_files: list paths to atmosphere fields files.
     """
     # Get the run ID used in the file names
-    xhist_nml = f90nml.read(atm_output_dir / "xhist")
+    xhist_nml = f90nml.read(input_atm_dir / "xhist")
     run_id = xhist_nml["nlchisto"]["run_id"]
     fields_file_name_pattern = get_fields_file_pattern(run_id)
 
-    atm_dir_contents = atm_output_dir.glob("*")
+    atm_dir_contents = input_atm_dir.glob("*")
 
     atm_dir_fields_files = find_matching_files(
         atm_dir_contents, fields_file_name_pattern
@@ -141,7 +160,7 @@ def find_esm1pX_fields_files(atm_output_dir):
     if len(atm_dir_fields_files) == 0:
         warnings.warn(
             f"No files matching pattern '{fields_file_name_pattern}' "
-            f"found in {atm_output_dir.resolve()}. No files will be "
+            f"found in {input_atm_dir.resolve()}. No files will be "
             "converted to netCDF."
         )
 

@@ -261,5 +261,5 @@ def main():
     if args.command == "convert":
         process(args.infile, args.outfile, args)
     elif args.command == "driver":
-        driver = model_drivers(args.model_driver)()
+        driver = model_drivers[args.model_driver]()
         driver.run_conversion(Path(args.current_output_dir), args.delete_ff, args)

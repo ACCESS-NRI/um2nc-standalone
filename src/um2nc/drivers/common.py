@@ -21,23 +21,16 @@ class ModelDriver:
     which are followed by the drivers.
     """
 
-    def get_input_dir(self, parent_directory):
+    def get_input_files(self, model_directory):
         """
-        Given a path to an experiment parent directory, return the atmosphere output directory
-        containing model output to be converted.
+        Find atmosphere fields files for conversion in a given model history directory.
         """
         raise NotImplementedError
 
-    def get_output_dir(self, parent_directory):
+    def get_output_dir(self, model_directory):
         """
-        Given a path to an experiment parent directory, set up a directory for writing
+        Given a path to a model history directory, set up a directory for writing
         netCDF outputs and return its path.
-        """
-        raise NotImplementedError
-
-    def get_input_files(self, input_directory):
-        """
-        Find atmosphere fields files for conversion in a given model output directory.
         """
         raise NotImplementedError
 
@@ -47,21 +40,19 @@ class ModelDriver:
         """
         raise NotImplementedError
 
-    def run_conversion(self, parent_directory, delete_ff, convert_args):
+    def run_conversion(self, model_directory, delete_ff, convert_args):
         """
         Run the conversion by finding input files, setting paths for the output
         netCDF files, and calling the conversion command.
         """
 
-        input_dir = self.get_input_dir(parent_directory)
-
-        # Find fields file outputs to be converted
-        input_files = self.get_input_files(input_dir)
-
-        output_dir = self.get_output_dir(input_dir)
+        # Find fields file inputs to be converted
+        input_files = self.get_input_files(model_directory)
 
         if len(input_files) == 0:
             return [], []  # Don't try to run the conversion
+
+        output_dir = self.get_output_dir(model_directory)
 
         # Set the output path for each input file
         input_output_pairs = [
@@ -81,7 +72,7 @@ class ModelDriver:
 
 def get_fields_file_pattern(run_id: str):
     """
-    Generate regex pattern for finding current experiment's UM outputs.
+    Generate regex pattern for finding current experiment's UM fields files.
 
     Parameters
     ----------
@@ -109,7 +100,7 @@ def get_fields_file_pattern(run_id: str):
 def find_matching_files(dir_contents, fields_file_name_pattern):
     """
     Find files in list of paths with names matching fields_file_name_pattern.
-    Used to find UM outputs in a simulation output directory.
+    Used to find UM fields files in a simulation history directory.
 
     Parameters
     ----------
