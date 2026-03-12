@@ -561,6 +561,13 @@ def process_cubes(cubes, mv, args):
         # TODO: can item code get removed here when new cubes returned?
         c, unlimited_dimensions = fix_time_coord(c)
 
+        # Ensure the data is in the native byte order
+        # (iris problem with single level fields packed to land points)
+        if not c.data.dtype.isnative:
+            logging.info(f"Swapping byteorder for {c.var_name} {c.name()}")
+            c.data.byteswap(True)
+            c.data.dtype = c.data.dtype.newbyteorder("=")
+
         # TODO: some cubes lose item_code when replaced with new cubes
         c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
 
