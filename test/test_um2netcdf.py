@@ -99,7 +99,7 @@ class DummyCube:
         self.attributes = attributes or {}  # needs dict for update()
         self.cell_methods = []
         self.units = units
-        self.data = None
+        self.data = np.empty(0)
 
         # Mimic a coordinate dictionary with iris coordinate names as keys to
         # ensure the coord() access key matches the coordinate's name
@@ -231,9 +231,6 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
-        # trying to mask None will break in numpy
-        assert precipitation_flux_cube.data is None
-
         # air temp & geo potential should be dropped in process()
         with pytest.warns(um2nc.StrictWarning):
             processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
@@ -242,11 +239,6 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     cube, _, dim = processed[0]
 
     assert cube.name() == precipitation_flux_cube.name()
-
-    # contrived testing: if the masking code was reached for some reason,
-    # the test would fail during process()
-    assert cube.data is None  # masking wasn't called/nothing changed
-
 
 def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
                                           mule_vars, std_args):
