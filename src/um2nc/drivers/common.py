@@ -30,17 +30,9 @@ class ModelDriver(ABC):
         ...
 
     @abstractmethod
-    def get_output_dir(self, model_directory):
+    def get_output_paths(self, input_files):
         """
-        Given a path to a model history directory, set up a directory for writing
-        netCDF outputs and return its path.
-        """
-        ...
-
-    @abstractmethod
-    def set_output_path(self, input_file):
-        """
-        Given an input fields file, set the path to save its netCDF conversion.
+        Given a list of input paths, produce a list of corresponding netCDF output paths.
         """
         ...
 
@@ -56,12 +48,10 @@ class ModelDriver(ABC):
         if len(input_files) == 0:
             return [], []  # Don't try to run the conversion
 
-        output_dir = self.get_output_dir(model_directory)
-
         # Set the output path for each input file
-        input_output_pairs = [
-            (input_file, self.set_output_path(input_file, output_dir)) for input_file in input_files
-        ]
+        output_files = self.get_output_paths(input_files, model_directory)
+
+        input_output_pairs = zip(input_files, output_files)
 
         filter_name_collisions(input_output_pairs)
 

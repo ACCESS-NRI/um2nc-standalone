@@ -67,21 +67,29 @@ class Esm1p5Driver(ModelDriver):
 
         Returns:
         --------
-        nc_write_dir: Path to subdirectory for writing netCDF files to.
+        nc_write_dir: Path to directory for writing netCDF files to.
         """
         atmosphere_dir = get_atmosphere_input_dir(model_directory)
         nc_write_dir = atmosphere_dir / "netCDF"
         nc_write_dir.mkdir(exist_ok=True)
-
         return nc_write_dir
 
-    def set_output_path(self, input_file, output_dir):
+    def get_output_paths(self, input_paths, model_directory):
         """
-        Given an input fields file, set the path to save the output netCDF.
+        Given a list of input paths, produce a list of corresponding netCDF output paths.
         """
-        output_name = get_nc_filename(input_file.name, self.UNIT_SUFFIXES, get_ff_date(input_file))
+        output_dir = self.get_output_dir(model_directory)
 
-        return output_dir / output_name
+        output_filenames = [
+            get_nc_filename(input_file.name, self.UNIT_SUFFIXES, get_ff_date(input_file))
+            for input_file in input_paths
+        ]
+
+        output_paths = [
+            output_dir / file for file in output_filenames
+        ]
+
+        return output_paths
 
 
 def get_atmosphere_input_dir(model_directory):
