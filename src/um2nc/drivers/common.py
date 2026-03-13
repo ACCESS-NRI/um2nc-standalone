@@ -11,34 +11,38 @@ import warnings
 
 import mule
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from um2nc import um2netcdf
 
 
-class ModelDriver:
+class ModelDriver(ABC):
     """
     Generic model conversion driver class. Defines a general sequence of steps
     which are followed by the drivers.
     """
 
+    @abstractmethod
     def get_input_files(self, model_directory):
         """
         Find atmosphere fields files for conversion in a given model history directory.
         """
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_output_dir(self, model_directory):
         """
         Given a path to a model history directory, set up a directory for writing
         netCDF outputs and return its path.
         """
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def set_output_path(self, input_file):
         """
         Given an input fields file, set the path to save its netCDF conversion.
         """
-        raise NotImplementedError
+        ...
 
     def run_conversion(self, model_directory, delete_ff, convert_args):
         """
