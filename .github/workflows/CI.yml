@@ -95,10 +95,18 @@ jobs:
       - name: Entrypoint test of um2nc
         shell: micromamba-shell {0}
         run: um2nc --help
-
+      
       - name: Entrypoint test of driver command
         shell: micromamba-shell {0}
+        run: um2nc driver --help
+      
+      - name: Entrypoint test of esm1p5 driver command
+        shell: micromamba-shell {0}
         run: um2nc driver esm1p5 --help
+
+      - name: Entrypoint test of esm1p6 driver command
+        shell: micromamba-shell {0}
+        run: um2nc driver esm1p6 --help
 
       - name: Entrypoint test of convert command
         shell: micromamba-shell {0}

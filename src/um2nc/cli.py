@@ -5,11 +5,13 @@ import sys
 import warnings
 
 from enum import Enum
+from pathlib import Path
 
 import um2nc
 from um2nc.stashmasters import STASHmaster
 from um2nc.um2netcdf import process, StrictWarning
-from um2nc.drivers.esm1p5 import convert_esm1p5_output_dir
+from um2nc.drivers.esm1p5 import Esm1p5Driver
+from um2nc.drivers.esm1p6 import Esm1p6Driver
 
 
 class EnumAction(argparse.Action):
@@ -195,9 +197,18 @@ convert.set_defaults(simple=False, strict=False, verbose=False, model=STASHmaste
 driver = subparsers.add_parser("driver")
 
 # esm1p5
-driver_subparsers = driver.add_subparsers(dest="command", required=True)
+driver_subparsers = driver.add_subparsers(dest="model_driver", required=True)
 esm1p5 = driver_subparsers.add_parser("esm1p5", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 esm1p5.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
+
+esm1p6 = driver_subparsers.add_parser("esm1p6", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+esm1p6.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
+
+
+model_drivers = {
+    "esm1p5":  Esm1p5Driver,
+    "esm1p6":  Esm1p6Driver
+}
 
 
 # Keep track of all um2nc subcommands
@@ -249,5 +260,6 @@ def main():
     # Run selected command
     if args.command == "convert":
         process(args.infile, args.outfile, args)
-    elif args.command == "esm1p5":
-        convert_esm1p5_output_dir(args.current_output_dir, args)
+    elif args.command == "driver":
+        driver = model_drivers[args.model_driver]()
+        driver.run_conversion(Path(args.current_output_dir), args.delete_ff, args)

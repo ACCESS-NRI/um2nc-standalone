@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Common functions used across model conversion drivers
+Common utilities used across model conversion drivers
 """
 
 import collections
@@ -11,13 +11,62 @@ import warnings
 
 import mule
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from um2nc import um2netcdf
 
 
+class ModelDriver(ABC):
+    """
+    Generic model conversion driver class. Defines a general sequence of steps
+    which are followed by the drivers.
+    """
+
+    @abstractmethod
+    def get_input_files(self, model_directory):
+        """
+        Find atmosphere fields files for conversion in a given model history directory.
+        """
+        ...
+
+    @abstractmethod
+    def get_output_paths(self, input_files):
+        """
+        Given a list of input paths, produce a list of corresponding netCDF output paths.
+        """
+        ...
+
+    def run_conversion(self, model_directory, delete_ff, convert_args):
+        """
+        Run the conversion by finding input files, setting paths for the output
+        netCDF files, and calling the conversion command.
+        """
+
+        # Find fields file inputs to be converted
+        input_files = self.get_input_files(model_directory)
+
+        if len(input_files) == 0:
+            return [], []  # Don't try to run the conversion
+
+        # Set the output path for each input file
+        output_files = self.get_output_paths(input_files, model_directory)
+
+        input_output_pairs = zip(input_files, output_files)
+
+        filter_name_collisions(input_output_pairs)
+
+        # Run the conversions
+        succeeded, failed = convert_fields_file_list(input_output_pairs, convert_args)
+
+        if delete_ff:
+            # Remove files that appear only as successful conversions
+            for path in safe_removal(succeeded, failed):
+                os.remove(path)
+
+
 def get_fields_file_pattern(run_id: str):
     """
-    Generate regex pattern for finding current experiment's UM outputs.
+    Generate regex pattern for finding current experiment's UM fields files.
 
     Parameters
     ----------
@@ -45,7 +94,7 @@ def get_fields_file_pattern(run_id: str):
 def find_matching_files(dir_contents, fields_file_name_pattern):
     """
     Find files in list of paths with names matching fields_file_name_pattern.
-    Used to find UM outputs in a simulation output directory.
+    Used to find UM fields files in a simulation history directory.
 
     Parameters
     ----------
