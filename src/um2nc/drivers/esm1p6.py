@@ -1,19 +1,15 @@
-#!/usr/bin/env python3
 """
 ESM1.6 conversion driver
 
 Defines a ModelDriver class for running the conversion on ESM1.6 history
 directories
 """
+import errno
+import os
 
 from um2nc.drivers.esm1p5 import Esm1p5Driver
-from um2nc.drivers.esm1p5 import get_atmosphere_input_dir
 
-
-class Esm1p6Driver(Esm1p5Driver):
-
-    # Output file suffix for each type of unit.
-    UNIT_SUFFIXES = {
+ESM1P6_UNIT_SUFFIXES = {
         "a": "1mon",
         "e": "1day",
         "j": "6hr",
@@ -21,17 +17,17 @@ class Esm1p6Driver(Esm1p5Driver):
         "c": "1hr"
     }
 
-    def get_output_dir(self, model_directory):
-        """
-        Parameters:
-        -----------
-        model_directory: Path to a payu 'outputXYZ' model history directory.
 
-        Returns:
-        --------
-        Path to directory for writing netCDF files to.
-        """
-        # Write netCDF directly to the atmosphere subdirectory
-        atmosphere_dir = get_atmosphere_input_dir(model_directory)
+class Esm1p6Driver(Esm1p5Driver):
 
-        return atmosphere_dir
+    def __init__(self, model_directory):
+        super().__init__(model_directory)
+        self._unit_suffixes = ESM1P6_UNIT_SUFFIXES
+        # Write netCDF directly to the atmosphere directory
+        self._output_dir = self.atmosphere_dir
+
+    def setup(self):
+        if not self.atmosphere_dir.exists():
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), self._atmosphere_dir
+            )

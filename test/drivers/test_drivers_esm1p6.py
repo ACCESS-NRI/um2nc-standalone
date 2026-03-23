@@ -1,9 +1,8 @@
 import um2nc.drivers.esm1p5 as esm1p5_convert
-from um2nc.drivers.esm1p6 import Esm1p6Driver
+import um2nc.drivers.esm1p6 as esm1p6_convert
 
 import pytest
 
-esm1p6_suffixes = Esm1p6Driver().UNIT_SUFFIXES
 
 @pytest.mark.parametrize("ff_name,ff_date,expected",
                          [
@@ -40,7 +39,7 @@ def test_get_esm1p6_nc_filename(ff_name, ff_date, expected):
     """
     nc_name = esm1p5_convert.get_nc_filename(
                         ff_name,
-                        esm1p6_suffixes,
+                        esm1p6_convert.ESM1P6_UNIT_SUFFIXES,
                         ff_date
                     )
 

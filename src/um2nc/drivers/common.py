@@ -2,7 +2,6 @@
 """
 Common utilities used across model conversion drivers
 """
-
 import collections
 import logging
 import os
@@ -22,46 +21,84 @@ class ModelDriver(ABC):
     which are followed by the drivers.
     """
 
+    def __init__(self, model_directory):
+        self._model_directory = model_directory
+        self._input_paths = None
+        self._output_paths = None
+        self._input_output_mapping = None
+
+    @property
+    def model_directory(self):
+        return self._model_directory
+
+    @property
+    def input_paths(self):
+        return list(self.input_output_mapping.keys())
+
+    @property
+    def output_paths(self):
+        return list(self.input_output_mapping.values())
+
+    @property
+    def input_output_mapping(self):
+        if self._input_output_mapping is None:
+            self._get_input_output_mapping()
+        return self._input_output_mapping
+
+    def _get_input_output_mapping(self):
+        """Create an input output mapping with unique inputs and output paths."""
+        mapping = {}
+        for input_path in self.get_input_paths():
+            output_path = self.get_output_path(input_path)
+            mapping[input_path] = output_path
+
+        check_mapping_collisions(mapping)
+
+        self._input_output_mapping = mapping
+
     @abstractmethod
-    def get_input_files(self, model_directory):
-        """
-        Find atmosphere fields files for conversion in a given model history directory.
-        """
+    def get_input_paths(self):
+        """Returns a list of target input paths for conversion."""
         ...
 
     @abstractmethod
-    def get_output_paths(self, input_files):
-        """
-        Given a list of input paths, produce a list of corresponding netCDF output paths.
-        """
+    def get_output_path(self, input_path):
+        """Returns the output path for a given input path."""
         ...
 
-    def run_conversion(self, model_directory, delete_ff, convert_args):
+    @abstractmethod
+    def convert(self, input_path, output_path, process_args):
+        """The core conversion logic."""
+        ...
+
+    @abstractmethod
+    def setup(self):
+        """General driver setup."""
+        ...
+
+    def run_conversion(self, delete_ff, process_args):
         """
-        Run the conversion by finding input files, setting paths for the output
-        netCDF files, and calling the conversion command.
+        Run the conversion for each of pair of input and output files.
         """
+        self.setup()
 
-        # Find fields file inputs to be converted
-        input_files = self.get_input_files(model_directory)
+        if not self.input_output_mapping:
+            return
 
-        if len(input_files) == 0:
-            return [], []  # Don't try to run the conversion
+        for input_path, output_path in self.input_output_mapping.items():
+            try:
+                self.convert(input_path, output_path, process_args)
 
-        # Set the output path for each input file
-        output_files = self.get_output_paths(input_files, model_directory)
+            except um2netcdf.UnsupportedTimeSeriesError as exc:
+                warnings.warn(
+                    f"Failed to convert {input_path} with error:\n{repr(exc)}",
+                    category=RuntimeWarning
+                )
 
-        input_output_pairs = zip(input_files, output_files)
-
-        filter_name_collisions(input_output_pairs)
-
-        # Run the conversions
-        succeeded, failed = convert_fields_file_list(input_output_pairs, convert_args)
-
-        if delete_ff:
-            # Remove files that appear only as successful conversions
-            for path in safe_removal(succeeded, failed):
-                os.remove(path)
+            else:
+                logging.info(f"Successfully converted {input_path} to {output_path}")
+                if delete_ff:
+                    os.remove(input_path)
 
 
 def get_fields_file_pattern(run_id: str):
@@ -134,48 +171,7 @@ def get_ff_date(fields_file_path):
     return header.t2_year, header.t2_month, header.t2_day
 
 
-def convert_fields_file_list(input_output_paths, process_args):
-    """
-    Convert group of fields files to netCDF, writing output in nc_write_dir.
-
-    Parameters
-    ----------
-    input_output_paths : list of tuples of form (input_path, output_path). Fields file
-                         at input_path will be written to netCDF at ouput_path.
-    process_args : namedtuple or argparse Namespace of control argument values
-                   which are supplied to um2nc.process.
-
-    Returns
-    -------
-    succeeded: list of input filepaths which were successfully converted.
-    failed: list of input filepaths which could not be converted due to an
-            allowed exception.
-    """
-
-    succeeded = []
-    failed = []
-
-    for ff_path, nc_path in input_output_paths:
-        try:
-            um2netcdf.process(ff_path, nc_path, process_args)
-
-        except um2netcdf.UnsupportedTimeSeriesError as exc:
-            failed.append(ff_path)
-            warnings.warn(
-                f"Failed to convert {ff_path} with error:\n{repr(exc)}",
-                category=RuntimeWarning
-            )
-
-        else:
-            succeeded.append(ff_path)
-            logging.info(f"Successfully converted {ff_path} to {nc_path}")
-
-        # Any unexpected errors will be raised
-
-    return succeeded, failed
-
-
-def _resolve_path(path):
+def resolve_path(path):
     """
     Resolve path for use in comparison. Ensure that symlinks, relative paths,
     and home directories are expanded.
@@ -183,54 +179,28 @@ def _resolve_path(path):
     return os.path.realpath(os.path.expanduser(path))
 
 
-def filter_name_collisions(input_output_pairs):
+def check_mapping_collisions(mapping):
     """
-    Remove input/output pairs which have overlapping output paths.
+    Raise an error if multiple input paths are mapped to the
+    same output path.
 
     Parameters
     ----------
-    input_ouptut_pairs: iterator of tuples (input_path, output_path).
-
-    Yields
-    -------
-    filtered_pairs: (input_path, output_path) tuples with unique
-        output_path values.
+    mapping: dictionary of {input_path: output_path} pairs.
     """
-    # Convert to list to allow repeated traversal.
-    input_output_pairs = list(input_output_pairs)
 
-    output_paths = [_resolve_path(output) for _, output in input_output_pairs]
+    output_paths = [resolve_path(output) for output in mapping.values()]
     output_counts = collections.Counter(output_paths)
 
-    for input_path, output_path in input_output_pairs:
-        if output_counts[_resolve_path(output_path)] != 1:
-            msg = (
-                f"Multiple inputs have same output path {output_path}.\n"
-                f"{input_path} will not be converted."
-            )
-            warnings.warn(msg)
-            continue
+    collision_groups = {
+        output_path: [input_path for input_path in mapping.keys() if resolve_path(mapping[input_path]) == output_path]
+        for output_path in output_counts.keys() if output_counts[output_path] > 1
+    }
 
-        yield input_path, output_path
+    if collision_groups:
+        msg = "Multiple input paths are mapped to the same output. Collisions:\n"
+        for output_path, input_group in collision_groups.items():
+            msg = msg + f"{input_group} --> {output_path}.\n"
+        msg = msg + "Exiting conversion."
 
-
-def safe_removal(succeeded, failed):
-    """
-    Check whether any input files were reported as simultaneously
-    successful and failed conversions. Return those that appear
-    only as successes as targets for safe deletion.
-
-    Parameters
-    ----------
-    succeeded: List of input filepaths from successful conversions.
-    failed: List of input filepaths from failed conversions.
-
-    Returns
-    -------
-    successful_only: set of input filepaths which appear in succeeded but
-        not failed.
-    """
-    succeeded_inputs = set(succeeded)
-    failed_inputs = set(failed)
-
-    return succeeded_inputs - failed_inputs
+        raise RuntimeError(msg)

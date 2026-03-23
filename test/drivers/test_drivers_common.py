@@ -1,11 +1,8 @@
-import logging
 import pytest
 
 from pathlib import Path
-import unittest.mock as mock
 from types import SimpleNamespace
 
-import um2nc.um2netcdf as um2nc
 import um2nc.drivers.common as drivers_common
 from um2nc.stashmasters import STASHmaster
 
@@ -95,154 +92,27 @@ def test_find_matching_fields_files():
     assert set(found_fields_files) == set(expected_fields_files)
 
 
-@pytest.fixture
-def base_mock_process():
-    # Create a patch of um2netcdf.process
-    patcher = mock.patch("um2nc.um2netcdf.process")
-    yield patcher.start()
-    patcher.stop()
-
-
-@pytest.fixture
-def mock_process(base_mock_process):
-    base_mock_process.return_value = None
-    return base_mock_process
-
-
-@pytest.fixture
-def mock_process_with_exception(mock_process):
-    # Add a specified exception with chosen message to mock_process.
-    # Yield function so that tests of different exceptions and messages
-    # can make use of the same fixture.
-    def _mock_process_with_exception(error_type, error_message):
-        mock_process.side_effect = error_type(error_message)
-
-    yield _mock_process_with_exception
-
-
 @pytest.mark.parametrize(
-    "input_output_list", [[],
-                          [("fake_file", "fake_file.nc")],
-                          [("fake_file_1", "fake_file_1.nc"),
-                           ("fake_file_2", "fake_file_2.nc"),
-                           ("fake_file_3", "fake_file_3.nc")]]
+    "mapping",
+    [
+        {
+            Path("/output000/atmosphere/aiihca.pea1120"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
+            Path("/output000/atmosphere/aiihca.pea1130"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
+            Path("/output000/atmosphere/aiihca.pea1140"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
+            Path("/output000/atmosphere/aiihca.pea1150"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
+            Path("/output000/atmosphere/aiihca.aiihca.paa1jan"): Path("/output000/atmosphere/netCDF/aiihca.pa-010101_mon.nc"),
+            Path("/output000/atmosphere/aiihca.aiihca.paa1feb"): Path("/output000/atmosphere/netCDF/aiihca.pa-010102_mon.nc")
+        },
+        {
+            Path("/output000/atmosphere/aiihca.pea1120"): Path("/dir_1/dir_2/../aiihca.pe-010101_dai.nc"),
+            Path("/output000/atmosphere/aiihca.pea1130"): Path("/dir_1/aiihca.pe-010101_dai.nc")
+        }
+    ]
 )
-def test_convert_fields_file_list_success(mock_process,
-                                          input_output_list):
+def test_mapping_collision_error(mapping):
     """
-    Test that process is called for each input.
+    Check that an error is raised when multiple inputs map to the
+    same output
     """
-    input_output_paths = [(Path(p1), Path(p2)) for p1, p2 in input_output_list]
-
-    succeeded, _ = drivers_common.convert_fields_file_list(input_output_paths, ARGS)
-
-    assert mock_process.call_count == len(input_output_list)
-
-    assert succeeded == [input_path for input_path, _ in input_output_paths]
-
-
-def test_convert_fields_file_list_logging(mock_process, caplog):
-    """
-    Test that conversion successes are correctly logged at different verbosity levels
-    """
-    input_output = [(Path("fake_file"), Path("fake_file.nc"))]
-
-    # --quiet
-    with caplog.at_level(logging.ERROR):
-        drivers_common.convert_fields_file_list(input_output, ARGS)
-        assert not caplog.records
-
-    # default
-    with caplog.at_level(logging.WARNING):
-        drivers_common.convert_fields_file_list(input_output, ARGS)
-        assert not caplog.records
-
-    # --verbose
-    with caplog.at_level(logging.INFO):
-        drivers_common.convert_fields_file_list(input_output, ARGS)
-        assert len(caplog.records) == 1
-        assert input_output[0][0].name in caplog.text
-
-
-def test_convert_fields_file_list_fail_excepted(mock_process_with_exception):
-    """
-    Test that failed conversions due to the UnsupportedTimeSeriesError are returned
-    by convert_fields_file_list and that a warning is given.
-    """
-    mock_process_with_exception(um2nc.UnsupportedTimeSeriesError,
-                                "timeseries error")
-    fake_input_output_paths = [(Path("fake_file"), Path("fake_file.nc"))]
-
-    with pytest.warns(RuntimeWarning, match="UnsupportedTimeSeriesError"):
-        _, failed = drivers_common.convert_fields_file_list(
-            fake_input_output_paths, ARGS)
-
-    assert failed[0] == fake_input_output_paths[0][0]
-
-
-def test_convert_fields_file_list_fail_critical(mock_process_with_exception):
-    # Test that critical unexpected exceptions
-    # are raised, and hence lead to the conversion crashing.
-    generic_error_message = "Test error"
-    mock_process_with_exception(Exception, generic_error_message)
-    with pytest.raises(Exception) as exc_info:
-        drivers_common.convert_fields_file_list(
-            [("fake_file", "fake_file.nc")], ARGS)
-
-    assert str(exc_info.value) == generic_error_message
-
-
-@pytest.mark.parametrize(
-    "input_output_pairs, expected_pairs",
-    [(   # input_output_pairs
-        [(Path("/output000/atmosphere/aiihca.pea1120"),
-          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
-         (Path("/output000/atmosphere/aiihca.pea1130"),
-          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
-         (Path("/output000/atmosphere/aiihca.pea1140"),
-          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
-         (Path("/output000/atmosphere/aiihca.pea1150"),
-          Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc")),
-         (Path("/output000/atmosphere/aiihca.aiihca.paa1jan"),
-          Path("/output000/atmosphere/netCDF/aiihca.pa-010101_mon.nc")),
-         (Path("/output000/atmosphere/aiihca.aiihca.paa1feb"),
-          Path("/output000/atmosphere/netCDF/aiihca.pa-010102_mon.nc"))],
-        # Expected pairs
-        [(Path("/output000/atmosphere/aiihca.aiihca.paa1jan"),
-          Path("/output000/atmosphere/netCDF/aiihca.pa-010101_mon.nc")),
-         (Path("/output000/atmosphere/aiihca.aiihca.paa1feb"),
-          Path("/output000/atmosphere/netCDF/aiihca.pa-010102_mon.nc"))]
-     ),
-     (   # input_output_pairs
-        [(Path("/output000/atmosphere/aiihca.pea1120"),
-          Path("/dir_1/dir_2/../aiihca.pe-010101_dai.nc")),
-         (Path("/output000/atmosphere/aiihca.pea1130"),
-          Path("/dir_1/aiihca.pe-010101_dai.nc"))],
-        # Expected pairs
-        []
-     )]
-)
-def test_filter_naming_collisions(input_output_pairs, expected_pairs):
-    """
-    Test that inputs with overlapping output paths are removed.
-    """
-    with pytest.warns(match="Multiple inputs have same output path"):
-        filtered_paths = list(
-            drivers_common.filter_name_collisions(input_output_pairs)
-        )
-
-    assert filtered_paths == expected_pairs
-
-
-def test_success_fail_overlap():
-    # Test that inputs listed as both successes and failures
-    # are removed as candidates for deletion.
-    success_only_path = Path("success_only")
-    success_and_fail_path = Path("success_and_fail")
-    successes = [success_only_path, success_and_fail_path]
-    failures = [success_and_fail_path]
-
-    result = drivers_common.safe_removal(successes, failures)
-
-    assert success_and_fail_path not in result
-    assert success_only_path in result
+    with pytest.raises(RuntimeError, match="Multiple input paths are mapped to the same output"):
+        drivers_common.check_mapping_collisions(mapping)

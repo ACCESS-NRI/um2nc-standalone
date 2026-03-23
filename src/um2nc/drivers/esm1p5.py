@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ESM1.5 conversion driver
 
@@ -18,23 +17,63 @@ import errno
 from um2nc.drivers.common import find_matching_files, get_ff_date
 from um2nc.drivers.common import get_fields_file_pattern
 from um2nc.drivers.common import ModelDriver
+from um2nc.um2netcdf import process
 
 
 # Character in filenames specifying the unit key
 FF_UNIT_INDEX = 8
 
-
-class Esm1p5Driver(ModelDriver):
-
-    # Output file suffix for each type of unit.
-    UNIT_SUFFIXES = {
+# Output file suffix for each type of unit.
+ESM1P5_UNIT_SUFFIXES = {
         "a": "mon",
         "e": "dai",
         "i": "3hr",
         "j": "6hr",
     }
 
-    def get_input_files(self, model_directory):
+
+class Esm1p5Driver(ModelDriver):
+
+    def __init__(self, model_directory):
+        super().__init__(model_directory)
+        self._atmosphere_dir = model_directory / "atmosphere"
+        self._output_dir = self.atmosphere_dir / "netCDF"
+        self._unit_suffixes = ESM1P5_UNIT_SUFFIXES
+
+    @property
+    def atmosphere_dir(self):
+        return self._atmosphere_dir
+
+    @property
+    def output_dir(self):
+        return self._output_dir
+
+    @property
+    def unit_suffixes(self):
+        return self._unit_suffixes
+
+    def setup(self):
+        """Check the input directory exists and create the output directory."""
+        if not self.atmosphere_dir.exists():
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), self.atmosphere_dir
+            )
+
+        self.output_dir.mkdir(exist_ok=True)
+
+    def convert(self, input_path, output_path, process_args):
+        """
+        Convert an individual input fields file to netCDF.
+
+        Parameters:
+        -----------
+        input_path: Path to input fields file.
+        output_path: Path for writing output netCDF.
+        process_args: conversion arguments.
+        """
+        process(input_path, output_path, process_args)
+
+    def get_input_paths(self):
         """
         Find atmosphere fields files for conversion in a given model history directory.
 
@@ -44,60 +83,25 @@ class Esm1p5Driver(ModelDriver):
 
         Returns:
         --------
-        input_files: List of paths to UM fields files to be converted.
+        input_paths: List of paths to UM fields files to be converted.
         """
-        # Get the atmosphere subdirectory
-        atmosphere_dir = get_atmosphere_input_dir(model_directory)
-        if not atmosphere_dir.exists():
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), atmosphere_dir
-            )
+        return find_esm1pX_fields_files(self.atmosphere_dir)
 
-        input_files = find_esm1pX_fields_files(atmosphere_dir)
-        return input_files
-
-    def get_output_dir(self, model_directory):
+    def get_output_path(self, input_path):
         """
-        Given a path to a model history directory, set up a directory for writing
-        netCDF outputs and return its path.
+        Return the output path for a given input path.
 
         Parameters:
         -----------
-        model_directory: Path to a payu 'outputXYZ' model history directory.
+        input_path: Path to input fields file.
 
         Returns:
         --------
-        nc_write_dir: Path to directory for writing netCDF files to.
+        output_path: Path for writing output netCDF.
         """
-        atmosphere_dir = get_atmosphere_input_dir(model_directory)
-        nc_write_dir = atmosphere_dir / "netCDF"
-        nc_write_dir.mkdir(exist_ok=True)
-        return nc_write_dir
+        output_filename = get_nc_filename(input_path.name, self.unit_suffixes, get_ff_date(input_path))
 
-    def get_output_paths(self, input_paths, model_directory):
-        """
-        Given a list of input paths, produce a list of corresponding netCDF output paths.
-        """
-        output_dir = self.get_output_dir(model_directory)
-
-        output_filenames = [
-            get_nc_filename(input_file.name, self.UNIT_SUFFIXES, get_ff_date(input_file))
-            for input_file in input_paths
-        ]
-
-        output_paths = [
-            output_dir / file for file in output_filenames
-        ]
-
-        return output_paths
-
-
-def get_atmosphere_input_dir(model_directory):
-    """
-    Return the path to the atmosphere subdirectory in a payu "outputXYZ"
-    directory.
-    """
-    return model_directory / "atmosphere"
+        return self.output_dir / output_filename
 
 
 def get_nc_filename(fields_file_name, unit_suffixes, date=None):
