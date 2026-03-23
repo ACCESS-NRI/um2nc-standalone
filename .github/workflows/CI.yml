@@ -96,7 +96,7 @@ jobs:
         shell: micromamba-shell {0}
         run: um2nc --help
       
-- name: Entrypoint test of driver commands
+      - name: Entrypoint test of driver commands
         shell: micromamba-shell {0}
         run: |
           # We include '' in the drivers list to test for the `driver` command without a driver argument
