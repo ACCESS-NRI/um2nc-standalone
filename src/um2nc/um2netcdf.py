@@ -445,9 +445,8 @@ def convert_proleptic(time):
 
 def fix_cell_methods(cell_methods):
     """
-    Removes misleading 'hour' from interval naming, leaving other names intact.
-
-    TODO: is this an iris bug?
+    UM records sampling interval in hours. Usual timestep sampling is reported
+    as 1 hour which is misleading, so remove it. Leave other names intact.
 
     Parameters
     ----------
@@ -461,8 +460,8 @@ def fix_cell_methods(cell_methods):
 
 
 def _remove_hour_interval(cell_method):
-    """Helper retains all non 'hour' intervals."""
-    return (i for i in cell_method.intervals if i.find("hour") == -1)
+    """Helper retains all non '1 hour' intervals."""
+    return (i for i in cell_method.intervals if i.find("1 hour") == -1)
 
 
 def apply_mask(c, heaviside, hcrit):
