@@ -11,6 +11,7 @@ import warnings
 import mule
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from pathlib import Path
 from um2nc import um2netcdf
 
@@ -39,22 +40,32 @@ class ModelDriver(ABC):
     def output_paths(self):
         return list(self.input_output_mapping.values())
 
-    @property
+    @cached_property
     def input_output_mapping(self):
-        if self._input_output_mapping is None:
-            self._get_input_output_mapping()
-        return self._input_output_mapping
+        """Create an input output mapping with unique inputs and outputs paths."""
+        input_paths = list(self.get_input_paths())
 
-    def _get_input_output_mapping(self):
-        """Create an input output mapping with unique inputs and output paths."""
+        # Check for duplicate inputs
+        duplicate_inputs = [item for item, count in collections.Counter(input_paths).items() if count > 1]
+        if duplicate_inputs:
+            raise RuntimeError(f"Duplicate input paths found: {duplicate_inputs}")
+
+        # Build mapping and check for duplicate outputs
         mapping = {}
-        for input_path in self.get_input_paths():
+        output_to_inputs = collections.defaultdict(set)
+        for input_path in input_paths:
             output_path = self.get_output_path(input_path)
             mapping[input_path] = output_path
+            output_to_inputs[output_path].add(input_path)
 
-        check_mapping_collisions(mapping)
+        duplicate_outputs = {out: inps for out, inps in output_to_inputs.items() if len(inps) > 1}
+        if duplicate_outputs:
+            msg = "\n".join(f"{inps} --> {out}" for out, inps in duplicate_outputs.items())
+            raise RuntimeError(
+                f"Multiple input paths are mapped to the same output.\nCollisions (inputs --> output):\n{msg}"
+            )
 
-        self._input_output_mapping = mapping
+        return mapping
 
     @abstractmethod
     def get_input_paths(self):
@@ -71,16 +82,10 @@ class ModelDriver(ABC):
         """The core conversion logic."""
         ...
 
-    @abstractmethod
-    def setup(self):
-        """General driver setup."""
-        ...
-
     def run_conversion(self, delete_ff, process_args):
         """
         Run the conversion for each of pair of input and output files.
         """
-        self.setup()
 
         if not self.input_output_mapping:
             return
@@ -169,38 +174,3 @@ def get_ff_date(fields_file_path):
                                             str(fields_file_path))
 
     return header.t2_year, header.t2_month, header.t2_day
-
-
-def resolve_path(path):
-    """
-    Resolve path for use in comparison. Ensure that symlinks, relative paths,
-    and home directories are expanded.
-    """
-    return os.path.realpath(os.path.expanduser(path))
-
-
-def check_mapping_collisions(mapping):
-    """
-    Raise an error if multiple input paths are mapped to the
-    same output path.
-
-    Parameters
-    ----------
-    mapping: dictionary of {input_path: output_path} pairs.
-    """
-
-    output_paths = [resolve_path(output) for output in mapping.values()]
-    output_counts = collections.Counter(output_paths)
-
-    collision_groups = {
-        output_path: [input_path for input_path in mapping.keys() if resolve_path(mapping[input_path]) == output_path]
-        for output_path in output_counts.keys() if output_counts[output_path] > 1
-    }
-
-    if collision_groups:
-        msg = "Multiple input paths are mapped to the same output. Collisions:\n"
-        for output_path, input_group in collision_groups.items():
-            msg = msg + f"{input_group} --> {output_path}.\n"
-        msg = msg + "Exiting conversion."
-
-        raise RuntimeError(msg)

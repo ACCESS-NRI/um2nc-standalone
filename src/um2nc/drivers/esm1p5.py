@@ -42,24 +42,21 @@ class Esm1p5Driver(ModelDriver):
 
     @property
     def atmosphere_dir(self):
+        if not self._atmosphere_dir.exists():
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), self._atmosphere_dir
+            )
         return self._atmosphere_dir
 
     @property
     def output_dir(self):
+        if not self._output_dir.exists():
+            self._output_dir.mkdir(exist_ok=True)
         return self._output_dir
 
     @property
     def unit_suffixes(self):
         return self._unit_suffixes
-
-    def setup(self):
-        """Check the input directory exists and create the output directory."""
-        if not self.atmosphere_dir.exists():
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), self.atmosphere_dir
-            )
-
-        self.output_dir.mkdir(exist_ok=True)
 
     def convert(self, input_path, output_path, process_args):
         """

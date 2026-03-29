@@ -1,10 +1,14 @@
+import logging
 import pytest
+
 
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import um2nc.drivers.common as drivers_common
 from um2nc.stashmasters import STASHmaster
+from um2nc.um2netcdf import UnsupportedTimeSeriesError
 
 
 # Arguments for use in tests of the conversion wrapper
@@ -92,27 +96,173 @@ def test_find_matching_fields_files():
     assert set(found_fields_files) == set(expected_fields_files)
 
 
+class ModelDriverTesting(drivers_common.ModelDriver):
+    """Concrete subclass of ModelDriver for testing shared methods"""
+    def get_input_paths(self):
+        return
+
+    def get_output_path(self, input_path):
+        return
+
+    def convert(self, input_path, output_path, process_args):
+        return
+
+
+@pytest.fixture
+def driver_mock_io_map():
+    """Mock the input_output_mapping so that it can be set during tests."""
+    patcher = mock.patch.object(ModelDriverTesting,
+                                "input_output_mapping",
+                                new_callable=mock.PropertyMock)
+
+    yield patcher.start()
+
+    patcher.stop()
+
+
+def test_run_conversion_logging(caplog, driver_mock_io_map):
+    """
+    Test that conversion successes are correctly logged at different verbosity levels
+    """
+    driver = ModelDriverTesting(Path("fake_model_dir"))
+
+    io_map = {"fake_file": "fake_file.nc"}
+    driver_mock_io_map.return_value = io_map
+
+    # --quiet
+    with caplog.at_level(logging.ERROR):
+        driver.run_conversion(delete_ff=False, process_args=ARGS)
+        assert not caplog.records
+
+    # default
+    with caplog.at_level(logging.WARNING):
+        driver.run_conversion(delete_ff=False, process_args=ARGS)
+        assert not caplog.records
+
+    # --verbose
+    with caplog.at_level(logging.INFO):
+        driver.run_conversion(delete_ff=False, process_args=ARGS)
+        assert len(caplog.records) == 1
+
+        for input, output in io_map.items():
+            assert input in caplog.text
+            assert output in caplog.text
+
+
+@pytest.fixture
+def driver_mock_convert():
+    """Mock the convert method."""
+    patcher = mock.patch.object(ModelDriverTesting,
+                                "convert")
+    yield patcher.start()
+
+    patcher.stop()
+
+
+def test_run_conversion_fail_excepted(driver_mock_io_map, driver_mock_convert):
+    """
+    Test that failed conversions due to the UnsupportedTimeSeriesError
+    raise a warning, and that failing inputs are not removed.
+    """
+    driver = ModelDriverTesting(Path("fake_model_dir"))
+
+    io_map = {"fake_file": "fake_file.nc"}
+    driver_mock_io_map.return_value = io_map
+    driver_mock_convert.side_effect = UnsupportedTimeSeriesError
+
+    with pytest.warns(RuntimeWarning, match="UnsupportedTimeSeriesError"):
+        with mock.patch("os.remove") as remove:
+            driver.run_conversion(delete_ff=True, process_args=ARGS)
+
+    remove.assert_not_called()
+
+
+def test_run_conversion_fail_critical(driver_mock_io_map, driver_mock_convert):
+    """
+    Test that critical unexpected exceptions are raised, and that
+    failing inputs are not removed.
+    """
+    driver = ModelDriverTesting(Path("fake_model_dir"))
+
+    io_map = {"fake_file": "fake_file.nc"}
+    driver_mock_io_map.return_value = io_map
+    driver_mock_convert.side_effect = Exception("Test error")
+
+    with pytest.raises(Exception, match="Test error"):
+        with mock.patch("os.remove") as remove:
+            driver.run_conversion(delete_ff=True, process_args=ARGS)
+
+    remove.assert_not_called()
+
+
+def test_input_output_mapping_duplicate_inputs(monkeypatch):
+    """Test that an error is raised if duplicate input paths are encountered"""
+    driver = ModelDriverTesting(Path("fake_model_dir"))
+    input_paths = [Path("aiihca.pc01jan"),
+                   Path("aiihca.pc01jan"),
+                   Path("aiihca.pc01jan"),
+                   Path("aiihca.pc01feb"),
+                   ]
+
+    monkeypatch.setattr(driver, "get_input_paths", lambda: input_paths)
+
+    with pytest.raises(RuntimeError, match="Duplicate input paths found") as dup_error:
+        driver.input_output_mapping
+
+    assert "aiihca.pc01jan" in str(dup_error)
+    assert "aiihca.pc01feb" not in str(dup_error)
+
+
+def test_input_output_mapping_duplicate_outputs(monkeypatch):
+    """Test that an error is raised if multiple inputs map to the same output"""
+    driver = ModelDriverTesting(Path("fake_model_dir"))
+    input_output = {
+            Path("aiihca.pc01jan"): Path("aiihca.pc-000101_1hr.nc"),
+            Path("aiihca.pc02jan"): Path("aiihca.pc-000101_1hr.nc"),
+            Path("aiihca.pc03jan"): Path("aiihca.pc-000101_1hr.nc"),
+            Path("aiihca.pc04jan"): Path("aiihca.pc-000104_1hr.nc")
+        }
+
+    monkeypatch.setattr(driver, "get_input_paths", lambda: input_output.keys())
+    monkeypatch.setattr(driver, "get_output_path", lambda infile: input_output[infile])
+
+    with pytest.raises(RuntimeError,
+                       match="Multiple input paths are mapped to the same output") as dup_error:
+        driver.input_output_mapping
+
+    assert "aiihca.pc01jan" in str(dup_error)
+    assert "aiihca.pc02jan" in str(dup_error)
+    assert "aiihca.pc03jan" in str(dup_error)
+    assert "aiihca.pc-000101_1hr.nc" in str(dup_error)
+
+    assert "aiihca.pc04jan" not in str(dup_error)
+    assert "aiihca.pc-000104_1hr.nc" not in str(dup_error)
+
+
 @pytest.mark.parametrize(
-    "mapping",
+    "input_output",
     [
         {
-            Path("/output000/atmosphere/aiihca.pea1120"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
-            Path("/output000/atmosphere/aiihca.pea1130"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
-            Path("/output000/atmosphere/aiihca.pea1140"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
-            Path("/output000/atmosphere/aiihca.pea1150"): Path("/output000/atmosphere/netCDF/aiihca.pe-010101_dai.nc"),
-            Path("/output000/atmosphere/aiihca.aiihca.paa1jan"): Path("/output000/atmosphere/netCDF/aiihca.pa-010101_mon.nc"),
-            Path("/output000/atmosphere/aiihca.aiihca.paa1feb"): Path("/output000/atmosphere/netCDF/aiihca.pa-010102_mon.nc")
+            Path("aiihca.pc01jan"): Path("aiihca.pc-000101_1hr.nc"),
+            Path("aiihca.pc01feb"): Path("aiihca.pc-000102_1hr.nc"),
+            Path("aiihca.pc01mar"): Path("aiihca.pc-000103_1hr.nc"),
         },
         {
-            Path("/output000/atmosphere/aiihca.pea1120"): Path("/dir_1/dir_2/../aiihca.pe-010101_dai.nc"),
-            Path("/output000/atmosphere/aiihca.pea1130"): Path("/dir_1/aiihca.pe-010101_dai.nc")
-        }
+            Path("dir_1/file_a"): Path("output_1.nc"),
+            Path("dir_2/file_a"): Path("output_2.nc"),
+            Path("dir_3/file_a"): Path("output_3.nc"),
+            Path("dir_4/file_a"): Path("output_4.nc"),
+            Path("dir_5/file_a"): Path("output_5.nc"),
+        },
+
     ]
 )
-def test_mapping_collision_error(mapping):
-    """
-    Check that an error is raised when multiple inputs map to the
-    same output
-    """
-    with pytest.raises(RuntimeError, match="Multiple input paths are mapped to the same output"):
-        drivers_common.check_mapping_collisions(mapping)
+def test_input_output_mapping_no_duplicates(input_output, monkeypatch):
+    """Test that a mapping is successfully produced when there are no duplicates"""
+    driver = ModelDriverTesting(Path("fake_model_dir"))
+    monkeypatch.setattr(driver, "get_input_paths", lambda: input_output.keys())
+    monkeypatch.setattr(driver, "get_output_path", lambda infile: input_output[infile])
+
+    mapping = driver.input_output_mapping
+
+    assert mapping == input_output
