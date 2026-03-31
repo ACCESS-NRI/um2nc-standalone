@@ -50,8 +50,7 @@ class Esm1p5Driver(ModelDriver):
 
     @property
     def output_dir(self):
-        if not self._output_dir.exists():
-            self._output_dir.mkdir(exist_ok=True)
+        self._output_dir.mkdir(exist_ok=True)
         return self._output_dir
 
     @property
@@ -161,10 +160,8 @@ def find_esm1pX_fields_files(input_atm_dir):
     run_id = xhist_nml["nlchisto"]["run_id"]
     fields_file_name_pattern = get_fields_file_pattern(run_id)
 
-    atm_dir_contents = input_atm_dir.glob("*")
-
     atm_dir_fields_files = find_matching_files(
-        atm_dir_contents, fields_file_name_pattern
+        input_atm_dir, fields_file_name_pattern
     )
     if len(atm_dir_fields_files) == 0:
         warnings.warn(

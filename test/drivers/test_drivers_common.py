@@ -41,62 +41,36 @@ def test_get_fields_file_pattern_wrong_id_length(run_id):
         drivers_common.get_fields_file_pattern(run_id)
 
 
-def test_find_matching_fields_files():
+def test_find_matching_files(monkeypatch):
 
     dir_contents = [
-        "dir_path/aiihca.paa1jan",
-        "dir_path/aiihca.pga1jan",
-        "dir_path/aiihca.pea1jan",
-        "dir_path/aiihca.daa1jan",
-        "dir_path/aiihca.dga1jan",
-        "dir_path/aiihca.dea1jan",
-        "dir_path/aiihca.paa1jan.nc",
-        "dir_path/aiihca.paa1jan.OUTPUT",
-        "dir_path/cable.nml",
-        "dir_path/CONTCNTL",
-        "dir_path/errflag",
-        "dir_path/fort.57",
-        "dir_path/ftxx.new",
-        "dir_path/hnlist",
-        "dir_path/INITHIS",
-        "dir_path/namelists",
-        "dir_path/prefix.CNTLATM",
-        "dir_path/prefix.PRESM_A",
-        "dir_path/STASHC",
-        "dir_path/UAFILES_A",
-        "dir_path/um_env.py",
-        "dir_path/atm.fort6.pe0",
-        "dir_path/CNTLALL",
-        "dir_path/input_atm.nml",
-        "dir_path/debug.root.01",
-        "dir_path/exstat",
-        "dir_path/ftxx",
-        "dir_path/ftxx.vars",
-        "dir_path/ihist",
-        "dir_path/input_atm.nml",
-        "dir_path/nout.000000",
-        "dir_path/prefix.CNTLGEN",
-        "dir_path/SIZES",
-        "dir_path/thist",
-        "dir_path/UAFLDS_A",
-        "dir_path/xhist",
+        Path("dir_path/aiihca.paa1jan"),
+        Path("dir_path/aiihca.pga1jan"),
+        Path("dir_path/aiihca.pea1jan"),
+        Path("dir_path/aiihca.paa1jan.nc"),
+        Path("dir_path/aiihca.paa1jan.OUTPUT"),
+        Path("dir_path/UAFLDS_A"),
+        Path("dir_path/xhist"),
     ]
+
+    monkeypatch.setattr(Path, "iterdir", lambda x: dir_contents)
+    monkeypatch.setattr(Path, "is_file", lambda x: True)
 
     fields_file_pattern = r"^aiihca.p[a-z0-9]+$"
 
     found_fields_files = drivers_common.find_matching_files(
-        dir_contents, fields_file_pattern
+        Path("fake_directory"), fields_file_pattern
     )
 
     expected_fields_files = [
         Path("dir_path/aiihca.paa1jan"),
-        Path("dir_path/aiihca.pea1jan"),
         Path("dir_path/aiihca.pga1jan"),
+        Path("dir_path/aiihca.pea1jan"),
     ]
-    assert set(found_fields_files) == set(expected_fields_files)
+    assert found_fields_files == expected_fields_files
 
 
-class ModelDriverTesting(drivers_common.ModelDriver):
+class TestDriver(drivers_common.ModelDriver):
     """Concrete subclass of ModelDriver for testing shared methods"""
     def get_input_paths(self):
         return
@@ -111,7 +85,7 @@ class ModelDriverTesting(drivers_common.ModelDriver):
 @pytest.fixture
 def driver_mock_io_map():
     """Mock the input_output_mapping so that it can be set during tests."""
-    patcher = mock.patch.object(ModelDriverTesting,
+    patcher = mock.patch.object(TestDriver,
                                 "input_output_mapping",
                                 new_callable=mock.PropertyMock)
 
@@ -124,7 +98,7 @@ def test_run_conversion_logging(caplog, driver_mock_io_map):
     """
     Test that conversion successes are correctly logged at different verbosity levels
     """
-    driver = ModelDriverTesting(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
 
     io_map = {"fake_file": "fake_file.nc"}
     driver_mock_io_map.return_value = io_map
@@ -152,7 +126,7 @@ def test_run_conversion_logging(caplog, driver_mock_io_map):
 @pytest.fixture
 def driver_mock_convert():
     """Mock the convert method."""
-    patcher = mock.patch.object(ModelDriverTesting,
+    patcher = mock.patch.object(TestDriver,
                                 "convert")
     yield patcher.start()
 
@@ -164,7 +138,7 @@ def test_run_conversion_fail_excepted(driver_mock_io_map, driver_mock_convert):
     Test that failed conversions due to the UnsupportedTimeSeriesError
     raise a warning, and that failing inputs are not removed.
     """
-    driver = ModelDriverTesting(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
 
     io_map = {"fake_file": "fake_file.nc"}
     driver_mock_io_map.return_value = io_map
@@ -182,7 +156,7 @@ def test_run_conversion_fail_critical(driver_mock_io_map, driver_mock_convert):
     Test that critical unexpected exceptions are raised, and that
     failing inputs are not removed.
     """
-    driver = ModelDriverTesting(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
 
     io_map = {"fake_file": "fake_file.nc"}
     driver_mock_io_map.return_value = io_map
@@ -197,7 +171,7 @@ def test_run_conversion_fail_critical(driver_mock_io_map, driver_mock_convert):
 
 def test_input_output_mapping_duplicate_inputs(monkeypatch):
     """Test that an error is raised if duplicate input paths are encountered"""
-    driver = ModelDriverTesting(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
     input_paths = [Path("aiihca.pc01jan"),
                    Path("aiihca.pc01jan"),
                    Path("aiihca.pc01jan"),
@@ -215,7 +189,7 @@ def test_input_output_mapping_duplicate_inputs(monkeypatch):
 
 def test_input_output_mapping_duplicate_outputs(monkeypatch):
     """Test that an error is raised if multiple inputs map to the same output"""
-    driver = ModelDriverTesting(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
     input_output = {
             Path("aiihca.pc01jan"): Path("aiihca.pc-000101_1hr.nc"),
             Path("aiihca.pc02jan"): Path("aiihca.pc-000101_1hr.nc"),
@@ -259,7 +233,7 @@ def test_input_output_mapping_duplicate_outputs(monkeypatch):
 )
 def test_input_output_mapping_no_duplicates(input_output, monkeypatch):
     """Test that a mapping is successfully produced when there are no duplicates"""
-    driver = ModelDriverTesting(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
     monkeypatch.setattr(driver, "get_input_paths", lambda: input_output.keys())
     monkeypatch.setattr(driver, "get_output_path", lambda infile: input_output[infile])
 

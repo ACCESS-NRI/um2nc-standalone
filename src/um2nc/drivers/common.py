@@ -133,28 +133,24 @@ def get_fields_file_pattern(run_id: str):
     return fields_file_name_pattern
 
 
-def find_matching_files(dir_contents, fields_file_name_pattern):
+def find_matching_files(directory, pattern):
     """
-    Find files in list of paths with names matching fields_file_name_pattern.
-    Used to find UM fields files in a simulation history directory.
+    Returns a list of files in the input directory whose names match the input pattern.
 
     Parameters
     ----------
-    dir_contents : list of file paths, typically contents of a single directory.
-    fields_file_name_pattern : Regex pattern for matching fields file names.
+    directory : Path to directory for finding files.
+    pattern : Regex pattern for matching file names.
 
     Returns
     -------
-    fields_file_paths : subset of dir_contents with names matching fields_file_name_pattern.
+    List : list of files within the directory whose names match the pattern.
     """
 
-    dir_contents = [Path(filepath) for filepath in dir_contents]
-    fields_file_paths = [
-        filepath for filepath in dir_contents
-        if re.match(fields_file_name_pattern, filepath.name)
+    return [
+        path for path in Path(directory).iterdir()
+        if path.is_file() and re.match(pattern, path.name)
     ]
-
-    return fields_file_paths
 
 
 def get_ff_date(fields_file_path):

@@ -1,8 +1,8 @@
-
-import um2nc.drivers.esm1p5 as esm1p5_convert
-
 import pytest
 from pathlib import Path
+
+import um2nc.drivers.esm1p5 as esm1p5
+from um2nc.drivers.esm1p5 import ESM1P5_UNIT_SUFFIXES
 
 
 @pytest.mark.parametrize("ff_name,ff_date,expected",
@@ -33,14 +33,14 @@ from pathlib import Path
                                 "aiihca.pjc0jan.nc"
                             ),
                          ])
-def test_get_esm1p5_nc_filename(ff_name, ff_date, expected):
+def test_get_nc_filename(ff_name, ff_date, expected):
     """
     Check that netCDF file naming produces expected file paths for various
     expected unit keys.
     """
-    nc_name = esm1p5_convert.get_nc_filename(
+    nc_name = esm1p5.get_nc_filename(
                         ff_name,
-                        esm1p5_convert.ESM1P5_UNIT_SUFFIXES,
+                        ESM1P5_UNIT_SUFFIXES,
                         ff_date
                     )
 
@@ -54,7 +54,7 @@ def test_get_nc_filename_unrecognized_unit():
     """
     unknown_key = "w"
 
-    assert unknown_key not in esm1p5_convert.ESM1P5_UNIT_SUFFIXES.keys()
+    assert unknown_key not in ESM1P5_UNIT_SUFFIXES.keys()
 
     ff_name = f"aiihca.p{unknown_key}abcd"
     ff_year = 50
@@ -62,9 +62,9 @@ def test_get_nc_filename_unrecognized_unit():
     expected_name = f"aiihca.p{unknown_key}-005007.nc"
 
     with pytest.warns(RuntimeWarning):
-        nc_name = esm1p5_convert.get_nc_filename(
+        nc_name = esm1p5.get_nc_filename(
                             ff_name,
-                            esm1p5_convert.ESM1P5_UNIT_SUFFIXES,
+                            ESM1P5_UNIT_SUFFIXES,
                             (ff_year, ff_month, 1)
                         )
 
@@ -80,4 +80,4 @@ def test_setup_atmosphere_dir_not_found():
     assert not fake_path.exists()
 
     with pytest.raises(FileNotFoundError):
-        driver = esm1p5_convert.Esm1p5Driver(fake_path)
+        driver = esm1p5.Esm1p5Driver(fake_path)
