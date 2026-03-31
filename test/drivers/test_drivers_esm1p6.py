@@ -1,6 +1,6 @@
 import pytest
 
-import um2nc.drivers.esm1p5 as esm1p5_convert
+from um2nc.drivers import esm1p5
 from um2nc.drivers.esm1p6 import ESM1P6_UNIT_SUFFIXES
 
 
@@ -37,7 +37,7 @@ def test_get_nc_filename(ff_name, ff_date, expected):
     Check that netCDF file naming produces expected file paths for various
     expected unit keys.
     """
-    nc_name = esm1p5_convert.get_nc_filename(
+    nc_name = esm1p5.get_nc_filename(
                         ff_name,
                         ESM1P6_UNIT_SUFFIXES,
                         ff_date

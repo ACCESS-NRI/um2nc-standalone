@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 
-import um2nc.drivers.esm1p5 as esm1p5
+from um2nc.drivers import esm1p5
 from um2nc.drivers.esm1p5 import ESM1P5_UNIT_SUFFIXES
 
 
