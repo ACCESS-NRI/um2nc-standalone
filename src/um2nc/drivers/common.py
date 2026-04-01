@@ -128,7 +128,7 @@ def get_fields_file_pattern(run_id: str):
             f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
         )
 
-    fields_file_name_pattern = rf"^{run_id}a.p[a-z0-9]+$"
+    fields_file_name_pattern = rf"^(?P<stem>{run_id}a.p(?P<unit>[a-z]))[a-z0-9]+$"
 
     return fields_file_name_pattern
 

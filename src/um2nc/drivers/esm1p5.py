@@ -8,11 +8,12 @@ Adapted from Martin Dix's conversion driver for CM2:
 https://github.com/ACCESS-NRI/access-cm2-drivers/blob/main/src/run_um2netcdf.py
 """
 
-
-import os
-import f90nml
-import warnings
 import errno
+import os
+import re
+import warnings
+
+import f90nml
 
 from um2nc.drivers.common import find_matching_files, get_ff_date
 from um2nc.drivers.common import get_fields_file_pattern
@@ -39,6 +40,8 @@ class Esm1p5Driver(ModelDriver):
         self._atmosphere_dir = model_directory / "atmosphere"
         self._output_dir = self.atmosphere_dir / "netCDF"
         self._unit_suffixes = ESM1P5_UNIT_SUFFIXES
+        self._runid = None
+        self._input_name_pattern = None
 
     @property
     def atmosphere_dir(self):
@@ -57,6 +60,21 @@ class Esm1p5Driver(ModelDriver):
     def unit_suffixes(self):
         return self._unit_suffixes
 
+    @property
+    def runid(self):
+        # run ID used in input file names
+        if self._runid is None:
+            xhist_nml = f90nml.read(self.atmosphere_dir / "xhist")
+            self._runid = xhist_nml["nlchisto"]["run_id"]
+        return self._runid
+
+    @property
+    def input_name_pattern(self):
+        # regex pattern for matching input files
+        if self._input_name_pattern is None:
+            self._input_name_pattern = get_fields_file_pattern(self.runid)
+        return self._input_name_pattern
+
     def convert(self, input_path, output_path, process_args):
         """
         Convert an individual input fields file to netCDF.
@@ -71,17 +89,22 @@ class Esm1p5Driver(ModelDriver):
 
     def get_input_paths(self):
         """
-        Find atmosphere fields files for conversion in a given model history directory.
-
-        Parameters:
-        ----------
-        model_directory: Path to a payu 'outputXYZ' model history directory.
+        Find atmosphere fields files for conversion.
 
         Returns:
         --------
         input_paths: List of paths to UM fields files to be converted.
         """
-        return find_esm1pX_fields_files(self.atmosphere_dir)
+        input_paths = find_matching_files(self.atmosphere_dir, self.input_name_pattern)
+
+        if len(input_paths) == 0:
+            warnings.warn(
+                f"No files matching pattern '{self.input_name_pattern}' "
+                f"found in {self.atmosphere_dir.resolve()}. No files will be "
+                "converted to netCDF."
+            )
+
+        return input_paths
 
     def get_output_path(self, input_path):
         """
@@ -95,79 +118,42 @@ class Esm1p5Driver(ModelDriver):
         --------
         output_path: Path for writing output netCDF.
         """
-        output_filename = get_nc_filename(input_path.name, self.unit_suffixes, get_ff_date(input_path))
+
+        output_filename = self._create_nc_filename(input_path.name, get_ff_date(input_path))
 
         return self.output_dir / output_filename
 
+    def _create_nc_filename(self, input_name, date=None):
+        """
+        Create an output netCDF filename based on the input filename and date.
 
-def get_nc_filename(fields_file_name, unit_suffixes, date=None):
-    """
-    Format a netCDF output filename based on the input fields file name and
-    its date. Assumes fields_file_name follows ESM1.5/6's naming convention
-    '{5 char run_id}.pa{unit}{date encoding}`.
+        Parameters
+        ----------
+        input_name: name of fields file to be converted.
+        date: (year, month, day) tuple or None.
 
-    Parameters
-    ----------
-    fields_file_name: name of fields file to be converted.
-    unit_suffixes: dict containing frequency suffixes to append to filenames
-          based on the file unit.
-    date: tuple of form (year, month, day) associated with fields file data,
-          or None. If None, ".nc" will be concatenated to the original fields
-          file name.
+        Returns
+        -------
+        String: formatted netCDF filename.
+        """
 
-    Returns
-    -------
-    name: formated netCDF filename for writing output.
-    """
-    if date is None:
-        return f"{fields_file_name}.nc"
+        # Extract unit using regex
+        match = re.match(self.input_name_pattern, input_name)
 
-    # TODO: Use regex to extract stem and unit from filename to improve 
-    # clarity, and for better handling of unexpected filenames.
-    stem = fields_file_name[0:FF_UNIT_INDEX + 1]
-    unit = fields_file_name[FF_UNIT_INDEX]
+        if (date is None) or not match:
+            return f"{input_name}.nc"
 
-    try:
-        suffix = f"_{unit_suffixes[unit]}"
-    except KeyError:
-        warnings.warn(
-            f"Unit code '{unit}' from filename f{fields_file_name} "
-            "not recognized. Frequency information will not be added "
-            "to the netCDF filename.", RuntimeWarning
-        )
-        suffix = ""
+        stem = match.group("stem")
+        unit = match.group("unit")
+        try:
+            suffix = f"_{self.unit_suffixes[unit]}"
+        except KeyError:
+            warnings.warn(
+                f"Unit code '{unit}' from filename f{input_name} "
+                "not recognized. Frequency information will not be added "
+                "to the netCDF filename.", RuntimeWarning
+            )
+            suffix = ""
 
-    year, month, _ = date
-    return f"{stem}-{year:04d}{month:02d}{suffix}.nc"
-
-
-def find_esm1pX_fields_files(input_atm_dir):
-    """
-    Find ESM1.5/6 fields files for conversion in a given atmosphere
-    history directory.
-
-    Parameters
-    ----------
-    input_atm_dir: Path to atmospheric directory containing input fields files
-    for conversion.
-
-    Returns
-    -------
-    atm_dir_fields_files: list paths to atmosphere fields files.
-    """
-    # Get the run ID used in the file names
-    xhist_nml = f90nml.read(input_atm_dir / "xhist")
-    run_id = xhist_nml["nlchisto"]["run_id"]
-    fields_file_name_pattern = get_fields_file_pattern(run_id)
-
-    atm_dir_fields_files = find_matching_files(
-        input_atm_dir, fields_file_name_pattern
-    )
-    if len(atm_dir_fields_files) == 0:
-        warnings.warn(
-            f"No files matching pattern '{fields_file_name_pattern}' "
-            f"found in {input_atm_dir.resolve()}. No files will be "
-            "converted to netCDF."
-        )
-
-    return atm_dir_fields_files
+        year, month, _ = date
+        return f"{stem}-{year:04d}{month:02d}{suffix}.nc"

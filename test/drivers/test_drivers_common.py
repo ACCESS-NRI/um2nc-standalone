@@ -1,7 +1,6 @@
 import logging
 import pytest
 
-
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -32,7 +31,7 @@ ARGS = SimpleNamespace(
 def test_get_fields_file_pattern():
     run_id = "abcde"
     fields_file_pattern = drivers_common.get_fields_file_pattern(run_id)
-    assert fields_file_pattern == r"^abcdea.p[a-z0-9]+$"
+    assert fields_file_pattern == r"^(?P<stem>abcdea.p(?P<unit>[a-z]))[a-z0-9]+$"
 
 
 @pytest.mark.parametrize("run_id", ["", "a", "ab", "567873"])
