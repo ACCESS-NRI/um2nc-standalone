@@ -106,36 +106,9 @@ class ModelDriver(ABC):
                     os.remove(input_path)
 
 
-def get_fields_file_pattern(run_id: str):
-    """
-    Generate regex pattern for finding current experiment's UM fields files.
-
-    Parameters
-    ----------
-    run_id : 5 character run ID for the current UM simulation.
-
-    Returns
-    -------
-    fields_file_name_pattern: Regex pattern for matching fields file names.
-    """
-
-    # For ESM1pX simulations, files start with run_id + 'a' (atmosphere) +
-    # '.' (absolute standard time convention) + 'p' (pp file).
-    # See get_name.F90 in the UM7.3 source code for details.
-
-    if len(run_id) != 5:
-        raise ValueError(
-            f"Received run_id = {run_id} with length {len(run_id)}. run_id must be length 5"
-        )
-
-    fields_file_name_pattern = rf"^(?P<stem>{run_id}a.p(?P<unit>[a-z]))[a-z0-9]+$"
-
-    return fields_file_name_pattern
-
-
 def find_matching_files(directory, pattern):
     """
-    Returns a list of files in the input directory whose names match the input pattern.
+    Returns a list of files in the directory whose names match the pattern.
 
     Parameters
     ----------

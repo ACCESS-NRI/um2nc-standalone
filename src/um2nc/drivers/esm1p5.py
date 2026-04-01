@@ -15,8 +15,9 @@ import warnings
 
 import f90nml
 
+from functools import cached_property
+
 from um2nc.drivers.common import find_matching_files, get_ff_date
-from um2nc.drivers.common import get_fields_file_pattern
 from um2nc.drivers.common import ModelDriver
 from um2nc.um2netcdf import process
 
@@ -40,8 +41,6 @@ class Esm1p5Driver(ModelDriver):
         self._atmosphere_dir = model_directory / "atmosphere"
         self._output_dir = self.atmosphere_dir / "netCDF"
         self._unit_suffixes = ESM1P5_UNIT_SUFFIXES
-        self._runid = None
-        self._input_name_pattern = None
 
     @property
     def atmosphere_dir(self):
@@ -60,20 +59,16 @@ class Esm1p5Driver(ModelDriver):
     def unit_suffixes(self):
         return self._unit_suffixes
 
-    @property
+    @cached_property
     def runid(self):
         # run ID used in input file names
-        if self._runid is None:
-            xhist_nml = f90nml.read(self.atmosphere_dir / "xhist")
-            self._runid = xhist_nml["nlchisto"]["run_id"]
-        return self._runid
+        xhist_nml = f90nml.read(self.atmosphere_dir / "xhist")
+        return xhist_nml["nlchisto"]["run_id"]
 
-    @property
+    @cached_property
     def input_name_pattern(self):
         # regex pattern for matching input files
-        if self._input_name_pattern is None:
-            self._input_name_pattern = get_fields_file_pattern(self.runid)
-        return self._input_name_pattern
+        return re.compile(rf"^(?P<stem>{self.runid}a.p(?P<unit>[a-z]))[a-z0-9]+$")
 
     def convert(self, input_path, output_path, process_args):
         """
@@ -119,29 +114,14 @@ class Esm1p5Driver(ModelDriver):
         output_path: Path for writing output netCDF.
         """
 
-        output_filename = self._create_nc_filename(input_path.name, get_ff_date(input_path))
-
-        return self.output_dir / output_filename
-
-    def _create_nc_filename(self, input_name, date=None):
-        """
-        Create an output netCDF filename based on the input filename and date.
-
-        Parameters
-        ----------
-        input_name: name of fields file to be converted.
-        date: (year, month, day) tuple or None.
-
-        Returns
-        -------
-        String: formatted netCDF filename.
-        """
-
-        # Extract unit using regex
-        match = re.match(self.input_name_pattern, input_name)
-
-        if (date is None) or not match:
-            return f"{input_name}.nc"
+        input_name = input_path.name
+        if not (match := self.input_name_pattern.match(input_name)):
+            warnings.warn(
+                f"Input filename {input_name} does not match pattern {self.input_name_pattern.pattern}."
+                "Frequency and date information will not be added to the netCDF filename.",
+                RuntimeWarning
+            )
+            return self.output_dir / f"{input_name}.nc"
 
         stem = match.group("stem")
         unit = match.group("unit")
@@ -149,11 +129,11 @@ class Esm1p5Driver(ModelDriver):
             suffix = f"_{self.unit_suffixes[unit]}"
         except KeyError:
             warnings.warn(
-                f"Unit code '{unit}' from filename f{input_name} "
+                f"Unit code '{unit}' in filename {input_name} "
                 "not recognized. Frequency information will not be added "
                 "to the netCDF filename.", RuntimeWarning
             )
             suffix = ""
 
-        year, month, _ = date
-        return f"{stem}-{year:04d}{month:02d}{suffix}.nc"
+        year, month, _ = get_ff_date(input_path)
+        return self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc"

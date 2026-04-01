@@ -28,18 +28,6 @@ ARGS = SimpleNamespace(
 )
 
 
-def test_get_fields_file_pattern():
-    run_id = "abcde"
-    fields_file_pattern = drivers_common.get_fields_file_pattern(run_id)
-    assert fields_file_pattern == r"^(?P<stem>abcdea.p(?P<unit>[a-z]))[a-z0-9]+$"
-
-
-@pytest.mark.parametrize("run_id", ["", "a", "ab", "567873"])
-def test_get_fields_file_pattern_wrong_id_length(run_id):
-    with pytest.raises(ValueError):
-        drivers_common.get_fields_file_pattern(run_id)
-
-
 def test_find_matching_files(monkeypatch):
 
     dir_contents = [
@@ -70,7 +58,7 @@ def test_find_matching_files(monkeypatch):
 
 
 class TestDriver(drivers_common.ModelDriver):
-    """Concrete subclass of ModelDriver for testing shared methods"""
+    """Concrete subclass of ModelDriver for testing shared methods."""
     def get_input_paths(self):
         return
 
@@ -95,7 +83,7 @@ def driver_mock_io_map():
 
 def test_run_conversion_logging(caplog, driver_mock_io_map):
     """
-    Test that conversion successes are correctly logged at different verbosity levels
+    Test that conversion successes are correctly logged at different verbosity levels.
     """
     driver = TestDriver(Path("fake_model_dir"))
 
@@ -169,7 +157,7 @@ def test_run_conversion_fail_critical(driver_mock_io_map, driver_mock_convert):
 
 
 def test_input_output_mapping_duplicate_inputs(monkeypatch):
-    """Test that an error is raised if duplicate input paths are encountered"""
+    """Test that an error is raised if duplicate input paths are encountered."""
     driver = TestDriver(Path("fake_model_dir"))
     input_paths = [Path("aiihca.pc01jan"),
                    Path("aiihca.pc01jan"),
@@ -187,7 +175,7 @@ def test_input_output_mapping_duplicate_inputs(monkeypatch):
 
 
 def test_input_output_mapping_duplicate_outputs(monkeypatch):
-    """Test that an error is raised if multiple inputs map to the same output"""
+    """Test that an error is raised if multiple inputs map to the same output."""
     driver = TestDriver(Path("fake_model_dir"))
     input_output = {
             Path("aiihca.pc01jan"): Path("aiihca.pc-000101_1hr.nc"),
@@ -231,7 +219,7 @@ def test_input_output_mapping_duplicate_outputs(monkeypatch):
     ]
 )
 def test_input_output_mapping_no_duplicates(input_output, monkeypatch):
-    """Test that a mapping is successfully produced when there are no duplicates"""
+    """Test that a mapping is successfully produced when there are no duplicates."""
     driver = TestDriver(Path("fake_model_dir"))
     monkeypatch.setattr(driver, "get_input_paths", lambda: input_output.keys())
     monkeypatch.setattr(driver, "get_output_path", lambda infile: input_output[infile])
