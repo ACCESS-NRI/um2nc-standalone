@@ -3,7 +3,7 @@ import pytest
 from unittest import mock
 from pathlib import Path
 
-from um2nc.drivers.esm1p6 import Esm1p6Driver
+from um2nc.drivers.esm1p6 import Esm1p6Driver,  ESM1P6_UNIT_SUFFIXES
 
 
 @pytest.fixture
@@ -101,6 +101,56 @@ def test_get_output_path(input_path, ff_date, expected_output, mock_atmosphere_d
     assert output_path == expected_output
 
 
+def test_get_output_path_unrecognized_unit(mock_atmosphere_dir, mock_runid,
+                                           mock_output_dir, mock_get_ff_date):
+    """
+    Check a warning is raised and a simpler output name is used
+    when the unit key in the input filename is not recognized.
+    """
+    driver = Esm1p6Driver(Path("fake_model_dir"))
+    mock_runid.return_value = "aiihc"
+    mock_output_dir.return_value = Path("output_dir")
+    mock_get_ff_date.return_value = (50, 7, 1)
+
+    unknown_key = "w"
+    assert unknown_key not in ESM1P6_UNIT_SUFFIXES.keys()
+
+    input_path = Path(f"input_dir/aiihca.p{unknown_key}abcd")
+
+    with pytest.warns(RuntimeWarning, match=f"Unit code '{unknown_key}'"):
+        output_path = driver.get_output_path(input_path)
+
+    assert output_path == Path(f"output_dir/aiihca.p{unknown_key}-005007.nc")
+
+
+def test_get_output_path_non_match(mock_atmosphere_dir, mock_runid, mock_output_dir, mock_get_ff_date):
+    """
+    Check a warning is raised and a simpler ouput name is used
+    when the input filename does not match the pattern.
+    """
+    driver = Esm1p6Driver(Path("fake_model_dir"))
+    mock_runid.return_value = "aiihc"
+    mock_output_dir.return_value = Path("output_dir")
+
+    with pytest.warns(match="does not match pattern"):
+        nc_name = driver.get_output_path(Path("non_matching"))
+
+    assert nc_name == Path("output_dir/non_matching.nc")
+    mock_get_ff_date.assert_not_called()
+
+
+def test_setup_atmosphere_dir_not_found():
+    """
+    Check that a FileNotFoundError is produced when the atmosphere
+    directory is not found.
+    """
+    fake_path = Path("/fake/path/")
+    assert not fake_path.exists()
+
+    with pytest.raises(FileNotFoundError):
+        driver = Esm1p6Driver(fake_path)
+
+
 @pytest.mark.parametrize(
     "runid, dir_contents, expected",
     [
@@ -128,6 +178,18 @@ def test_get_input_paths(runid, dir_contents, expected, mock_atmosphere_dir, moc
     input_paths = driver.get_input_paths()
 
     assert input_paths == expected
+
+
+def test_get_input_paths_not_found(mock_atmosphere_dir, mock_runid, monkeypatch):
+    """Check that a warning is raised when no input files are found."""
+    driver = Esm1p6Driver(Path("fake_model_dir"))
+    mock_runid.return_value = "aiihc"
+    monkeypatch.setattr(Path, "iterdir", lambda x: [])
+
+    with pytest.warns(match="No files matching pattern"):
+        input_paths = driver.get_input_paths()
+
+    assert input_paths == []
 
 
 def test_convert(mock_atmosphere_dir):

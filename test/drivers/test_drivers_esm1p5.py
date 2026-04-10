@@ -90,8 +90,8 @@ def test_get_output_path(input_path, ff_date, expected_output, mock_atmosphere_d
     assert output_path == expected_output
 
 
-def get_output_path_unrecognized_unit(mock_atmosphere_dir, mock_runid,
-                                      mock_output_dir, mock_get_ff_date):
+def test_get_output_path_unrecognized_unit(mock_atmosphere_dir, mock_runid,
+                                           mock_output_dir, mock_get_ff_date):
     """
     Check a warning is raised and a simpler output name is used
     when the unit key in the input filename is not recognized.
