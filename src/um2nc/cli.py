@@ -165,8 +165,8 @@ convert_args.add_argument("outfile", help="Output file")
 driver_args = argparse.ArgumentParser(add_help=False)
 
 driver_args.add_argument(
-    "current_output_dir",
-    help="Output directory to be converted",
+    "model_directory",
+    help="Path to a simulation's output directory containg UM files for conversion",
     type=str
 )
 driver_args.add_argument(
@@ -178,7 +178,14 @@ driver_args.add_argument(
 
 
 # Set up parsers
-parser = argparse.ArgumentParser(prog="um2nc", exit_on_error=False)
+parser = argparse.ArgumentParser(
+    prog="um2nc",
+    exit_on_error=False,
+    description=(
+        "Utilities for converting UM data files to netCDF. Use "
+        "'um2nc {subcommand} --help' for usage information on each subcommand."
+    )
+)
 parser.add_argument(
     "--version","-V",
     action="version",
@@ -188,20 +195,52 @@ parser.add_argument(
 subparsers = parser.add_subparsers(dest="command", required=True)
 
 # convert subcommand
-convert = subparsers.add_parser("convert", parents=[copy.deepcopy(common_args), convert_args],
-                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+convert = subparsers.add_parser(
+    "convert",
+    parents=[copy.deepcopy(common_args), convert_args],
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    description="Convert a single input UM data file to netCDF.",
+    help="Convert a single input UM data file to netCDF."
+)
 # Set defaults which are specific for the convert command
 convert.set_defaults(simple=False, strict=False, verbose=False, model=STASHmaster.DEFAULT.value)
 
 # driver subcommand
-driver = subparsers.add_parser("driver")
+driver = subparsers.add_parser(
+    "driver",
+    help=(
+        "Run a model driver for netCDF conversion during ACCESS model simulations."
+    ),
+    description=(
+        "Run a model driver for automatic UM file to netCDF conversion during "
+        "ACCESS model simulations. Use 'um2nc driver {model_driver} --help' "
+        "for usage information for a specific model driver."
+    )
+)
 
 # esm1p5
 driver_subparsers = driver.add_subparsers(dest="model_driver", required=True)
-esm1p5 = driver_subparsers.add_parser("esm1p5", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+esm1p5 = driver_subparsers.add_parser(
+    "esm1p5",
+    description=(
+        "Model driver for automatic UM file to netCDF conversion "
+        "during ACCESS-ESM1.5 simulations."
+    ),
+    help="Model driver for ACCESS-ESM1.5 netCDF conversion.",
+    parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 esm1p5.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
 
-esm1p6 = driver_subparsers.add_parser("esm1p6", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# esm1p6
+esm1p6 = driver_subparsers.add_parser(
+    "esm1p6",
+    description=(
+        "Model driver for automatic UM file to netCDF conversion "
+        "during ACCESS-ESM1.6 simulations."
+    ),
+    help="Model driver for ACCESS-ESM1.6 netCDF conversion.",
+    parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 esm1p6.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
 
 
@@ -209,7 +248,6 @@ model_drivers = {
     "esm1p5":  Esm1p5Driver,
     "esm1p6":  Esm1p6Driver
 }
-
 
 # Keep track of all um2nc subcommands
 all_subcommands = tuple(subparsers.choices.keys())
@@ -240,7 +278,7 @@ def setup_logging(verbose: bool, quiet: bool, strict: bool):
 def parse_args():
     # Allow for the 'convert' command to be ommited by adding it if missing.
     try:
-        args = parser.parse_args()
+        args = parser.parse_args(args=(sys.argv[1:] or ['--help']))
     except argparse.ArgumentError as e:
         if str(e).startswith('argument command: invalid choice:'):
             arg_str = " ".join(sys.argv[1:])
@@ -261,5 +299,5 @@ def main():
     if args.command == "convert":
         process(args.infile, args.outfile, args)
     elif args.command == "driver":
-        driver = model_drivers[args.model_driver](Path(args.current_output_dir))
+        driver = model_drivers[args.model_driver](Path(args.model_directory))
         driver.run_conversion(args.delete_ff, args)

@@ -28,29 +28,30 @@ conda install accessnri::um2nc
 ## Usage instructions
 
 `um2nc` utilities for converting UM files to netCDF can be accessed through the command line or as a `Python3` API. This user documentation details the available command line utilities:
-* [`um2nc`](#um2nc)
-* [`esm1p5_convert_nc`](#esm1p5_convert_nc)
+* [`um2nc convert`](#um2nc_convert)
+* [`um2nc driver`](#um2nc_driver)
 
-### `um2nc`
-The `um2nc` command converts a single UM file to a netCDF file.
+### `um2nc convert`
+The `um2nc convert` command converts a single UM file to a netCDF file.
 
 **Usage**
 ```
-um2nc [options] infile outfile
+um2nc convert [options] infile outfile
 ```
 **Positional Arguments**
-- `infile` The path of the UM input file to convert to netCDF.
+- `infile` The path of the UM file to convert to netCDF.
 - `outfile` The path of the netCDF output file.
 
 **Optional Arguments**
 
 _User information options:_
 * `-h, --help` Display a help message and exit.
-* `-v, --verbose`  Display verbose output (use `-vv` for the highest level of output).
+* `-v, --verbose`  Display verbose output.
+* `-q, --quiet` Suppress warnings arising from `um2nc`.
 
 _Output file format options:_
-* `-k NC_KIND` NetCDF output format. Choose among `1` (classic), `2` (64-bit offset), `3` (netCDF-4), `4` (netCDF-4 classic). Default: `3` (netCDF-4).
-* `-c COMPRESSION` NetCDF compression level. `0` (none) to `9` (max). Default: `4`.
+* `-f, --format, --nc-format, --k NC_KIND` NetCDF output format. Choose among `1` (classic), `2` (64-bit offset), `3` (netCDF-4), `4` (netCDF-4 classic). Default: `3` (netCDF-4).
+* `-c, --compression COMPRESSION` NetCDF compression level. `0` (none) to `9` (max). Default: `4`.
 * `--64` Write 64 bit output when input is 64 bit. When absent, output will be 32 bit.
 
 _Variable selection options:_
@@ -77,30 +78,25 @@ _Metadata options:_
 * `--simple` Use the simple variable naming scheme. Variables in the output file will be named based on their STASH section number and item code, in the format `fld_s<section number>i<item number>`. When absent, variable names will be taken from the selected `STASHmaster` (see the `--model` argument).
 
 
-### `esm1p5_convert_nc`
-
-The `esmp1p5_convert_nc` command is designed to be run automatically during [`payu`](https://payu.readthedocs.io/en/stable/) based simulation of [ACCESS-ESM1.5](https://access-hive.org.au/models/configurations/access-esm/). It converts all UM output files from a single experiment run to netCDF, and is typically included in a simulation as a `payu` [userscript](https://payu.readthedocs.io/en/stable/config.html#postprocessing).
+### `um2nc driver`
+`um2nc` "model drivers" convert UM fields files produced during ACCESS model simulations to netCDF. The drivers find the fields files, convert them, and organise the resulting netCDF files. As each ACCESS model has different requirements for the output format, organisation, and file naming, separate model drivers are used for each model. The model drivers are accessed via the `um2nc driver` command, which is typically run automatically from a script during a model simultion.
 
 **Usage**
 
 ```
-esmp1p5_convert_nc [options] current_output_dir
+um2nc driver [model] [options] model_directory
 ```
 
 **Positional arguments**
-- `current_output_dir` Path to an `ACCESS-ESM1.5` simulation's output directory. Any UM output files in the `current_output_dir/atmosphere` subdirectory will be converted to netCDF and placed in a new directory `current_output_dir/atmosphere/netCDF`.
+- `model` Selected model driver to use. Currently available drivers are {`esm1p5`, `esm1p6`}.
+- `model directory` Path to a simulation's output directory. For the `esm1p5` and `esm1p6` drivers, this should be a numbered `payu` `output[0-9][0-9][0-9]` directory.
 
 **Optional Arguments**
 
 * `--help, -h` Display a help message and exit.
-* `--delete-ff, -d`  Delete Unified Model output files upon successful conversion.
-* `--quiet, -q` Report only final exception type and message for any expected `um2nc` exceptions raised during conversion. If absent, full stack traces are reported.
+* `--delete-ff, -d`  Delete input files upon successful conversion.
 
-`esm1p5_convert_nc` uses the same underlying workflow as the `um2nc` command to convert each file, and applies the following arguments:
-* `-k 3`
-* `-c 4`
-* `--simple`
-* `--hcrit 0.5`
+All optional arguments from the `um2nc convert` command for configuring the netCDF conversion are also available for the `um2nc driver` command.
 
 ### Supported files
 
