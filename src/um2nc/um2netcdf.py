@@ -522,17 +522,22 @@ def process(infile, outfile, args):
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
         warnings.filterwarnings(action="ignore", category=UserWarning, message=r"\sUnable to load STASHmaster")
-        ff = mule.load_umfile(str(infile[0]))
+        ff = mule.load_umfile(str(infile))
 
     mv = process_mule_vars(ff)
     cubes = iris.load(infile)
 
-    if args.singlevar:
+    if args.single_var_files:
         nf = 0
         for c, fill, dims in process_cubes(cubes, mv, args):
             nf += 1
-            # In this case outfile is really a prefix. Assume no .nc suffix
-            filename = f'{outfile}_{c.var_name}.nc'
+
+            if "{variable_id}" in str(outfile):
+                filename = str(outfile).format(variable_id=c.var_name)
+            else:
+                # Otherwise prefix the filename with the variable's name and _
+                filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
+
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.nckind]) as sman:
                 print(c.name(), c.var_name, nf)
                 # Add global attributes
@@ -1186,6 +1191,12 @@ def parse_args():
             "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
             f"Options: {[v.value for v in STASHmaster]}. If omitted, the '{STASHmaster.DEFAULT.value}' STASHmaster will be used."
         ),
+    )
+    parser.add_argument(
+        "--single-var-files",
+        action="store_true",
+        help="Store each output field/variable as a separate netCDF file. \"{variable_id}\" can be used in the output "
+            "path otherwise the variable name followed by an underscore will be used as a prefix to the file name."
     )
 
     parser.add_argument("infile", nargs='+', help="Input file(s)")

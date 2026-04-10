@@ -32,11 +32,11 @@ from um2nc.stashmasters import STASHmaster
 # Named tuple to hold the argument list
 ARG_NAMES = collections.namedtuple(
     "Args",
-    "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit model",
+    "nckind compression simple nomask hcrit verbose include_list exclude_list nohist use64bit model single_var_files",
 )
 # TODO: Confirm with Martin the below arguments are appropriate defaults.
 ARG_VALS = ARG_NAMES(3, 4, True, False, 0.5, False, None, None, False, False,
-                     STASHmaster.ACCESS_ESM1p5)
+                     STASHmaster.ACCESS_ESM1p5, True)
 
 
 # Character in filenames specifying the unit key
