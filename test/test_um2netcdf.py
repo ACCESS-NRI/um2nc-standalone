@@ -2,10 +2,8 @@ import unittest.mock as mock
 import warnings
 from dataclasses import dataclass
 from collections import namedtuple
-from enum import Enum
 
 import cf_units
-import argparse
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
@@ -101,7 +99,7 @@ class DummyCube:
         self.attributes = attributes or {}  # needs dict for update()
         self.cell_methods = []
         self.units = units
-        self.data = None
+        self.data = np.empty(0)
 
         # Mimic a coordinate dictionary with iris coordinate names as keys to
         # ensure the coord() access key matches the coordinate's name
@@ -194,15 +192,17 @@ def std_args():
     args = mock.Mock()
     args.nomask = False  # perform masking if possible
     args.nohist = False
-    args.nckind = 3
+    args.ncformat = 3
     args.include_list = None
     args.exclude_list = None
     args.simple = False
     args.verbose = False
+    args.quiet = False
+    args.strict = False
     args.model = None
     return args
 
-def mock_fix_time_no_time_dim(cube, verbose):
+def mock_fix_time_no_time_dim(cube):
     """
     Side effect for fix_time_coord() mocks in process_cube() tests.
     Replicates fix_time_coord()'s behaviour on cube's with no
@@ -231,24 +231,14 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
     ):
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
-        std_args.verbose = True  # test some warning branches
-
-        # trying to mask None will break in numpy
-        assert precipitation_flux_cube.data is None
-
         # air temp & geo potential should be dropped in process()
-        with pytest.warns(RuntimeWarning):
+        with pytest.warns(um2nc.StrictWarning):
             processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
 
     assert len(processed) == 1
     cube, _, dim = processed[0]
 
     assert cube.name() == precipitation_flux_cube.name()
-
-    # contrived testing: if the masking code was reached for some reason,
-    # the test would fail during process()
-    assert cube.data is None  # masking wasn't called/nothing changed
-
 
 def test_process_cubes_all_cubes_filtered(ta_plev_cube, geo_potential_cube,
                                           mule_vars, std_args):
@@ -496,7 +486,7 @@ def test_fix_var_name_unique(x_wind_cube):
 def test_fix_standard_name_update_x_wind(x_wind_cube):
     # test cube wind renaming block only
     # use empty std name to bypass renaming logic
-    um2nc.fix_standard_name(x_wind_cube, "", verbose=False)
+    um2nc.fix_standard_name(x_wind_cube, "")
     assert x_wind_cube.standard_name == "eastward_wind"
 
 
@@ -506,25 +496,18 @@ def test_fix_standard_name_update_y_wind():
     m_cube = DummyCube(3)
     m_cube.standard_name = "y_wind"
 
-    um2nc.fix_standard_name(m_cube, "", verbose=False)
+    um2nc.fix_standard_name(m_cube, "")
     assert m_cube.standard_name == "northward_wind"
 
 
 def test_fix_standard_name_with_mismatch(x_wind_cube):
     # ensure mismatching standard names between cube & um uses the um std name
-    standard_name = "fake"
-    assert x_wind_cube.standard_name != standard_name
-    um2nc.fix_standard_name(x_wind_cube, standard_name, verbose=False)
-    assert x_wind_cube.standard_name == standard_name
-
-
-def test_fix_standard_name_with_mismatch_warn(x_wind_cube):
-    # as per standard name mismatch, ensuring a warning is raised
+    # and that a warning is given
     standard_name = "fake"
     assert x_wind_cube.standard_name != standard_name
 
-    with pytest.warns():
-        um2nc.fix_standard_name(x_wind_cube, standard_name, verbose=True)
+    with pytest.warns(RuntimeWarning, match=standard_name):
+        um2nc.fix_standard_name(x_wind_cube, standard_name)
 
     assert x_wind_cube.standard_name == standard_name
 
@@ -534,7 +517,7 @@ def test_fix_standard_name_add_missing_name_from_um(x_wind_cube):
     for std_name in ("", None):
         x_wind_cube.standard_name = std_name
         expected = "standard-name-slot"
-        um2nc.fix_standard_name(x_wind_cube, expected, verbose=False)
+        um2nc.fix_standard_name(x_wind_cube, expected)
         assert x_wind_cube.standard_name == expected
 
 
@@ -587,37 +570,27 @@ def ua_plev_alt(ua_plev_cube):
 
 
 def test_fix_units_update_units(ua_plev_alt):
-    # ensure UM Stash units override cube units
+    # ensure UM Stash units override cube units. Check that a warning is given
     um_var_units = "Metres-fake"
-    um2nc.fix_units(ua_plev_alt, um_var_units, verbose=False)
-    assert ua_plev_alt.units == um_var_units
-
-
-def test_fix_units_update_units_with_warning(ua_plev_alt):
-    um_var_units = "Metres-fake"
-
-    with pytest.warns():
-        um2nc.fix_units(ua_plev_alt, um_var_units, verbose=True)
-
+    with pytest.warns(RuntimeWarning, match=um_var_units):
+        um2nc.fix_units(ua_plev_alt, um_var_units)
     assert ua_plev_alt.units == um_var_units
 
 
 def test_fix_units_do_nothing_no_cube_units(ua_plev_cube):
     # ensure nothing happens if cube lacks units
-    # verbose=True is skipped as it only issues a warning
     for unit in ("", None):
         ua_plev_cube.units = unit
-        um2nc.fix_units(ua_plev_cube, "fake_units", verbose=False)
+        um2nc.fix_units(ua_plev_cube, "fake_units")
         assert ua_plev_cube.units == unit  # nothing should happen as there's no cube.units
 
 
 def test_fix_units_do_nothing_no_um_units(ua_plev_cube):
     # ensure nothing happens if the UM Stash lacks units
-    # verbose=True is skipped as it only issues a warning
     orig = "fake-metres"
     ua_plev_cube.units = orig
     for unit in ("", None):
-        um2nc.fix_units(ua_plev_cube, unit, verbose=False)
+        um2nc.fix_units(ua_plev_cube, unit)
         assert ua_plev_cube.units == orig  # nothing should happen as there's no cube.units
 
 
@@ -1264,71 +1237,3 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
 
     # Check that missing value attribute set to expected fill_value
     assert fake_cube.attributes["missing_value"][0] == expected_fill_val
-
-@pytest.fixture
-def test_enum():
-    class Test(Enum):
-        ON = "on"
-        OFF = "off"
-    return Test
-
-@pytest.fixture
-def enum_parser(test_enum):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--enum", 
-        type=test_enum, 
-        action=um2nc.EnumAction
-    )
-    return parser
-
-def test_enum_action_valid_input(enum_parser, test_enum):
-    """
-    Test that the EnumAction returns the correct value for valid input.
-    """
-    args = enum_parser.parse_args(["--enum", "on"])
-    assert args.enum is test_enum.ON
-
-def test_enum_action_invalid_input(enum_parser):
-    """
-    Test that the EnumAction raises an error for a not valid input.
-    """
-    with pytest.raises(SystemExit):
-        enum_parser.parse_args(["--enum", "fake_enum"])
-
-def test_enum_action_choices(enum_parser, test_enum):
-    """
-    Test that the EnumAction sets the correct choices.
-    """
-    enum_action = [act for act in enum_parser._actions if act.dest == "enum"][0]
-    assert enum_action.choices == tuple(c.value for c in test_enum)
-
-def test_enum_action_choices_set(test_enum):
-    """
-    Test that the EnumAction raises a ValueError if 'choices' keyword is supplied.
-    """
-    parser = argparse.ArgumentParser()
-    with pytest.raises(ValueError):
-        parser.add_argument(
-            "--enum",
-            type=test_enum,
-            choices=['fake','choices',1,None],
-            action=um2nc.EnumAction,
-        )
-
-def test_enum_action_no_enum_type():
-    """
-    Test that the EnumAction raises an error if type is not Enum.
-    """
-    parser = argparse.ArgumentParser()
-    with pytest.raises(TypeError):
-        parser.add_argument(
-            "--enum", 
-            type=str, 
-            action=um2nc.EnumAction
-        )
-    with pytest.raises(TypeError):
-        parser.add_argument(
-            "--enum2",
-            action=um2nc.EnumAction
-        )

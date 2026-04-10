@@ -10,12 +10,11 @@ Note that um2netcdf depends on the following data access libraries:
 * Iris https://github.com/SciTools/iris
 """
 
-import argparse
 import collections
 import datetime
+import logging
 import os
 import warnings
-from enum import Enum
 
 import cf_units
 import cftime
@@ -28,7 +27,10 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 import um2nc
-from um2nc.stashmasters import StashVar, STASHmaster
+from um2nc.stashmasters import StashVar
+
+# Opt-in to the new behaviour to avoid warnings
+iris.FUTURE.date_microseconds = True
 
 # Iris cube attribute names
 STASH = "STASH"
@@ -93,38 +95,11 @@ class UnsupportedTimeSeriesError(PostProcessingError):
     pass
 
 
-# TODO: Move this to a separate helper file?
-class EnumAction(argparse.Action):
+class StrictWarning(UserWarning):
     """
-    Argparse action for handling Enums.
-    It automatically produces choices based on the Enum values.
+    Warnings which should be promoted to errors when the strict flag is True.
     """
-
-    def __init__(self, **kwargs):
-        # If 'choices' were declared explicitely, raise an error
-        if "choices" in kwargs:
-            raise ValueError(
-                f"Cannot use 'choices' keyword together with {self.__class__.__name__}. "
-                f"Choices are automatically generated from the Enum values."
-            )
-        # Pop the 'type' keyword
-        enum_type = kwargs.pop("type", None)
-        # Ensure an Enum subclass is provided
-        if not enum_type or not issubclass(enum_type, Enum):
-            raise TypeError(
-                f"The 'type' keyword must be assigned to Enum (or any Enum subclass) when using {self.__class__.__name__}."
-            )
-        # Generate choices from the Enum values
-        kwargs.setdefault("choices", tuple(e.value for e in enum_type))
-        # Call the argparse.Action constructor with the remaining keyword arguments
-        super().__init__(**kwargs)
-        # Store Enum subclass for use in the __call__ method
-        self._enum = enum_type
-
-    def __call__(self, parser, namespace, value, option_string=None):
-        # Convert value to the associated Enum member
-        member = self._enum(value)
-        setattr(namespace, self.dest, member)
+    pass
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -529,6 +504,7 @@ def process(infile, outfile, args):
 
     if args.single_var_files:
         nf = 0
+
         for c, fill, dims in process_cubes(cubes, mv, args):
             nf += 1
 
@@ -538,16 +514,19 @@ def process(infile, outfile, args):
                 # Otherwise prefix the filename with the variable's name and _
                 filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
 
-            with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.nckind]) as sman:
+            with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
                 print(c.name(), c.var_name, nf)
                 # Add global attributes
                 if not args.nohist:
                     add_global_history(infile, sman)
-
+  
                 sman.update_global_attributes({"Conventions": "CF-1.6"})
                 sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+
+            # Save memory by setting this to None after use
+            c.data = None
     else:
-        with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.nckind]) as sman:
+        with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
             # Add global attributes
             if not args.nohist:
                 add_global_history(infile, sman)
@@ -560,6 +539,8 @@ def process(infile, outfile, args):
 
                 sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
+                # Save memory by setting this to None after use
+                c.data = None
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
@@ -574,19 +555,19 @@ def process_cubes(cubes, mv, args):
     if do_masking:
         # drop cubes which cannot be pressure masked if heaviside uv or t is missing
         # otherwise keep all cubes when masking is off
-        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t, args.verbose))
+        cubes = list(non_masking_cubes(cubes, heaviside_uv, heaviside_t))
 
     if not cubes:
-        print("No cubes left to process after filtering")
+        warnings.warn("No cubes left to process after filtering")
         return
 
     # cube processing & modification
     for c in cubes:
         st = StashVar(c.item_code, stashmaster=args.model)
         fix_var_name(c, st.uniquename, args.simple)
-        fix_standard_name(c, st.standard_name, args.verbose)
+        fix_standard_name(c, st.standard_name)
         fix_long_name(c, st.long_name)
-        fix_units(c, st.units, args.verbose)
+        fix_units(c, st.units)
 
         # Interval in cell methods isn't reliable so better to remove it.
         c.cell_methods = fix_cell_methods(c.cell_methods)
@@ -601,6 +582,16 @@ def process_cubes(cubes, mv, args):
 
             if require_heaviside_t(c.item_code) and heaviside_t:
                 apply_mask(c, heaviside_t, args.hcrit)
+
+        # TODO: can item code get removed here when new cubes returned?
+        c, unlimited_dimensions = fix_time_coord(c)
+
+        # Ensure the data is in the native byte order
+        # (iris problem with single level fields packed to land points)
+        if not c.data.dtype.isnative:
+            logging.info(f"Swapping byteorder for {c.var_name} {c.name()}")
+            c.data.byteswap(True)
+            c.data.dtype = c.data.dtype.newbyteorder("=")
 
         # TODO: some cubes lose item_code when replaced with new cubes
         c = fix_pressure_levels(c) or c  # NB: use new cube if pressure points are modified
@@ -617,9 +608,6 @@ def process_cubes(cubes, mv, args):
         for coord in c.coords():
             if coord.points.dtype == np.int64:
                 coord.points = coord.points.astype(np.int32)
-
-        # TODO: can item code get removed here when new cubes returned?
-        c, unlimited_dimensions = fix_time_coord(c, args.verbose)
 
         yield c, fill_value, unlimited_dimensions
 
@@ -786,14 +774,17 @@ def get_heaviside_cubes(cubes):
     return heaviside_uv, heaviside_t
 
 
+HEAVISIDE_UV_CODE = 30301
+HEAVISIDE_T_CODE = 30304
+
+
 def require_heaviside_uv(item_code):
     # TODO: constants for magic numbers?
     return 30201 <= item_code <= 30288 or 30302 <= item_code <= 30303
 
 
 def is_heaviside_uv(item_code):
-    # TODO: constants for magic numbers
-    return item_code == 30301
+    return item_code == HEAVISIDE_UV_CODE
 
 
 def require_heaviside_t(item_code):
@@ -802,11 +793,10 @@ def require_heaviside_t(item_code):
 
 
 def is_heaviside_t(item_code):
-    # TODO: constants for magic numbers
-    return item_code == 30304
+    return item_code == HEAVISIDE_T_CODE
 
 
-def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
+def non_masking_cubes(cubes, heaviside_uv, heaviside_t):
     """
     Yields cubes that:
     * do not require pressure level masking
@@ -819,19 +809,16 @@ def non_masking_cubes(cubes, heaviside_uv, heaviside_t, verbose: bool):
     cubes : sequence of iris cubes for filtering
     heaviside_uv : heaviside_uv cube or None if it's missing
     heaviside_t : heaviside_t cube or None if it's missing
-    verbose : True to emit warnings to indicate a cube has been removed
     """
-    msg = "{} field needed for masking pressure level data is missing. " "Excluding cube '{}' as it cannot be masked"
+    msg = "{} field (code {}) needed for masking pressure level data is missing. " "Field '{}' (code {}) cannot be processed"
 
     for c in cubes:
         if require_heaviside_uv(c.item_code) and heaviside_uv is None:
-            if verbose:
-                warnings.warn(msg.format("heaviside_uv", c.name()), category=RuntimeWarning)
+            warnings.warn(msg.format("heaviside_uv", HEAVISIDE_UV_CODE, c.name(), c.item_code), category=StrictWarning)
             continue
 
         elif require_heaviside_t(c.item_code) and heaviside_t is None:
-            if verbose:
-                warnings.warn(msg.format("heaviside_t", c.name()), category=RuntimeWarning)
+            warnings.warn(msg.format("heaviside_t", HEAVISIDE_T_CODE, c.name(), c.item_code), category=StrictWarning)
             continue
 
         yield c
@@ -900,7 +887,7 @@ def fix_var_name(cube, um_unique_name, simple: bool):
             cube.var_name += "_min"
 
 
-def fix_standard_name(cube, um_standard_name, verbose: bool):
+def fix_standard_name(cube, um_standard_name):
     """
     Modify cube `standard_name` attr to change naming for NetCDF output.
 
@@ -908,9 +895,7 @@ def fix_standard_name(cube, um_standard_name, verbose: bool):
     ----------
     cube : iris cube to modify (changes the name in place)
     um_standard_name : the UM Stash standard name
-    verbose : True to turn warnings on
     """
-    stash_code = cube.attributes[STASH]
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
     if cube.standard_name:
@@ -920,15 +905,13 @@ def fix_standard_name(cube, um_standard_name, verbose: bool):
             cube.standard_name = "northward_wind"
 
         if um_standard_name and cube.standard_name != um_standard_name:
-            # TODO: remove verbose arg & always warn? Control warning visibility at cmd line?
-            if verbose:
-                # TODO: show combined stash code instead?
-                msg = (
-                    f"Standard name mismatch section={stash_code.section}"
-                    f" item={stash_code.item} standard_name={cube.standard_name}"
-                    f" UM var name={um_standard_name}"
-                )
-                warnings.warn(msg)
+            msg = (
+                f"Standard name mismatch for cube {cube.item_code}. "
+                f"standard_name from Iris: {cube.standard_name}, "
+                f"standard_name from un2nc: {um_standard_name}. "
+                "Using um2nc standard_name."
+            )
+            warnings.warn(msg, category=RuntimeWarning)
 
             cube.standard_name = um_standard_name
     elif um_standard_name:
@@ -954,14 +937,17 @@ def fix_long_name(cube, um_long_name):
         cube.long_name = um_long_name
 
 
-def fix_units(cube, um_var_units, verbose: bool):
+def fix_units(cube, um_var_units):
     if cube.units and um_var_units:
         # Simple testing c.units == um_var_units doesn't catch format differences because
         # the Unit type works around them. repr is also unreliable
         if f"{cube.units}" != um_var_units:  # TODO: does str(cube.units) work?
-            if verbose:
-                msg = f"Units mismatch {cube.item_code} {cube.units} {um_var_units}"
-                warnings.warn(msg)
+            msg = (
+                    f"Units mismatch for cube {cube.item_code}. Units from Iris: {cube.units}, "
+                    f"units from um2nc: {um_var_units}. Using units from um2nc."
+                  )
+            warnings.warn(msg, category=RuntimeWarning)
+
             cube.units = um_var_units
 
 
@@ -1074,7 +1060,7 @@ def convert_32_bit(cube):
         cube.data = cube.data.astype(np.int32)
 
 
-def fix_time_coord(cube, verbose):
+def fix_time_coord(cube):
     """
     Ensures cube has a 'time' coordinate dimension.
 
@@ -1085,7 +1071,6 @@ def fix_time_coord(cube, verbose):
     Parameters
     ----------
     cube : iris Cube object
-    verbose : True to display information on stdout
 
     Returns
     -------
@@ -1103,13 +1088,10 @@ def fix_time_coord(cube, verbose):
                 neworder.remove(tdim)
                 neworder.insert(0, tdim)
 
-                if verbose > 1:
-                    dnames = ', '.join([d.name() for d in cube.dim_coords])
-                    msg = (
-                        f"Incorrect dimension order {cube.name()} ({dnames}), "
-                        "transposing to time first."
-                    )
-                    warnings.warn(msg)
+                logging.info(
+                    f"Incorrect dimension order on {cube.item_code}."
+                    f"Transposing to {neworder}"
+                )
 
                 cube.transpose(neworder)
         else:
@@ -1123,92 +1105,3 @@ def fix_time_coord(cube, verbose):
         unlimited_dimensions = None
 
     return cube, unlimited_dimensions
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Convert UM fieldsfile to netCDF.")
-    parser.add_argument(
-        "-k",
-        dest="nckind",
-        required=False,
-        type=int,
-        default=3,
-        help=(
-            "NetCDF output format. Choose among '1' (classic), '2' (64-bit offset),"
-            "'3' (netCDF-4), '4' (netCDF-4 classic). Default: '3' (netCDF-4)."
-        ),
-        choices=[1, 2, 3, 4],
-    )
-    parser.add_argument(
-        "-c",
-        dest="compression",
-        required=False,
-        type=int,
-        default=4,
-        help="Compression level. '0' (none) to '9' (max). Default: '4'",
-    )
-    parser.add_argument(
-        "--64", dest="use64bit", action="store_true", default=False, help="Write 64 bit output when input is 64 bit"
-    )
-    parser.add_argument(
-        "-v", "--verbose", dest="verbose", action="count", default=0, help="Display verbose output (use '-vv' for extra verbosity)."
-    )
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--include", dest="include_list", type=int, nargs="+", help="List of stash codes to include")
-    group.add_argument("--exclude", dest="exclude_list", type=int, nargs="+", help="List of stash codes to exclude")
-
-    parser.add_argument(
-        "--nomask",
-        dest="nomask",
-        action="store_true",
-        default=False,
-        help="Don't mask variables on pressure level grids.",
-    )
-    parser.add_argument(
-        "--nohist", dest="nohist", action="store_true", default=False, help="Don't add/update the global 'history' attribute in the output netCDF."
-    )
-    parser.add_argument(
-        "--simple", dest="simple", action="store_true", default=False, help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
-    )
-    parser.add_argument(
-        "--single-var", dest="singlevar", action="store_true", default=False, help="Create single variable output files"
-    )
-    parser.add_argument(
-        "--hcrit",
-        dest="hcrit",
-        type=float,
-        default=0.5,
-        help=("Critical value of the Heaviside variable for pressure level masking. Default: '0.5'."),
-    )
-
-    parser.add_argument(
-        "--model",
-        dest="model",
-        type=STASHmaster,
-        action=EnumAction,
-        help=(
-            "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
-            f"Options: {[v.value for v in STASHmaster]}. If omitted, the '{STASHmaster.DEFAULT.value}' STASHmaster will be used."
-        ),
-    )
-    parser.add_argument(
-        "--single-var-files",
-        action="store_true",
-        help="Store each output field/variable as a separate netCDF file. \"{variable_id}\" can be used in the output "
-            "path otherwise the variable name followed by an underscore will be used as a prefix to the file name."
-    )
-
-    parser.add_argument("infile", nargs='+', help="Input file(s)")
-    parser.add_argument("outfile", help="Output file")
-
-    return parser.parse_args()
-
-
-def main():
-    args = parse_args()
-    process(args.infile, args.outfile, args)
-
-
-if __name__ == "__main__":
-    main()
