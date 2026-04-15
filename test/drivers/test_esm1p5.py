@@ -1,9 +1,9 @@
 import pytest
 
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
-from um2nc.drivers.esm1p6 import Esm1p6Driver,  ESM1P6_UNIT_SUFFIXES
+from um2nc.drivers.esm1p5 import Esm1p5Driver, ESM1P5_UNIT_SUFFIXES
 
 
 @pytest.fixture
@@ -12,7 +12,7 @@ def mock_atmosphere_dir():
     Mock the atmosphere_dir property to prevent a FileNotFoundError
     in tests.
     """
-    patcher = mock.patch.object(Esm1p6Driver, "atmosphere_dir")
+    patcher = mock.patch.object(Esm1p5Driver, "atmosphere_dir")
 
     yield patcher.start()
 
@@ -22,7 +22,7 @@ def mock_atmosphere_dir():
 @pytest.fixture
 def mock_runid():
     """Mock the runid property to avoid reading it from file."""
-    patcher = mock.patch.object(Esm1p6Driver,
+    patcher = mock.patch.object(Esm1p5Driver,
                                 "runid",
                                 new_callable=mock.PropertyMock)
     yield patcher.start()
@@ -33,7 +33,7 @@ def mock_runid():
 @pytest.fixture
 def mock_output_dir():
     """Mock the output_dir property to avoid directory creation in tests."""
-    patcher = mock.patch.object(Esm1p6Driver,
+    patcher = mock.patch.object(Esm1p5Driver,
                                 "output_dir",
                                 new_callable=mock.PropertyMock)
 
@@ -52,17 +52,75 @@ def mock_get_ff_date():
     patcher.stop()
 
 
+def test_esm1p5_initialisation(tmp_path):
+    """Test initialisation of the Esm1p5Driver."""
+    model_dir = tmp_path / "model_dir"
+    atmosphere_dir = model_dir / "atmosphere"
+    atmosphere_dir.mkdir(parents=True)
+
+    Esm1p5Driver(model_dir)
+
+
+def test_atmosphere_dir_not_found():
+    """
+    Check that a FileNotFoundError is produced when the atmosphere
+    directory is not found.
+    """
+    fake_path = Path("/fake/path/")
+    assert not fake_path.exists()
+
+    with pytest.raises(FileNotFoundError):
+        driver = Esm1p5Driver(fake_path)
+
+
+def test_driver_directories(tmp_path):
+    """Test the atmosphere_dir and output_dir properties are correctly set."""
+    model_dir = tmp_path / "output000"
+    atmosphere_dir = model_dir / "atmosphere"
+    atmosphere_dir.mkdir(parents=True)
+
+    driver = Esm1p5Driver(model_dir)
+
+    assert driver.atmosphere_dir == atmosphere_dir
+    assert driver.output_dir == driver.atmosphere_dir / "netCDF"
+
+
+def test_unit_suffixes(mock_atmosphere_dir):
+    """Test that the correct suffixes for output filenames are used."""
+    driver = Esm1p5Driver(Path("fake_model_dir"))
+
+    assert driver.unit_suffixes == ESM1P5_UNIT_SUFFIXES
+
+
+def test_runid(mock_atmosphere_dir):
+    """Test that the runid is correctly set from the namelist file."""
+    driver = Esm1p5Driver(Path("fake_model_dir"))
+    xhist = {"nlchisto": {"run_id": "aiihc"}}
+
+    with mock.patch("f90nml.read") as mock_read:
+        mock_read.return_value = xhist
+        assert driver.runid == "aiihc"
+
+
+def test_input_name_pattern(mock_atmosphere_dir, mock_runid):
+    """Test that the regex pattern for matching input filenames is correctly set."""
+    driver = Esm1p5Driver(Path("fake_model_dir"))
+    mock_runid.return_value = "aiihc"
+
+    assert driver.input_name_pattern.pattern == "^(?P<stem>aiihca.p(?P<unit>[a-z]))[a-z0-9]+$"
+
+
 @pytest.mark.parametrize("input_path,ff_date,expected_output",
                          [
                             (
                                 Path("input_dir/aiihca.paa1feb"),
                                 (101, 2, 1),
-                                Path("output_dir/aiihca.pa-010102_1mon.nc")
+                                Path("output_dir/aiihca.pa-010102_mon.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pe50dec"),
                                 (1850, 12, 21),
-                                Path("output_dir/aiihca.pe-185012_1day.nc")
+                                Path("output_dir/aiihca.pe-185012_dai.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pi87jun"),
@@ -74,25 +132,14 @@ def mock_get_ff_date():
                                 (120, 1, 7),
                                 Path("output_dir/aiihca.pj-012001_6hr.nc")
                             ),
-                            (
-                                Path("input_dir/aiihca.pcc0jan"),
-                                (200, 5, 1),
-                                Path("output_dir/aiihca.pc-020005_1hr.nc")
-                            ),
-                            (
-                                Path("input_dir/non_matching"),
-                                (200, 5, 1),
-                                Path("output_dir/non_matching.nc")
-                            ),
                          ])
 def test_get_output_path(input_path, ff_date, expected_output, mock_atmosphere_dir,
                          mock_runid, mock_output_dir, mock_get_ff_date):
     """
     Check that the get_output_path method produces expected file paths.
     """
-    driver = Esm1p6Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"))
     mock_runid.return_value = "aiihc"
-
     mock_output_dir.return_value = Path("output_dir")
     mock_get_ff_date.return_value = ff_date
 
@@ -107,13 +154,13 @@ def test_get_output_path_unrecognized_unit(mock_atmosphere_dir, mock_runid,
     Check a warning is raised and a simpler output name is used
     when the unit key in the input filename is not recognized.
     """
-    driver = Esm1p6Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"))
     mock_runid.return_value = "aiihc"
     mock_output_dir.return_value = Path("output_dir")
     mock_get_ff_date.return_value = (50, 7, 1)
 
     unknown_key = "w"
-    assert unknown_key not in ESM1P6_UNIT_SUFFIXES.keys()
+    assert unknown_key not in ESM1P5_UNIT_SUFFIXES.keys()
 
     input_path = Path(f"input_dir/aiihca.p{unknown_key}abcd")
 
@@ -128,7 +175,7 @@ def test_get_output_path_non_match(mock_atmosphere_dir, mock_runid, mock_output_
     Check a warning is raised and a simpler ouput name is used
     when the input filename does not match the pattern.
     """
-    driver = Esm1p6Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"))
     mock_runid.return_value = "aiihc"
     mock_output_dir.return_value = Path("output_dir")
 
@@ -137,18 +184,6 @@ def test_get_output_path_non_match(mock_atmosphere_dir, mock_runid, mock_output_
 
     assert nc_name == Path("output_dir/non_matching.nc")
     mock_get_ff_date.assert_not_called()
-
-
-def test_setup_atmosphere_dir_not_found():
-    """
-    Check that a FileNotFoundError is produced when the atmosphere
-    directory is not found.
-    """
-    fake_path = Path("/fake/path/")
-    assert not fake_path.exists()
-
-    with pytest.raises(FileNotFoundError):
-        driver = Esm1p6Driver(fake_path)
 
 
 @pytest.mark.parametrize(
@@ -160,15 +195,15 @@ def test_setup_atmosphere_dir_not_found():
             [Path("dir/aiihca.pa1feb"), Path("dir/aiihca.pe1jun")]
         ),
         (
-            "esm16",
-            [Path("dir/esm16a.pg1dec"), Path("dir/aiihca.pea1jun")],
-            [Path("dir/esm16a.pg1dec")]
+            "esm15",
+            [Path("dir/esm15a.pg1dec"), Path("dir/aiihca.pea1jun")],
+            [Path("dir/esm15a.pg1dec")]
         )
     ]
 )
 def test_get_input_paths(runid, dir_contents, expected, mock_atmosphere_dir, mock_runid, monkeypatch):
     """Check that the correct input files are found."""
-    driver = Esm1p6Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"))
     mock_runid.return_value = runid
 
     # Provide the selected paths to 'find_matching_files'
@@ -182,7 +217,7 @@ def test_get_input_paths(runid, dir_contents, expected, mock_atmosphere_dir, moc
 
 def test_get_input_paths_not_found(mock_atmosphere_dir, mock_runid, monkeypatch):
     """Check that a warning is raised when no input files are found."""
-    driver = Esm1p6Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"))
     mock_runid.return_value = "aiihc"
     monkeypatch.setattr(Path, "iterdir", lambda x: [])
 
@@ -194,7 +229,7 @@ def test_get_input_paths_not_found(mock_atmosphere_dir, mock_runid, monkeypatch)
 
 def test_convert(mock_atmosphere_dir):
     """Test that the process function is called."""
-    driver = Esm1p6Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"))
     with mock.patch("um2nc.drivers.esm1p5.process") as mock_process:
         driver.convert(Path("input_file"), Path("output_file"), process_args=None)
 

@@ -57,6 +57,17 @@ def test_find_matching_files(monkeypatch):
     assert found_fields_files == expected_fields_files
 
 
+def test_get_ff_date():
+    """Test that the get_ff_date function returns the expected date."""
+    return_date = SimpleNamespace(t2_year=1981, t2_month=7, t2_day=20)
+    with mock.patch("mule.FixedLengthHeader.from_file") as mock_read_header:
+        mock_read_header.return_value = return_date
+        ff_date = drivers_common.get_ff_date(Path("fake_file"))
+
+    mock_read_header.assert_called()
+    assert ff_date == (1981, 7, 20)
+
+
 class TestDriver(drivers_common.ModelDriver):
     """Concrete subclass of ModelDriver for testing shared methods."""
     def get_input_paths(self):
@@ -69,6 +80,19 @@ class TestDriver(drivers_common.ModelDriver):
         return
 
 
+def test_driver_initialisation():
+    """Test that the TestDriver successfully initialises."""
+    TestDriver(Path("fake_model_dir"))
+
+
+def test_driver_model_directory():
+    """Test that the model_directory property is properly set."""
+    model_directory = Path("model_directory")
+    driver = TestDriver(model_directory)
+
+    assert driver.model_directory == model_directory
+
+
 @pytest.fixture
 def driver_mock_io_map():
     """Mock the input_output_mapping so that it can be set during tests."""
@@ -79,6 +103,22 @@ def driver_mock_io_map():
     yield patcher.start()
 
     patcher.stop()
+
+
+def test_driver_input_paths_output_paths(driver_mock_io_map):
+    """
+    Test that the driver input_paths and output_paths properties
+    are properly set.
+    """
+    driver = TestDriver(Path("fake_model_dir"))
+
+    io_map = {"input_1": "output_1",
+              "input_2": "output_2",
+              "input_3": "output_3"}
+    driver_mock_io_map.return_value = io_map
+
+    assert driver.input_paths == ["input_1", "input_2", "input_3"]
+    assert driver.output_paths == ["output_1", "output_2", "output_3"]
 
 
 def test_run_conversion_logging(caplog, driver_mock_io_map):
@@ -153,6 +193,44 @@ def test_run_conversion_fail_critical(driver_mock_io_map, driver_mock_convert):
         with mock.patch("os.remove") as remove:
             driver.run_conversion(delete_ff=True, process_args=ARGS)
 
+    remove.assert_not_called()
+
+
+def test_run_conversion_delete_ff(driver_mock_io_map, driver_mock_convert):
+    """
+    Test that input files are removed after successful conversion
+    when delete_ff is True.
+    """
+    driver = TestDriver(Path("fake_model_dir"))
+    io_map = {"input_1": "output_1",
+              "input_2": "output_2",
+              "input_3": "output_3"}
+    driver_mock_io_map.return_value = io_map
+
+    with mock.patch("os.remove") as remove:
+        driver.run_conversion(delete_ff=True, process_args=ARGS)
+
+    assert driver_mock_convert.call_count == len(io_map)
+    assert remove.call_count == len(io_map)
+
+    for input_file in io_map.keys():
+        remove.assert_any_call(input_file)
+
+
+def test_run_conversion_no_mapping(driver_mock_io_map, driver_mock_convert):
+    """
+    Test that no conversions are run when the input_output_mapping is empty.
+    """
+    driver = TestDriver(Path("fake_model_dir"))
+    io_map = {}
+    driver_mock_io_map.return_value = io_map
+
+    driver.run_conversion(delete_ff=True, process_args=ARGS)
+
+    with mock.patch("os.remove") as remove:
+        driver.run_conversion(delete_ff=True, process_args=ARGS)
+
+    driver_mock_convert.assert_not_called()
     remove.assert_not_called()
 
 
