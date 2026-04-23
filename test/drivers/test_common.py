@@ -82,7 +82,11 @@ class TestDriver(drivers_common.ModelDriver):
 
 def test_driver_initialisation():
     """Test that the TestDriver successfully initialises."""
-    TestDriver(Path("fake_model_dir"))
+    driver = TestDriver(Path("fake_model_dir"))
+    assert driver._model_directory == "fake_model_dir"
+    assert driver._input_paths is None
+    assert driver._output_paths is None    
+    assert driver._input_output_mapping is None    
 
 
 def test_driver_model_directory():
