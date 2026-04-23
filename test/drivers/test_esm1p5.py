@@ -12,7 +12,9 @@ def mock_atmosphere_dir():
     Mock the atmosphere_dir property to prevent a FileNotFoundError
     in tests.
     """
-    patcher = mock.patch.object(Esm1p5Driver, "atmosphere_dir")
+    patcher = mock.patch.object(Esm1p5Driver, 
+                                "atmosphere_dir",
+                                new_callable=mock.PropertyMock)
 
     yield patcher.start()
 
@@ -52,13 +54,16 @@ def mock_get_ff_date():
     patcher.stop()
 
 
-def test_esm1p5_initialisation(tmp_path):
+def test_esm1p5_initialisation(mock_atmosphere_dir):
     """Test initialisation of the Esm1p5Driver."""
-    model_dir = tmp_path / "model_dir"
+    model_dir = Path("model_dir")
     atmosphere_dir = model_dir / "atmosphere"
-    atmosphere_dir.mkdir(parents=True)
-
-    Esm1p5Driver(model_dir)
+    output_dir = atmosphere_dir / "netCDF"
+    mock_atmosphere_dir.return_value = atmosphere_dir
+    instance = Esm1p5Driver(model_dir)
+    assert instance._atmosphere_dir == atmosphere_dir
+    assert instance._output_dir == output_dir
+    assert instance._unit_suffixes == ESM1P5_UNIT_SUFFIXES
 
 
 def test_atmosphere_dir_not_found():
@@ -73,23 +78,29 @@ def test_atmosphere_dir_not_found():
         driver = Esm1p5Driver(fake_path)
 
 
-def test_driver_directories(tmp_path):
-    """Test the atmosphere_dir and output_dir properties are correctly set."""
+def test_atmosphere_dir():
+    """Test the atmosphere_dir property is correctly set."""
+    model_dir = Path("output000")
+    atmosphere_dir = model_dir / "atmosphere"
+    with mock.patch("pathlib.Path.exists", return_value=True):
+        driver = Esm1p5Driver(model_dir)
+        assert driver.atmosphere_dir == atmosphere_dir
+
+
+@pytest.mark.parametrize("output_dir_exists", [True, False])
+def test_output_dir(tmp_path, output_dir_exists):
+    """Test the output_dir property is correctly set."""
     model_dir = tmp_path / "output000"
     atmosphere_dir = model_dir / "atmosphere"
     atmosphere_dir.mkdir(parents=True)
-
+    output_dir = atmosphere_dir / "netCDF"
+    if output_dir_exists:
+        output_dir.mkdir(parents=True)
+    else:
+        assert not output_dir.exists()
     driver = Esm1p5Driver(model_dir)
-
-    assert driver.atmosphere_dir == atmosphere_dir
-    assert driver.output_dir == driver.atmosphere_dir / "netCDF"
-
-
-def test_unit_suffixes(mock_atmosphere_dir):
-    """Test that the correct suffixes for output filenames are used."""
-    driver = Esm1p5Driver(Path("fake_model_dir"))
-
-    assert driver.unit_suffixes == ESM1P5_UNIT_SUFFIXES
+    assert driver.output_dir == output_dir
+    assert output_dir.exists()
 
 
 def test_runid(mock_atmosphere_dir):
