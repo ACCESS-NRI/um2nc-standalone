@@ -508,11 +508,8 @@ def process(infile, outfile, args):
         for c, fill, dims in process_cubes(cubes, mv, args):
             nf += 1
 
-            if "{variable_id}" in str(outfile):
-                filename = str(outfile).format(variable_id=c.var_name)
-            else:
-                # Otherwise prefix the filename with the variable's name and _
-                filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
+            # Prefix the filename with the field's name and _
+            filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
 
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
                 print(c.name(), c.var_name, nf)

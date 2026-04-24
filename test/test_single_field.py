@@ -53,7 +53,7 @@ def test_commandline_single_field(unpack_fieldsfile, single_field, expected_numb
     input_dir = unpack_fieldsfile
 
     cmd = f"um2nc driver esm1p5 {input_dir}"
-    cmd += " --single-var-files" if single_field else ""
+    cmd += " --single-field-files" if single_field else ""
 
     runcmd(cmd)
 

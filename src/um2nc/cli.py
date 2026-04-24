@@ -174,10 +174,10 @@ driver_args.add_argument(
     help="Delete fields files upon successful conversion"
 )
 driver_args.add_argument(
-    "--single-var-files",
+    "--single-field-files",
     action="store_true",
-    help="Store each output field/variable as a separate netCDF file. \"{variable_id}\" can be used in the output "
-        "path otherwise the variable name followed by an underscore will be used as a prefix to the file name."
+    help="Store each output field as a separate netCDF file. The field name "
+        "followed by an underscore will be used to prefix to the file name."
 )
 
 
