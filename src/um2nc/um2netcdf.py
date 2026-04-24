@@ -502,7 +502,7 @@ def process(infile, outfile, args):
     mv = process_mule_vars(ff)
     cubes = iris.load(infile)
 
-    if args.single_var_files:
+    if args.single_field_files:
         nf = 0
 
         for c, fill, dims in process_cubes(cubes, mv, args):
