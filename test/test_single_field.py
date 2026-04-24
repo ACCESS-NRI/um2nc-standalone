@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 import shlex
 import subprocess
+import sys
 import tarfile
 
 
@@ -39,6 +40,7 @@ def runcmd(cmd, wd=None, env=None):
     )
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="Requires iris>3.11. which requires python>3.10")
 @pytest.mark.parametrize(
     "single_field,expected_number_nc",
     [
