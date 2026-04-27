@@ -95,11 +95,19 @@ jobs:
       - name: Entrypoint test of um2nc
         shell: micromamba-shell {0}
         run: um2nc --help
-
-      - name: Entrypoint test of driver command
+      
+      - name: Entrypoint test of driver commands
         shell: micromamba-shell {0}
-        run: um2nc driver esm1p5 --help
-
+        run: |
+          # We include '' in the drivers list to test for the `driver` command without a driver argument
+          drivers_list=(
+            ''
+            esm1p5
+            esm1p6
+          )
+          for driver in "${drivers_list[@]}"; do
+            um2nc driver "$driver" --help
+          done      
       - name: Entrypoint test of convert command
         shell: micromamba-shell {0}
         run: um2nc convert --help
