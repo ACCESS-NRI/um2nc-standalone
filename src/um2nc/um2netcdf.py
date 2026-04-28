@@ -507,14 +507,31 @@ def process(infile, outfile, args):
     if args.single_field_files:
         nf = 0
 
+        # Keep a list of field names used in case of name collisions
+        field_name_list = []
         for c, fill, dims in process_cubes(cubes, mv, args):
             nf += 1
+
+            field_name = c.var_name
+            if field_name in field_name_list:
+                # Append _X to the field name in an attempt to resolve the collision
+                for i in range(1, 10):
+                    new_field_name = f"{field_name}_{i}"
+                    
+                    if new_field_name not in field_name_list:
+                        logging.info("There is already a field called {field_name}, renaming to {new_field_name}")
+                        field_name = new_field_name
+                        break
+                else:
+                    # If the collision is not reolved by _9 raise an error
+                    raise FileExistsError("Unable to resolve name collision after {i} attempts with field {field_name}")
+            field_name_list.append(field_name)
 
             # Prefix the filename with the field's name and _
             if not isinstance(outfile, Path):
                 # Sometimes outfile is just a string
                 outfile = Path(outfile)
-            filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
+            filename = f'{outfile.parent}/{field_name}_{outfile.name}'
 
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
                 logging.info(f"Processing cube: {c.name()}, {c.var_name}, {nf}")
