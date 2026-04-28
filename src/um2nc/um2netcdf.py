@@ -537,7 +537,7 @@ def process(infile, outfile, args):
             sman.update_global_attributes({"Conventions": "CF-1.6"})
 
             for c, fill, dims in process_cubes(cubes, mv, args):
-                logging.info(f"Processing cube: {c.name()}, {c.var_name}, {nf}")
+                logging.info(f"Processing cube: {c.name()}, {c.var_name}")
                 sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
                 # Save memory by setting this to None after use
