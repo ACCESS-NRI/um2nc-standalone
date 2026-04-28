@@ -41,19 +41,33 @@ def runcmd(cmd, wd=None, env=None):
 
 
 @pytest.mark.parametrize(
+    "mode",
+    [
+        "driver esm1p5",
+        "driver esm1p6",
+        "convert {input_dir}/atmosphere/aiihca.pa01apr {input_dir}/atmosphere/file.nc",
+    ]
+)
+@pytest.mark.parametrize(
     "single_field,expected_number_nc",
     [
         (True, 229),
         (False, 1),
     ],
 )
-def test_commandline_single_field(unpack_fieldsfile, single_field, expected_number_nc):
+def test_commandline_single_field(unpack_fieldsfile, mode, single_field, expected_number_nc):
     """
     Test calling um2nc from the command line
     """
     input_dir = unpack_fieldsfile
 
-    cmd = f"um2nc driver esm1p5 {input_dir}"
+    if "driver" in mode:
+        cmd = f"um2nc {mode} {input_dir}"
+    elif "convert" in mode:
+        cmd = f"um2nc {mode.format(input_dir=input_dir)}"
+    else:
+        raise ValueError("Unrecognised mode")
+
     cmd += " --single-field-files" if single_field else ""
 
     runcmd(cmd)
