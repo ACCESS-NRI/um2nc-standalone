@@ -124,6 +124,12 @@ common_args.add_argument(
     help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
 )
 common_args.add_argument(
+    "--single-field-files",
+    action="store_true",
+    help="Store each output field as a separate netCDF file. The field name "
+        "followed by an underscore will be used to prefix to the file name."
+)
+common_args.add_argument(
     "--strict",
     dest="strict",
     action="store_true",
@@ -174,12 +180,6 @@ driver_args.add_argument(
     action="store_true",
     default=False,
     help="Delete fields files upon successful conversion"
-)
-driver_args.add_argument(
-    "--single-field-files",
-    action="store_true",
-    help="Store each output field as a separate netCDF file. The field name "
-        "followed by an underscore will be used to prefix to the file name."
 )
 
 
