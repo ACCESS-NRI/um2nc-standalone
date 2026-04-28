@@ -517,7 +517,7 @@ def process(infile, outfile, args):
             filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
 
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
-                print(c.name(), c.var_name, nf)
+                logging.info(f"Processing cube: {c.name()}, {c.var_name}, {nf}")
                 # Add global attributes
                 if not args.nohist:
                     add_global_history(infile, sman)
@@ -537,9 +537,7 @@ def process(infile, outfile, args):
             sman.update_global_attributes({"Conventions": "CF-1.6"})
 
             for c, fill, dims in process_cubes(cubes, mv, args):
-                # if args.verbose:
-                #     print(c.name(), c.item_code)
-
+                logging.info(f"Processing cube: {c.name()}, {c.var_name}, {nf}")
                 sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
                 # Save memory by setting this to None after use
