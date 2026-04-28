@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 import shlex
 import subprocess
-import sys
 import tarfile
 
 
