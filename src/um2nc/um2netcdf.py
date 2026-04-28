@@ -18,6 +18,7 @@ import warnings
 
 import cf_units
 import cftime
+import dask
 import iris.exceptions
 import iris.util
 import mule
@@ -521,7 +522,8 @@ def process(infile, outfile, args):
                 sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
             # Save memory by setting this to None after use
-            c.data = None
+            # c.data = None # Requires iris >= 3.12
+            c.data = dask.array.zeros(c.data.shape)
     else:
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
             # Add global attributes
@@ -537,7 +539,8 @@ def process(infile, outfile, args):
                 sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
 
                 # Save memory by setting this to None after use
-                c.data = None
+                # c.data = None # Requires iris >= 3.12
+                c.data = dask.array.zeros(c.data.shape)
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
