@@ -14,6 +14,7 @@ import collections
 import datetime
 import logging
 import os
+from pathlib import Path
 import warnings
 
 import cf_units
@@ -510,6 +511,9 @@ def process(infile, outfile, args):
             nf += 1
 
             # Prefix the filename with the field's name and _
+            if not isinstance(outfile, Path):
+                # Sometimes outfile is just a string
+                outfile = Path(outfile)
             filename = f'{outfile.parent}/{c.var_name}_{outfile.name}'
 
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
