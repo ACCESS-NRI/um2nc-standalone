@@ -542,7 +542,7 @@ def process(infile, outfile, args):
     mv = process_mule_vars(ff)
     cubes = iris.load(infile)
 
-    if args.single_field_files:
+    if args.one_nc_per_stash:
         # Keep a list of field names used in case of name collisions
         field_name_list = []
 
