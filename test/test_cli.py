@@ -1,8 +1,9 @@
 import pytest
 import argparse
-import unittest
+
 
 from enum import Enum
+from unittest import mock
 
 from um2nc.cli import parse_args, EnumAction
 from um2nc.stashmasters import STASHmaster
@@ -13,11 +14,11 @@ def test_parse_args_convert():
     Check that arguments are parsed correctly when the 'convert' command is
     either included or omitted.
     """
-    with unittest.mock.patch("sys.argv", ["um2nc", "input_file", "output_file"]):
+    with mock.patch("sys.argv", ["um2nc", "input_file", "output_file"]):
         with pytest.warns(match="No command recognised among"):
             no_convert_args_out = parse_args()
 
-    with unittest.mock.patch("sys.argv", ["um2nc", "convert", "input_file", "output_file"]):
+    with mock.patch("sys.argv", ["um2nc", "convert", "input_file", "output_file"]):
         convert_args_out = parse_args()
 
     assert no_convert_args_out.command == convert_args_out.command == "convert"
@@ -27,9 +28,20 @@ def test_parse_args_convert():
     assert no_convert_args_out == convert_args_out
 
 
+def test_noargs_help(capsys):
+    """
+    Test that help is shown when no arguments are provided.
+    """
+    with mock.patch("sys.argv", ["um2nc"]):
+        with pytest.raises(SystemExit):
+            parse_args()
+    assert "usage: um2nc" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     "cli_args,expected_defaults",
     [
+
         (
             ["um2nc", "convert", "infile", "outfile"],
             set([
@@ -47,15 +59,24 @@ def test_parse_args_convert():
                 ("verbose", True),
                 ("model", STASHmaster.ACCESS_ESM1p5)
             ])
+        ),
+        (
+            ["um2nc", "driver", "esm1p6", "output_dir"],
+            set([
+                ("simple", True),
+                ("strict", True),
+                ("verbose", True),
+                ("model", STASHmaster.ACCESS_ESM1p5)
+            ])
         )
     ]
 )
 def test_command_defaults(cli_args, expected_defaults):
     """
     Test that different default values are correctly set with the 'convert'
-    and 'driver esm1p5' commands.
+    and 'driver esm1p5' and 'driver esm1p6' commands.
     """
-    with unittest.mock.patch("sys.argv", cli_args):
+    with mock.patch("sys.argv", cli_args):
         args = parse_args()
     args_set = set(vars(args).items())
     assert expected_defaults.issubset(args_set)
