@@ -572,7 +572,7 @@ def process(infile, outfile, args):
     else:
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
             for c, fill, dims in process_cubes(cubes, mv, args):
-                _write_cube(c,  sman, infile, dims, fill, args)
+                _write_cube(c, sman, infile, dims, fill, args)
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
