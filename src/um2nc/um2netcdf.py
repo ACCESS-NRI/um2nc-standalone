@@ -494,6 +494,25 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
+def increment_name(name, initial_num=1):
+    """
+    Increment string name or begin incrementing.
+
+    E.g. X -> X_1, X_1 -> X_2, X_999 -> X_1000
+
+    Inspired by iris.fileformats.netcdf.Saver._increment_name
+    """
+    num = initial_num
+    try:
+        split_name, endnum = name.rsplit("_", 1)
+        if endnum.isdigit():
+            num = int(endnum) + 1
+            name = split_name
+    except ValueError:
+        pass
+    return f"{name}_{num}"
+
+  
 def process(infile, outfile, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
@@ -513,18 +532,17 @@ def process(infile, outfile, args):
             nf += 1
 
             field_name = c.var_name
+
+            # Check for field name collisions
+            # Check here rather than at file output so that old files can be overwritten
             if field_name in field_name_list:
-                # Append _X to the field name in an attempt to resolve the collision
-                for i in range(1, 10):
-                    new_field_name = f"{field_name}_{i}"
-                    
-                    if new_field_name not in field_name_list:
-                        logging.info("There is already a field called {field_name}, renaming to {new_field_name}")
-                        field_name = new_field_name
-                        break
-                else:
-                    # If the collision is not reolved by _9 raise an error
-                    raise FileExistsError("Unable to resolve name collision after {i} attempts with field {field_name}")
+                new_field_name = field_name
+                while new_field_name in field_name_list:
+                    new_field_name = increment_name(field_name)
+
+                logging.info("There is already an output field called {field_name}, renaming to {new_field_name}")
+                field_name = new_field_name
+
             field_name_list.append(field_name)
 
             # Prefix the filename with the field's name and _

@@ -1237,3 +1237,21 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
 
     # Check that missing value attribute set to expected fill_value
     assert fake_cube.attributes["missing_value"][0] == expected_fill_val
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        ("x", "x_1"),
+        ("x_0", "x_1"),
+        ("x_9", "x_10"),
+        ("x_10", "x_11"),
+        ("x_-1", "x_-1_1"),
+        ("x_y", "x_y_1"),
+        ("x_1e6", "x_1e6_1"),
+        ("x_one", "x_one_1"),
+        ("x____", "x_____1"),
+    ]
+)
+def test_increment_name(input, output):
+    assert um2nc.increment_name(input) == output
