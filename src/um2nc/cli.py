@@ -124,10 +124,11 @@ common_args.add_argument(
     help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
 )
 common_args.add_argument(
-    "--single-field-files",
+    "--one-nc-per-stash",
     action="store_true",
-    help="Store each output field as a separate netCDF file. The field name "
-        "followed by an underscore will be used to prefix to the file name."
+    help="Create a separate netCDF file for eash STASH code. The name for each "
+        "STASH variable followed by an underscore will be used to prefix each "
+        "file name."
 )
 common_args.add_argument(
     "--strict",
