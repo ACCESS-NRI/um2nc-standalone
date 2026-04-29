@@ -512,7 +512,26 @@ def increment_name(name, initial_num=1):
         pass
     return f"{name}_{num}"
 
-  
+
+def _add_global_attrs(saver, infile, args):
+    if not args.nohist:
+        add_global_history(infile, saver)
+
+    saver.update_global_attributes({"Conventions": "CF-1.6"})
+
+
+def _write_cube(cube, saver, infile, dims, fill, args):
+    logging.info(f"Processing cube: {cube.name()}, {cube.var_name}")
+
+    _add_global_attrs(saver, infile, args)
+
+    saver.write(cube, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+
+    # Save memory by setting this to None after use
+    # cube.data = None # Requires iris >= 3.12
+    cube.data = dask.array.zeros(cube.data.shape)
+
+
 def process(infile, outfile, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
@@ -524,13 +543,10 @@ def process(infile, outfile, args):
     cubes = iris.load(infile)
 
     if args.single_field_files:
-        nf = 0
-
         # Keep a list of field names used in case of name collisions
         field_name_list = []
-        for c, fill, dims in process_cubes(cubes, mv, args):
-            nf += 1
 
+        for c, fill, dims in process_cubes(cubes, mv, args):
             field_name = c.var_name
 
             # Check for field name collisions
@@ -552,32 +568,11 @@ def process(infile, outfile, args):
             filename = f'{outfile.parent}/{field_name}_{outfile.name}'
 
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
-                logging.info(f"Processing cube: {c.name()}, {c.var_name}, {nf}")
-                # Add global attributes
-                if not args.nohist:
-                    add_global_history(infile, sman)
-  
-                sman.update_global_attributes({"Conventions": "CF-1.6"})
-                sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
-
-            # Save memory by setting this to None after use
-            # c.data = None # Requires iris >= 3.12
-            c.data = dask.array.zeros(c.data.shape)
+                _write_cube(c, sman, infile, dims, fill, args)
     else:
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
-            # Add global attributes
-            if not args.nohist:
-                add_global_history(infile, sman)
-
-            sman.update_global_attributes({"Conventions": "CF-1.6"})
-
             for c, fill, dims in process_cubes(cubes, mv, args):
-                logging.info(f"Processing cube: {c.name()}, {c.var_name}")
-                sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
-
-                # Save memory by setting this to None after use
-                # c.data = None # Requires iris >= 3.12
-                c.data = dask.array.zeros(c.data.shape)
+                _write_cube(c,  sman, infile, dims, fill, args)
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
