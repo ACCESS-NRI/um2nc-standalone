@@ -14,6 +14,7 @@ import collections
 import datetime
 import logging
 import os
+from pathlib import Path
 import warnings
 
 import cf_units
@@ -493,6 +494,44 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
+def increment_name(name, initial_num=1):
+    """
+    Increment string name or begin incrementing.
+
+    E.g. X -> X_1, X_1 -> X_2, X_999 -> X_1000
+
+    Inspired by iris.fileformats.netcdf.Saver._increment_name
+    """
+    num = initial_num
+    try:
+        split_name, endnum = name.rsplit("_", 1)
+        if endnum.isdigit():
+            num = int(endnum) + 1
+            name = split_name
+    except ValueError:
+        pass
+    return f"{name}_{num}"
+
+
+def _add_global_attrs(saver, infile, args):
+    if not args.nohist:
+        add_global_history(infile, saver)
+
+    saver.update_global_attributes({"Conventions": "CF-1.6"})
+
+
+def _write_cube(cube, saver, infile, dims, fill, args):
+    logging.info(f"Processing cube: {cube.name()}, {cube.var_name}")
+
+    _add_global_attrs(saver, infile, args)
+
+    saver.write(cube, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+
+    # Save memory by setting this to None after use
+    # cube.data = None # Requires iris >= 3.12
+    cube.data = dask.array.zeros(cube.data.shape)
+
+
 def process(infile, outfile, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
@@ -503,21 +542,37 @@ def process(infile, outfile, args):
     mv = process_mule_vars(ff)
     cubes = iris.load(infile)
 
-    with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
-        # Add global attributes
-        if not args.nohist:
-            add_global_history(infile, sman)
-
-        sman.update_global_attributes({"Conventions": "CF-1.6"})
+    if args.one_nc_per_stash_variable:
+        # Keep a list of field names used in case of name collisions
+        field_name_list = []
 
         for c, fill, dims in process_cubes(cubes, mv, args):
-            # if args.verbose:
-            #     print(c.name(), c.item_code)
+            field_name = c.var_name
 
-            sman.write(c, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
-            # Save memory by setting this to None after use
-            # c.data = None # Requires iris >= 3.12
-            c.data = dask.array.zeros(c.data.shape)
+            # Check for field name collisions
+            # Check here rather than at file output so that old files can be overwritten
+            if field_name in field_name_list:
+                new_field_name = field_name
+                while new_field_name in field_name_list:
+                    new_field_name = increment_name(field_name)
+
+                logging.info("There is already an output field called {field_name}, renaming to {new_field_name}")
+                field_name = new_field_name
+
+            field_name_list.append(field_name)
+
+            # Prefix the filename with the field's name and _
+            if not isinstance(outfile, Path):
+                # Sometimes outfile is just a string
+                outfile = Path(outfile)
+            filename = f'{outfile.parent}/{field_name}_{outfile.name}'
+
+            with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
+                _write_cube(c, sman, infile, dims, fill, args)
+    else:
+        with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
+            for c, fill, dims in process_cubes(cubes, mv, args):
+                _write_cube(c, sman, infile, dims, fill, args)
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
