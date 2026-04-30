@@ -67,7 +67,7 @@ def test_commandline_single_field(unpack_fieldsfile, mode, single_field, expecte
     else:
         raise ValueError("Unrecognised mode")
 
-    cmd += " --one-nc-per-stash" if single_field else ""
+    cmd += " --one-nc-per-stash-variable" if single_field else ""
 
     runcmd(cmd)
 
