@@ -513,19 +513,19 @@ def increment_name(name, initial_num=1):
     return f"{name}_{num}"
 
 
-def _add_global_attrs(saver, infile, args):
-    if not args.nohist:
+def _add_global_attrs(saver, infile, add_history=True):
+    if add_history:
         add_global_history(infile, saver)
 
     saver.update_global_attributes({"Conventions": "CF-1.6"})
 
 
-def _write_cube(cube, saver, infile, dims, fill, args):
+def _write_cube(cube, saver, infile, dims, fill, compression_level=1, add_history=True):
     logging.info(f"Processing cube: {cube.name()}, {cube.var_name}")
 
-    _add_global_attrs(saver, infile, args)
+    _add_global_attrs(saver, infile, add_history=add_history)
 
-    saver.write(cube, zlib=True, complevel=args.compression, unlimited_dimensions=dims, fill_value=fill)
+    saver.write(cube, zlib=True, complevel=compression_level, unlimited_dimensions=dims, fill_value=fill)
 
     # Save memory by setting this to None after use
     # cube.data = None # Requires iris >= 3.12
@@ -568,11 +568,19 @@ def process(infile, outfile, args):
             filename = f'{outfile.parent}/{field_name}_{outfile.name}'
 
             with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
-                _write_cube(c, sman, infile, dims, fill, args)
+                _write_cube(
+                    c, sman, infile, dims, fill,
+                    compression_level=args.compression,
+                    add_history=not args.nohist
+                )
     else:
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
             for c, fill, dims in process_cubes(cubes, mv, args):
-                _write_cube(c, sman, infile, dims, fill, args)
+                _write_cube(
+                    c, sman, infile, dims, fill,
+                    compression_level=args.compression,
+                    add_history=not args.nohist
+                )
 
 def process_cubes(cubes, mv, args):
     set_item_codes(cubes)
