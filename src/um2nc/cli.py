@@ -259,14 +259,18 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
-    # Setup logging
-    setup_logging(args.verbose, args.quiet, args.strict)
-
+def run_command(args):
     # Run selected command
     if args.command == "convert":
         process(args.infile, args.outfile, args)
     elif args.command == "driver":
         driver = model_drivers[args.model_driver](Path(args.current_output_dir))
         driver.run_conversion(args.delete_ff, args)
+
+
+def main():
+    args = parse_args()
+    # Setup logging
+    setup_logging(args.verbose, args.quiet, args.strict)
+
+    run_command(args)
