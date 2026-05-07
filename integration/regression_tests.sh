@@ -23,12 +23,14 @@ Options:
 -v    DATA_VERSION    Version of test reference data to use.
                       Options: "0".
                       Default: latest release version.
+--exe PATH            Path to um2nc executable to test. Default: "um2nc" (i.e. um2nc in PATH).
 EOF
 }
 
 
 
 TEST_DATA_PARENT_DIR=/g/data/vk83/testing/data/um2nc/integration-tests
+NCCMP_EXE=/apps/nccmp/1.8.5.0/bin/nccmp
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
@@ -45,6 +47,10 @@ while getopts ":-:d:hkv:" opt; do
                 ;;
                 keep)
                     CLEAN_OUTPUT=false
+                ;;
+                exe)
+                    UM2NC_EXE="${!OPTIND}"
+                    shift
                 ;;
                 *)
                     echo "Invalid option: \"--${OPTARG}\"." >&2
@@ -100,6 +106,8 @@ TEST_DATA_VERSION="${TEST_DATA_VERSION:-$TEST_DATA_VERSION_DEFAULT}"
 
 TEST_DATA_REFERENCE_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
+UM2NC_EXE="${UM2NC_EXE:-um2nc}"
+
 if [ ! -d "${TEST_DATA_REFERENCE_DIR}" ]; then
     echo "ERROR: Test reference data directory \"${TEST_DATA_REFERENCE_DIR}\" does not exist." >&2
     exit 1
@@ -149,7 +157,7 @@ function run_um2nc {
     # Run um2nc conversion. Exit if conversion fails.
     ifile="${@: -2:1}"
     echo "Converting \"${ifile}\"."
-    um2nc "$@"
+    "${UM2NC_EXE}" "$@"
 
     if [ "$?" -ne 0 ]; then
         echo "Conversion of \"${ifile}\" failed. Exiting." >&2
@@ -163,7 +171,7 @@ function diff_warn {
     file1="${@: -2:1}"
     file2="${@: -1:1}"
     echo "Comparing \"$file1\" and \"$file2\"."
-    nccmp "$@"
+    "$NCCMP_EXE" "$@"
     if [ "$?" -ne 0 ]; then
         FAILED_FILES+=($file1,$file2)
     fi
