@@ -98,7 +98,7 @@ restrict_group.add_argument(
     nargs="+",
     help=("List of variables to exclude from the output file. Variables are specified by their STASH codes "
           "in the format '1000 * section number + item number'. " 
-          "All other variables present in input file will be written to output file. "
+          "All other variables present in the input file will be written to the output file. "
           "Cannot be used with '--include'.")
 )
 
@@ -184,7 +184,6 @@ driver_args.add_argument(
     "model_directory",
     type=str,
     help=("Path to a simulation's output directory containg UM files for conversion. "
-          "For the 'esm1p5' and 'esm1p6' drivers, this should be a numbered payu output[0-9][0-9][0-9] directory."
           )
 )
 driver_args.add_argument(
