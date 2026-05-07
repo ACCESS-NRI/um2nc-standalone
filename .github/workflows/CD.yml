@@ -4,6 +4,7 @@ on:
     push:
       tags:
         - '*'
+    workflow_dispatch:
 
 jobs:
   check-version:
@@ -77,6 +78,7 @@ jobs:
           token: ${{ secrets.ANACONDA_TOKEN }}
           label: main
           conda_build_args: -c accessnri -c conda-forge -c nodefaults
+          upload: true
       
       - name: Re-format output paths
         id: reformat-paths
@@ -142,12 +144,12 @@ jobs:
         id: download-artifacts
         with:
           merge-multiple: true
-        
+
       - name: Create Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda #v3.0.0
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
+          tag_name: test
+          name: ${{needs.get-package-name.outputs.package-name}} test
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: ${{steps.download-artifacts.outputs.download-path}}/*
