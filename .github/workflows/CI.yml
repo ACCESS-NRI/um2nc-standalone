@@ -42,6 +42,7 @@ jobs:
         with:
           meta_yaml_dir: .conda
           upload: false
+          conda_build_args: -c accessnri -c conda-forge -c nodefaults
   
   tests:
     name: Tests
