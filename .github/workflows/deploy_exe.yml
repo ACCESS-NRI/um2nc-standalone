@@ -1,0 +1,106 @@
+on:
+  workflow_call:
+
+jobs:
+  create-binary-executable:
+    name: Create binary executable
+    runs-on: ubuntu-latest
+    environment: gadi
+    env:
+      MICROMAMBA_DOWNLOAD_URL: https://micro.mamba.pm/api/micromamba/linux-64/latest
+    steps:
+      - name: Set up SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@davide/update-setup-ssh
+        with:
+          hosts: "${{ secrets.HOST }}:gadi"
+          user: ${{ secrets.USER }}
+          private-key: ${{ secrets.SSH_KEY }}
+        
+      - name: Create executable
+        id: create-executable
+        run: |
+          ssh gadi << 'EOF'
+          set -exo pipefail
+          work_dir=$(mktemp -d)
+          trap "rm -rf $work_dir" EXIT
+          repo_dir=$work_dir/${{ github.event.repository.name }}
+          mkdir -p $repo_dir
+          cd $repo_dir
+          echo "Cloning repository and checking out commit ${{ github.sha }}"
+          git clone ${{ github.server_url }}/${{ github.repository }}.git .
+          git fetch --tags
+          git checkout ${{ github.sha }}
+          echo "Setting up pyinstaller environment"
+          # Download micromamba
+          MAMBA_EXE="$work_dir/micromamba"
+          curl -L ${{ env.MICROMAMBA_DOWNLOAD_URL }} | tar -xvjO bin/micromamba > "$MAMBA_EXE"
+          chmod u+x "$MAMBA_EXE"
+          # Create conda environment and install pyinstaller
+          env_prefix="$work_dir/pyinstaller"
+          export MAMBA_ROOT_PREFIX=$work_dir/mamba_root
+          $MAMBA_EXE create \
+            -y \
+            --prefix $env_prefix \
+            --no-rc \
+            --file .conda/env_dev.yml \
+            pyinstaller 
+          # Install um2nc in the environment
+          $MAMBA_EXE run \
+            --prefix $env_prefix \
+            pip install . --no-deps --no-build-isolation
+          # Create binary executable with pyinstaller
+          $MAMBA_EXE run \
+            --prefix $env_prefix \
+            pyinstaller pyinstaller.spec --distpath um2nc_dist
+          # Find the created executable and test it
+          UM2NC_EXE=$(find um2nc_dist -type f -name 'um2nc*' -exec realpath {} \;)
+          # Test the binary executable
+          $UM2NC_EXE --help
+          EOF
+          # Copy the executable from gadi to the local runner
+          um2nc_exe_on_github_runner='${{ github.workspace }}'/$(basename $UM2NC_EXE)
+          rsync gadi:$UM2NC_EXE $um2nc_exe_on_github_runner
+          echo "um2nc-exe=$um2nc_exe_on_github_runner" >> $GITHUB_OUTPUT
+        
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: um2nc-exe
+          path: ${{ steps.create-executable.outputs.um2nc-exe }}
+
+      - name: Setup pyinstaller environment
+        uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
+        with:
+          environment-file: .conda/env_dev.yml
+          create-args: >-
+            pyinstaller
+
+      # Despite running actions/checkout, git executable is not present and tags are not seen
+      # within the steps becaue we are running this job in a separate container.
+      # Then, we manually install git, clone the repo and fetch all tags before installing 
+      # um2nc, to ensure its version is calculated correctly
+      - name: Install um2nc
+        shell: micromamba-shell {0}
+        run: |
+          dnf install -y git
+          git config --global --add safe.directory .
+          git init
+          git remote add origin ${{ github.server_url }}/${{ github.repository }}.git
+          git fetch --tags
+          git checkout ${{ github.sha }}
+          pip install . --no-deps --no-build-isolation
+    
+      - name: Create binary executable
+        shell: micromamba-shell {0}
+        run:
+          pyinstaller pyinstaller.spec
+    
+      - name: Test binary executable
+        run:
+          dist/um2nc --help
+
+      - name: Upload binary executable artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-executable
+          path: dist/um2nc
