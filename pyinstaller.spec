@@ -1,8 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import platform
 from shutil import which
-from importlib.metadata import distribution
+from importlib.metadata import distribution, version
 from importlib.util import find_spec
+
+# Platform info for binary naming
+os_name = platform.system() # e.g. 'Linux'
+arch = platform.machine() # e.g. 'x86_64'
+version = version('um2nc')
+binary_name = f'um2nc-{version}-{os_name}-{arch}'
 
 # Add dist-info for common packages that need it
 packages=(
@@ -38,7 +45,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='um2nc',
+    name=binary_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
