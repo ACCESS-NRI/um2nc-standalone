@@ -107,7 +107,6 @@ common_args.add_argument(
     dest="nomask",
     action="store_true",
     default=False,
-    # TODO
     help=("Data on a pressure level grid may fall below ground level during a simulation. "
           "By default, um2nc applies a heaviside mask to these points to ensure valid data is written to the "
           "output, and drops these variables if the mask variable is missing from the input. "
@@ -183,8 +182,7 @@ driver_args = argparse.ArgumentParser(add_help=False)
 driver_args.add_argument(
     "model_directory",
     type=str,
-    help=("Path to a simulation's output directory containg UM files for conversion. "
-          )
+    help="Path to a simulation's output directory containing UM files for conversion.",
 )
 driver_args.add_argument(
     "--delete-ff", "-d",

@@ -41,7 +41,6 @@ def test_noargs_help(capsys):
 @pytest.mark.parametrize(
     "cli_args,expected_defaults",
     [
-
         (
             ["um2nc", "convert", "infile", "outfile"],
             set([
