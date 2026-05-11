@@ -70,14 +70,14 @@ common_args.add_argument(
     required=False,
     type=int,
     default=4,
-    help="Compression level. '0' (none) to '9' (max).",
+    help="NetCDF compression level. '0' (none) to '9' (max).",
 )
 common_args.add_argument(
     "--64",
     dest="use64bit",
     action="store_true",
     default=False,
-    help="Write 64 bit output when input is 64 bit"
+    help="Write 64 bit output when input is 64 bit. When absent, output will be 32 bit."
 )
 
 restrict_group = common_args.add_mutually_exclusive_group()
@@ -86,14 +86,20 @@ restrict_group.add_argument(
     dest="include_list",
     type=int,
     nargs="+",
-    help="List of stash codes to include"
+    help=("List of variables to include in the output file. Variables are specified by their STASH codes "
+          "in the format '1000 * section number + item number'. "
+          "No other variables will be written to the output file. "
+          "Cannot be used with '--exclude'.")
 )
 restrict_group.add_argument(
     "--exclude",
     dest="exclude_list",
     type=int,
     nargs="+",
-    help="List of stash codes to exclude"
+    help=("List of variables to exclude from the output file. Variables are specified by their STASH codes "
+          "in the format '1000 * section number + item number'. " 
+          "All other variables present in the input file will be written to the output file. "
+          "Cannot be used with '--include'.")
 )
 
 common_args.add_argument(
@@ -101,21 +107,40 @@ common_args.add_argument(
     dest="nomask",
     action="store_true",
     default=False,
-    help="Don't mask variables on pressure level grids.",
-)
-common_args.add_argument(
-    "--nohist",
-    dest="nohist",
-    action="store_true",
-    default=False,
-    help="Don't add/update the global 'history' attribute in the output netCDF."
+    help=("Data on a pressure level grid may fall below ground level during a simulation. "
+          "By default, um2nc applies a heaviside mask to these points to ensure valid data is written to the "
+          "output, and drops these variables if the mask variable is missing from the input. "
+          "When selected, '--nomask' disables the masking and writes pressure level variables to the "
+          "output without corrections.")
 )
 common_args.add_argument(
     "--hcrit",
     dest="hcrit",
     type=float,
     default=0.5,
-    help="Critical value of the Heaviside variable for pressure level masking."
+    help=("Minimum fraction of the time spent above ground-level for a pressure grid data point "
+          "to be considered valid. Data points in pressure grid variables will be masked if they "
+          "were above ground-level for less than the critical fraction HCRIT of the time. "
+          "This option has no effect when used together with the '--nomask' option."
+    )
+)
+common_args.add_argument(
+    "--model",
+    dest="model",
+    type=STASHmaster,
+    action=EnumAction,
+    help=(
+        "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
+        f"Options: {[v.value for v in STASHmaster]}. If omitted, the '{STASHmaster.CMIP6.value}' STASHmaster will be used."
+    ),
+)
+common_args.add_argument(
+    "--nohist",
+    dest="nohist",
+    action="store_true",
+    default=False,
+    help=("Don't add a global history attribute to the output file. By default, the conversion time, um2nc version, "
+          "and script location will be added.")
 )
 common_args.add_argument(
     "--simple",
@@ -135,8 +160,8 @@ common_args.add_argument(
     dest="strict",
     action="store_true",
     default=False,
-    help="Promote the StrictWarning class of warnings to errors.")
-
+    help="Promote the StrictWarning class of warnings to errors."
+)
 verbosity_group = common_args.add_mutually_exclusive_group()
 verbosity_group.add_argument(
     "-v", "--verbose",
@@ -152,40 +177,37 @@ verbosity_group.add_argument(
     help="Suppress warnings arising from um2nc."
 )
 
-common_args.add_argument(
-    "--model",
-    dest="model",
-    type=STASHmaster,
-    action=EnumAction,
-    help=(
-        "Link STASH codes to variable names and metadata by using a preset STASHmaster associated with a specific model. "
-        f"Options: {[v.value for v in STASHmaster]}."
-    ),
-)
 
 # Arguments for the convert command
 convert_args = argparse.ArgumentParser(add_help=False)
-convert_args.add_argument("infile", help="Input file")
-convert_args.add_argument("outfile", help="Output file")
+convert_args.add_argument("infile", help="Input UM data file.")
+convert_args.add_argument("outfile", help="Output netCDF file.")
 
 # Arguments shared between model drivers
 driver_args = argparse.ArgumentParser(add_help=False)
 
 driver_args.add_argument(
-    "current_output_dir",
-    help="Output directory to be converted",
-    type=str
+    "model_directory",
+    type=str,
+    help="Path to a simulation's output directory containing UM files for conversion.",
 )
 driver_args.add_argument(
     "--delete-ff", "-d",
     action="store_true",
     default=False,
-    help="Delete fields files upon successful conversion"
+    help="Delete input files upon successful conversion."
 )
 
 
 # Set up parsers
-parser = argparse.ArgumentParser(prog="um2nc", exit_on_error=False)
+parser = argparse.ArgumentParser(
+    prog="um2nc",
+    exit_on_error=False,
+    description=(
+        "Utilities for converting UM data files to netCDF. Use "
+        "'um2nc {subcommand} --help' for usage information on each subcommand."
+    )
+)
 parser.add_argument(
     "--version","-V",
     action="version",
@@ -195,20 +217,52 @@ parser.add_argument(
 subparsers = parser.add_subparsers(dest="command", required=True)
 
 # convert subcommand
-convert = subparsers.add_parser("convert", parents=[copy.deepcopy(common_args), convert_args],
-                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+convert = subparsers.add_parser(
+    "convert",
+    parents=[copy.deepcopy(common_args), convert_args],
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    description="Convert a single input UM data file to netCDF.",
+    help="Convert a single input UM data file to netCDF."
+)
 # Set defaults which are specific for the convert command
 convert.set_defaults(simple=False, strict=False, verbose=False, model=STASHmaster.DEFAULT.value)
 
 # driver subcommand
-driver = subparsers.add_parser("driver")
+driver = subparsers.add_parser(
+    "driver",
+    help=(
+        "Run a model driver for netCDF conversion during ACCESS model simulations."
+    ),
+    description=(
+        "Run a model driver for automatic UM file to netCDF conversion during "
+        "ACCESS model simulations. Use 'um2nc driver {model_driver} --help' "
+        "for usage information for a specific model driver."
+    )
+)
 
 # esm1p5
 driver_subparsers = driver.add_subparsers(dest="model_driver", required=True)
-esm1p5 = driver_subparsers.add_parser("esm1p5", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+esm1p5 = driver_subparsers.add_parser(
+    "esm1p5",
+    description=(
+        "Model driver for automatic UM file to netCDF conversion "
+        "during ACCESS-ESM1.5 simulations."
+    ),
+    help="Model driver for ACCESS-ESM1.5 netCDF conversion.",
+    parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 esm1p5.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
 
-esm1p6 = driver_subparsers.add_parser("esm1p6", parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# esm1p6
+esm1p6 = driver_subparsers.add_parser(
+    "esm1p6",
+    description=(
+        "Model driver for automatic UM file to netCDF conversion "
+        "during ACCESS-ESM1.6 simulations."
+    ),
+    help="Model driver for ACCESS-ESM1.6 netCDF conversion.",
+    parents=[copy.deepcopy(common_args), copy.deepcopy(driver_args)],
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 esm1p6.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
 
 
@@ -216,7 +270,6 @@ model_drivers = {
     "esm1p5":  Esm1p5Driver,
     "esm1p6":  Esm1p6Driver
 }
-
 
 # Keep track of all um2nc subcommands
 all_subcommands = tuple(subparsers.choices.keys())
@@ -247,7 +300,7 @@ def setup_logging(verbose: bool, quiet: bool, strict: bool):
 def parse_args():
     # Allow for the 'convert' command to be ommited by adding it if missing.
     try:
-        args = parser.parse_args()
+        args = parser.parse_args(args=(sys.argv[1:] or ['--help']))
     except argparse.ArgumentError as e:
         if str(e).startswith('argument command: invalid choice:'):
             arg_str = " ".join(sys.argv[1:])
@@ -264,7 +317,7 @@ def run_command(args):
     if args.command == "convert":
         process(args.infile, args.outfile, args)
     elif args.command == "driver":
-        driver = model_drivers[args.model_driver](Path(args.current_output_dir))
+        driver = model_drivers[args.model_driver](Path(args.model_directory))
         driver.run_conversion(args.delete_ff, args)
 
 
