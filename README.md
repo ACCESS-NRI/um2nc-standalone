@@ -27,80 +27,32 @@ conda install accessnri::um2nc
 
 ## Usage instructions
 
-`um2nc` utilities for converting UM files to netCDF can be accessed through the command line or as a `Python3` API. This user documentation details the available command line utilities:
-* [`um2nc`](#um2nc)
-* [`esm1p5_convert_nc`](#esm1p5_convert_nc)
+`um2nc` utilities for converting UM files to netCDF can be accessed through the command line. This README outlines the available command line utilities:
+* [`um2nc convert`](#um2nc_convert)
+* [`um2nc driver`](#um2nc_driver)
 
-### `um2nc`
-The `um2nc` command converts a single UM file to a netCDF file.
-
-**Usage**
-```
-um2nc [options] infile outfile
-```
-**Positional Arguments**
-- `infile` The path of the UM input file to convert to netCDF.
-- `outfile` The path of the netCDF output file.
-
-**Optional Arguments**
-
-_User information options:_
-* `-h, --help` Display a help message and exit.
-* `-v, --verbose`  Display verbose output (use `-vv` for the highest level of output).
-
-_Output file format options:_
-* `-k NC_KIND` NetCDF output format. Choose among `1` (classic), `2` (64-bit offset), `3` (netCDF-4), `4` (netCDF-4 classic). Default: `3` (netCDF-4).
-* `-c COMPRESSION` NetCDF compression level. `0` (none) to `9` (max). Default: `4`.
-* `--64` Write 64 bit output when input is 64 bit. When absent, output will be 32 bit.
-
-_Variable selection options:_
-
-* `--include ITEM_CODE_1 [ITEM_CODE_2 ...]` List of variables to include in the output file, specified by their item codes. Item codes are given in the form `1000 * section number + item number`. Any other variables present in the input file will not be written to the output file.
-* `--exclude ITEM_CODE_1 [ITEM_CODE_2 ...]` List of variables to exclude from the output file, specified by their item codes. Item codes are given in the form `1000 * section number + item number`. All other variables present in input file will be written to output file.
-
-The options `--include` and `--exclude` cannot be used simultaneously. When neither are present, all variables in the input file will be written to the output file.
-
-_Masking options:_
-
-Points on a pressure level grid may fall below ground-level in some fields of the input file. When Heaviside masking is enabled, pressure level data that were located above ground-level for less than the critical time fraction `HCRIT` will be masked.
-
-By default, variables on pressure level grids that fall below-ground level will be masked with the appropriate Heaviside variable found in the input file. If the Heaviside variable cannot be found, these variables will be omitted from the output. This behaviour can be controlled by the following options:
-
-* `--hcrit HCRIT` Minimum fraction of the time spent above ground-level for a pressure grid data point to be considered valid.  Data points in pressure grid variables will be masked if they were above ground-level for less than the critical fraction `HCRIT` of the time. This option has no effect when used together with the `--nomask` option. Default `0.5`.
-* `--nomask` Don't mask variables on pressure level grids. When selected, unmasked pressure level variables will be written to the output file regardless of the presence of the Heaviside variable.
-
-
-_Metadata options:_
-
-* `--model MODEL` Link STASH codes to variable names and metadata using a preset STASHmaster associated with a specific model. Supported options are `cmip6`, `access-cm2`, `access-esm1.5`, and `access-esm1.6`. If omitted, the `cmip6` STASHmaster will be used.
-* `--nohist` Don't add a global history attribute to the output file. When absent, the conversion time, `um2nc` version, and the script location will be added to the `history` global netCDF attribute.
-* `--simple` Use the simple variable naming scheme. Variables in the output file will be named based on their STASH section number and item code, in the format `fld_s<section number>i<item number>`. When absent, variable names will be taken from the selected `STASHmaster` (see the `--model` argument).
-
-
-### `esm1p5_convert_nc`
-
-The `esmp1p5_convert_nc` command is designed to be run automatically during [`payu`](https://payu.readthedocs.io/en/stable/) based simulation of [ACCESS-ESM1.5](https://access-hive.org.au/models/configurations/access-esm/). It converts all UM output files from a single experiment run to netCDF, and is typically included in a simulation as a `payu` [userscript](https://payu.readthedocs.io/en/stable/config.html#postprocessing).
-
-**Usage**
+### `um2nc convert`
+The `um2nc convert` command converts a single UM file to a netCDF file. The basic usage pattern of the `um2nc convert` command is:
 
 ```
-esmp1p5_convert_nc [options] current_output_dir
+um2nc convert [options] infile outfile
 ```
 
-**Positional arguments**
-- `current_output_dir` Path to an `ACCESS-ESM1.5` simulation's output directory. Any UM output files in the `current_output_dir/atmosphere` subdirectory will be converted to netCDF and placed in a new directory `current_output_dir/atmosphere/netCDF`.
+Please run
+```
+um2nc convert --help
+```
+for details on the available options for controlling the conversion.
 
-**Optional Arguments**
+### `um2nc driver`
+`um2nc` "model drivers" convert UM fields files produced during ACCESS model simulations to netCDF. The drivers find the fields files, convert them, and organise the resulting netCDF files. As each ACCESS model has different requirements for the output format, organisation, and file naming, separate model drivers are used for each model. The model drivers are accessed via the `um2nc driver` command, which is typically run automatically from a script during a model simultion.
 
-* `--help, -h` Display a help message and exit.
-* `--delete-ff, -d`  Delete Unified Model output files upon successful conversion.
-* `--quiet, -q` Report only final exception type and message for any expected `um2nc` exceptions raised during conversion. If absent, full stack traces are reported.
+Please run
+```
+um2nc driver --help
+```
+for detailed usage information for the `um2nc driver` command.
 
-`esm1p5_convert_nc` uses the same underlying workflow as the `um2nc` command to convert each file, and applies the following arguments:
-* `-k 3`
-* `-c 4`
-* `--simple`
-* `--hcrit 0.5`
 
 ### Supported files
 
