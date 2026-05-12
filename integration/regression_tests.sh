@@ -211,7 +211,7 @@ run_um2nc    --simple \
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
 
 if [ -n "$FAILED_FILES" ]; then # If any comparisons failed
-    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
+    echo "Failed tests: ${#FAILED_FILES[@]}" >&2
     for files in ${FAILED_FILES[@]}; do
         echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
     done
