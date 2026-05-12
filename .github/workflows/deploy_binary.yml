@@ -10,7 +10,7 @@ jobs:
       MICROMAMBA_DOWNLOAD_URL: https://micro.mamba.pm/api/micromamba/linux-64/latest
     steps:
       - name: Set up SSH
-        uses: access-nri/actions/.github/actions/setup-ssh@davide/update-setup-ssh
+        uses: access-nri/actions/.github/actions/setup-ssh@main
         with:
           hosts: "${{ secrets.HOST }}:gadi"
           user: ${{ secrets.USER }}
