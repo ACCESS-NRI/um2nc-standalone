@@ -19,7 +19,7 @@ Options:
                           Options: "full", "intermediate", "light".
                           Default: "intermediate".
     -v    DATA_VERSION    Version of test reference data to use.
-                          Options: "0".
+                          Options: "0", "1".
                           Default: latest release version
 
 ## Data choices
