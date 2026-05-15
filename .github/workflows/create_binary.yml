@@ -48,10 +48,15 @@ jobs:
             -c nodefaults \
             pyinstaller \
             um2nc=${{ env.UM2NC_VERSION }}
+          # Get pyinstaller.spec from this repository
+          # spec_file_url=https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/${{ env.UM2NC_VERSION }}/pyinstaller.spec
+          spec_file_url='https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/davide/239-add-binary-distribution/pyinstaller.spec'
+          spec_file="$work_dir/pyinstaller.spec"
+          curl -L -o "$spec_file" "$spec_file_url"
           # Create binary executable with pyinstaller
           $MAMBA_EXE run \
             --prefix $env_prefix \
-            pyinstaller pyinstaller.spec --distpath um2nc_dist
+            pyinstaller "$spec_file" --distpath um2nc_dist
           # Find the created executable and test it
           UM2NC_EXE=$(find um2nc_dist -type f -name 'um2nc*' -exec realpath {} \;)
           # Test the binary executable
