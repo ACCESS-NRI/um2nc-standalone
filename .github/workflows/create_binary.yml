@@ -1,0 +1,82 @@
+on:
+  workflow_call:
+  push:
+
+jobs:
+  create-binary-executable:
+    name: Create binary executable
+    runs-on: ubuntu-latest
+    environment: gadi
+    env:
+      MICROMAMBA_DOWNLOAD_URL: https://micro.mamba.pm/api/micromamba/linux-64/latest
+      UM2NC_VERSION: 2.0.0
+      UM2NC_DIST_PATH_ON_GADI: "$HOME/um2nc_dist"
+    steps:
+      - name: Set up SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        with:
+          hosts: "${{ secrets.HOST }}:gadi"
+          user: ${{ secrets.USER }}
+          private-key: ${{ secrets.SSH_KEY }}
+        
+      - name: Create executable
+        id: create-executable
+        run: |
+          ssh gadi << 'EOF'
+          set -exo pipefail
+          work_dir=$(mktemp -d)
+          trap "rm -rf $work_dir" EXIT
+          repo_dir=$work_dir/${{ github.event.repository.name }}
+          mkdir -p $repo_dir
+          cd $repo_dir
+          echo "Setting up pyinstaller environment"
+          export MAMBA_EXE=$work_dir/micromamba
+          export MAMBA_ROOT_PREFIX=$work_dir/mamba_root
+          # Download micromamba
+          echo "Downloading latest micromamba version"
+          curl -L ${{ env.MICROMAMBA_DOWNLOAD_URL }} | tar -xvjO bin/micromamba > "$MAMBA_EXE"
+          chmod u+x "$MAMBA_EXE"
+          "$MAMBA_EXE" --version
+          # Create conda environment and install pyinstaller
+          env_prefix="$work_dir/pyinstaller"
+          $MAMBA_EXE create \
+            -y \
+            --prefix $env_prefix \
+            --no-rc \
+            -c conda-forge \
+            -c accessnri \
+            -c nodefaults \
+            pyinstaller \
+            um2nc=${{ env.UM2NC_VERSION }}
+          # Create binary executable with pyinstaller
+          $MAMBA_EXE run \
+            --prefix $env_prefix \
+            pyinstaller pyinstaller.spec --distpath um2nc_dist
+          # Find the created executable and test it
+          UM2NC_EXE=$(find um2nc_dist -type f -name 'um2nc*' -exec realpath {} \;)
+          # Test the binary executable
+          version=$("$UM2NC_EXE" --version)
+          if [[ "$version" != ${{ env.UM2NC_VERSION }} ]]; then
+            echo "Unexpected version: $version. Expected: ${{ env.UM2NC_VERSION }}"
+            exit 1
+          fi
+          # Move the created executable to a shared location on Gadi
+          mkdir -p ${{ env.UM2NC_DIST_PATH_ON_GADI }}
+          mv "$UM2NC_EXE" ${{ env.UM2NC_DIST_PATH_ON_GADI }}
+          EOF
+          # Copy the executable from Gadi to the local runner
+          um2nc_exe_dir='${{ github.workspace }}/um2nc_dist'
+          mkdir -p "$um2nc_exe_dir"
+          rsync gadi:${{ env.UM2NC_DIST_PATH_ON_GADI }}/* "$um2nc_exe_dir"
+          # Delete the executable from Gadi after copying it to the GitHub runner
+          ssh gadi 'rm -rf ${{ env.UM2NC_DIST_PATH_ON_GADI }}'
+          um2nc_exe_on_github_runner=$(
+            find "$um2nc_exe_dir" -type f -name 'um2nc*' -exec realpath {} \;
+          )
+          echo "um2nc-exe=$um2nc_exe_on_github_runner" >> $GITHUB_OUTPUT
+        
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: um2nc-exe
+          path: ${{ steps.create-executable.outputs.um2nc-exe }}

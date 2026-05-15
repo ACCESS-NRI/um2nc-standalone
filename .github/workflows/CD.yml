@@ -91,9 +91,9 @@ jobs:
           path: ${{steps.reformat-paths.outputs.newline-separated-paths}}
 
   create-binary-executable:
-    name: Create and deploy binary executable
+    name: Create binary executable
     needs: release-conda-package
-    uses: ./.github/workflows/deploy_binary.yml
+    uses: ./.github/workflows/create_binary.yml
     secrets: inherit
     
   create-github-release:
