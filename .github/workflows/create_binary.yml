@@ -10,7 +10,7 @@ jobs:
     env:
       MICROMAMBA_DOWNLOAD_URL: https://micro.mamba.pm/api/micromamba/linux-64/latest
       UM2NC_VERSION: 2.0.0
-      UM2NC_DIST_PATH_ON_GADI: "$HOME/um2nc_dist"
+      UM2NC_DIST_DIR: ${{ secrets.UM2NC_DIST_DIR }} 
     steps:
       - name: Set up SSH
         uses: access-nri/actions/.github/actions/setup-ssh@main
@@ -66,15 +66,15 @@ jobs:
             exit 1
           fi
           # Move the created executable to a shared location on Gadi
-          mkdir -p ${{ env.UM2NC_DIST_PATH_ON_GADI }}
-          mv "$UM2NC_EXE" ${{ env.UM2NC_DIST_PATH_ON_GADI }}
+          mkdir -p ${{ env.UM2NC_DIST_DIR }}
+          mv "$UM2NC_EXE" ${{ env.UM2NC_DIST_DIR }}
           EOF
           # Copy the executable from Gadi to the local runner
           um2nc_exe_dir='${{ github.workspace }}/um2nc_dist'
           mkdir -p "$um2nc_exe_dir"
-          rsync gadi:${{ env.UM2NC_DIST_PATH_ON_GADI }}/* "$um2nc_exe_dir"
+          rsync gadi:${{ env.UM2NC_DIST_DIR }}/* "$um2nc_exe_dir"
           # Delete the executable from Gadi after copying it to the GitHub runner
-          ssh gadi 'rm -rf ${{ env.UM2NC_DIST_PATH_ON_GADI }}'
+          ssh gadi 'rm -rf ${{ env.UM2NC_DIST_DIR }}'
           um2nc_exe_on_github_runner=$(
             find "$um2nc_exe_dir" -type f -name 'um2nc*' -exec realpath {} \;
           )
