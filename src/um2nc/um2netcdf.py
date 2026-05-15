@@ -554,7 +554,7 @@ def process(infile, outfile, args):
             if field_name in field_name_list:
                 new_field_name = field_name
                 while new_field_name in field_name_list:
-                    new_field_name = increment_name(field_name)
+                    new_field_name = increment_name(new_field_name)
 
                 logging.info("There is already an output field called {field_name}, renaming to {new_field_name}")
                 field_name = new_field_name

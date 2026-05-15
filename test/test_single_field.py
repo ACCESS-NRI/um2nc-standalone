@@ -65,3 +65,55 @@ def test_single_field_mock_output(unpack_fieldsfile, command, driver, input, out
         filepaths_set = {call.args[1].filepath for call in m.call_args_list}
         
         assert len(filepaths_set) == expected_number_nc
+
+
+@pytest.mark.parametrize(
+    "n", [1, 2, 3, 10]
+)
+def test_name_collisions(unpack_fieldsfile, n):
+    input_dir = unpack_fieldsfile
+
+    base_filename = "file.nc"
+    args_list = [
+        "convert",
+        "--one-nc-per-stash-variable",
+        f"{input_dir}/atmosphere/aiihca.pa01apr",
+        f"{input_dir}/atmosphere/{base_filename}",
+        "--include", "23",
+    ]
+    args = um2nc.cli.parser.parse_args(args_list)
+
+    # Need to copy process_cubes to evade the mock
+    um2nc_process_cubes = um2nc.um2netcdf.process_cubes
+    def process_cubes_with_dups(cubes, mv, args):
+        cubes = list(um2nc_process_cubes(cubes, mv, args))
+  
+        assert len(cubes)==1, "Expected a single cube before duplication"
+
+        return cubes * n
+
+    with (mock.patch("um2nc.um2netcdf._write_cube") as mock_write_cube,
+        mock.patch("um2nc.um2netcdf.process_cubes", side_effect=process_cubes_with_dups) as mock_process_cubes):
+        
+        run_command(args)
+
+        # Confirm all filepaths written were unique
+        filepaths_list = [call.args[1].filepath for call in mock_write_cube.call_args_list]
+        filepaths_set = set(filepaths_list)
+        assert len(filepaths_list) == len(filepaths_set) == n
+
+        # Check that the vars were labelled correctly
+        for i, f in enumerate(sorted(filepaths_list)):
+            filename = Path(f).name
+
+            varname = filename.split(f'_{base_filename}')[0]
+
+            var_num = varname.split('_')[-1]
+
+            # var_X_file.nc where X is an integer gets sorted before var_file.nc
+            if i==len(filepaths_list) - 1:
+                # In this case file should be var_file.nc so var_num is just var
+                assert var_num == varname
+            else:
+                # Since the un-numbered var_file.nc is sorted last need to add 1
+                assert var_num == str(i+1)
