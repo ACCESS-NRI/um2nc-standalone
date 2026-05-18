@@ -1237,3 +1237,47 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
 
     # Check that missing value attribute set to expected fill_value
     assert fake_cube.attributes["missing_value"][0] == expected_fill_val
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        ("x", "x_1"),
+        ("x_0", "x_1"),
+        ("x_9", "x_10"),
+        ("x_10", "x_11"),
+        ("x_-1", "x_-1_1"),
+        ("x_y", "x_y_1"),
+        ("x_1e6", "x_1e6_1"),
+        ("x_one", "x_one_1"),
+        ("x____", "x_____1"),
+    ]
+)
+def test_increment_name(input, output):
+    assert um2nc.increment_name(input) == output
+
+
+def test__write_cube(tmp_path):
+    # Create an iris cube
+    arr = [1, 2, 3]
+    cube = iris.cube.Cube(data=arr)
+
+    # Save the cube
+    # Save a copy of the cube since _write_cube clears the data
+    outfile = tmp_path / "file.nc"
+    with iris.fileformats.netcdf.Saver(outfile, "NETCDF4_CLASSIC") as saver:
+        um2nc._write_cube(
+            cube.copy(), saver, "input_file.nc", None, None,
+        )
+
+    # Reopen the cube and check it's identical
+    cube_from_file = iris.load_cube(outfile)
+
+    # The data in the cubes should be identical
+    assert all(cube.data == cube_from_file.data)
+
+    # Cube summary should be identical apart from the history and Conventions
+    for attr in ['history', 'Conventions']:
+        # These are updated by _write_cube
+        cube.attributes[attr] = cube_from_file.attributes[attr]
+    assert str(cube) == str(cube_from_file)
