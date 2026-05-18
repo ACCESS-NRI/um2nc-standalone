@@ -97,23 +97,16 @@ def test_name_collisions(unpack_fieldsfile, n):
         
         run_command(args)
 
-        # Confirm all filepaths written were unique
-        filepaths_list = [call.args[1].filepath for call in mock_write_cube.call_args_list]
-        filepaths_set = set(filepaths_list)
-        assert len(filepaths_list) == len(filepaths_set) == n
+        # Confirm all files written were unique
+        filenames_list = sorted([Path(call.args[1].filepath).name for call in mock_write_cube.call_args_list])
+        filenames_set = set(filenames_list)
+        assert len(filenames_list) == len(filenames_set) == n
 
         # Check that the vars were labelled correctly
-        for i, f in enumerate(sorted(filepaths_list)):
-            filename = Path(f).name
+        # Get the variable name from the last file in the list
+        # The last file will always be the un-incremented one due to sorting
+        varname = filenames_list[-1].split(f'_{base_filename}')[0]
 
-            varname = filename.split(f'_{base_filename}')[0]
+        expected_paths = {f"{varname}_{base_filename}"} | {f"{varname}_{i}_{base_filename}" for i in range(1, n)}
 
-            var_num = varname.split('_')[-1]
-
-            # var_X_file.nc where X is an integer gets sorted before var_file.nc
-            if i==len(filepaths_list) - 1:
-                # In this case file should be var_file.nc so var_num is just var
-                assert var_num == varname
-            else:
-                # Since the un-numbered var_file.nc is sorted last need to add 1
-                assert var_num == str(i+1)
+        assert filenames_set == expected_paths
