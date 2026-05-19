@@ -149,6 +149,13 @@ common_args.add_argument(
     help="Write output using simple variable names of format 'fld_s<section number>i<item number>'."
 )
 common_args.add_argument(
+    "--one-nc-per-stash-variable",
+    action="store_true",
+    help="Create a separate netCDF file for each STASH code. The name for each "
+        "STASH variable followed by an underscore will be used to prefix each "
+        "file name."
+)
+common_args.add_argument(
     "--strict",
     dest="strict",
     action="store_true",
@@ -305,14 +312,18 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
-    # Setup logging
-    setup_logging(args.verbose, args.quiet, args.strict)
-
+def run_command(args):
     # Run selected command
     if args.command == "convert":
         process(args.infile, args.outfile, args)
     elif args.command == "driver":
         driver = model_drivers[args.model_driver](Path(args.model_directory))
         driver.run_conversion(args.delete_ff, args)
+
+
+def main():
+    args = parse_args()
+    # Setup logging
+    setup_logging(args.verbose, args.quiet, args.strict)
+
+    run_command(args)
