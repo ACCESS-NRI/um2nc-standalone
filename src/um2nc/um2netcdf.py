@@ -29,6 +29,7 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 import um2nc
+from um2nc.common import PostProcessingError, StrictWarning, UnsupportedTimeSeriesError
 from um2nc.stashmasters import StashVar
 
 # Opt-in to the new behaviour to avoid warnings
@@ -80,28 +81,6 @@ FORECAST_PERIOD = "forecast_period"
 TIME = "time"
 
 DEFAULT_FILL_VAL_FLOAT = 1.0e20
-
-
-class PostProcessingError(Exception):
-    """Generic class for um2nc specific errors."""
-
-    pass
-
-
-class UnsupportedTimeSeriesError(PostProcessingError):
-    """
-    Error to be raised when latitude and longitude coordinates
-    are missing.
-    """
-
-    pass
-
-
-class StrictWarning(UserWarning):
-    """
-    Warnings which should be promoted to errors when the strict flag is True.
-    """
-    pass
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.

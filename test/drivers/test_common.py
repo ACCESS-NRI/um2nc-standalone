@@ -7,7 +7,7 @@ from unittest import mock
 
 import um2nc.drivers.common as drivers_common
 from um2nc.stashmasters import STASHmaster
-from um2nc.um2netcdf import UnsupportedTimeSeriesError
+from um2nc.common import UnsupportedTimeSeriesError
 
 
 # Arguments for use in tests of the conversion wrapper

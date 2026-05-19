@@ -7,6 +7,7 @@ import cf_units
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
+from um2nc.common import StrictWarning, UnsupportedTimeSeriesError
 import um2nc.um2netcdf as um2nc
 
 import pytest
@@ -232,7 +233,7 @@ def test_process_cubes_no_heaviside_drop_cubes(ta_plev_cube, precipitation_flux_
         m_time_coord.side_effect = mock_fix_time_no_time_dim
 
         # air temp & geo potential should be dropped in process()
-        with pytest.warns(um2nc.StrictWarning):
+        with pytest.warns(StrictWarning):
             processed = tuple(um2nc.process_cubes(cubes, mule_vars, std_args))
 
     assert len(processed) == 1
@@ -906,7 +907,7 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
                                      ua_plev_cube.var_name,
                                      coords=fake_coord)
 
-    with pytest.raises(um2nc.UnsupportedTimeSeriesError):
+    with pytest.raises(UnsupportedTimeSeriesError):
         um2nc.fix_latlon_coords(cube_with_fake_coord, um2nc.GRID_NEW_DYNAMICS,
                                 D_LAT_N96, D_LON_N96)
 

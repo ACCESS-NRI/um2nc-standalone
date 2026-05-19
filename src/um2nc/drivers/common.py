@@ -13,7 +13,7 @@ import mule
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from um2nc import um2netcdf
+from um2nc.common import UnsupportedTimeSeriesError
 
 
 class ModelDriver(ABC):
@@ -94,7 +94,7 @@ class ModelDriver(ABC):
             try:
                 self.convert(input_path, output_path, process_args)
 
-            except um2netcdf.UnsupportedTimeSeriesError as exc:
+            except UnsupportedTimeSeriesError as exc:
                 warnings.warn(
                     f"Failed to convert {input_path} with error:\n{repr(exc)}",
                     category=RuntimeWarning
