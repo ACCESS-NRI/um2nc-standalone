@@ -1,5 +1,13 @@
 on:
   workflow_call:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: |
+          Version of um2nc to create the binary for.
+          This should match a tag in the repository.
+          Only versions >2.0.0 are supported.
+        required: true
 
 jobs:
   create-binary-executable:
@@ -8,9 +16,33 @@ jobs:
     environment: gadi
     env:
       MICROMAMBA_DOWNLOAD_URL: https://micro.mamba.pm/api/micromamba/linux-64/latest
-      UM2NC_VERSION: 2.0.0
-      UM2NC_DIST_DIR: ${{ secrets.UM2NC_DIST_DIR }} 
+      UM2NC_DIST_DIR: ${{ secrets.UM2NC_DIST_DIR }}
+      PYINSTALLER_SPEC_PATH: binary_dist/pyinstaller.spec
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set UM2NC_VERSION env variable
+        run: |
+          if [[ '${{ github.event_name }}' == workflow_dispatch ]]; then
+            version='${{ github.event.inputs.version }}'
+            # Sanity check on version
+            if ! git ls-remote --exit-code --tags origin "refs/tags/$version" > /dev/null; then
+              echo "::error::Version $version does not match any tag in the repository"
+              exit 1
+            fi
+            if [[ -z $(git ls-tree -r "refs/tags/$version" "$PYINSTALLER_SPEC_PATH") ]]; then
+              echo "::error::Tag $version does not contain the required file: $PYINSTALLER_SPEC_PATH"
+              exit 1
+            fi
+          else
+            version='${{ github.ref_name }}'
+          fi
+          echo UM2NC_VERSION=$version >> $GITHUB_ENV
+
       - name: Set up SSH
         uses: access-nri/actions/.github/actions/setup-ssh@main
         with:
@@ -48,8 +80,7 @@ jobs:
             pyinstaller \
             um2nc=${{ env.UM2NC_VERSION }}
           # Get pyinstaller.spec from this repository
-          # spec_file_url=https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/${{ env.UM2NC_VERSION }}/pyinstaller.spec
-          spec_file_url='https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/davide/239-add-binary-distribution/pyinstaller.spec'
+          spec_file_url='https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/${{ env.UM2NC_VERSION }}/${{ env.PYINSTALLER_SPEC_PATH }}'
           spec_file="$work_dir/pyinstaller.spec"
           curl -L -o "$spec_file" "$spec_file_url"
           # Create binary executable with pyinstaller
@@ -61,7 +92,7 @@ jobs:
           # Test the binary executable
           version=$("$UM2NC_EXE" --version)
           if [[ "$version" != ${{ env.UM2NC_VERSION }} ]]; then
-            echo "Unexpected version: $version. Expected: ${{ env.UM2NC_VERSION }}"
+            echo "Unexpected um2nc version: $version. Expected: ${{ env.UM2NC_VERSION }}"
             exit 1
           fi
           # Move the created executable to a shared location on Gadi
