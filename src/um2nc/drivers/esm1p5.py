@@ -18,7 +18,7 @@ import f90nml
 from functools import cached_property
 
 from um2nc.drivers.common import find_matching_files, get_ff_date
-from um2nc.drivers.common import ModelDriver
+from um2nc.drivers.common import ModelDriver, DelayedCubePath
 from um2nc.um2netcdf import process
 
 
@@ -70,7 +70,7 @@ class Esm1p5Driver(ModelDriver):
         # regex pattern for matching input files
         return re.compile(rf"^(?P<stem>{self.runid}a.p(?P<unit>[a-z]))[a-z0-9]+$")
 
-    def convert(self, input_path, output_path, process_args):
+    def convert(self, input_path, output_path: DelayedCubePath, process_args):
         """
         Convert an individual input fields file to netCDF.
 
@@ -136,4 +136,4 @@ class Esm1p5Driver(ModelDriver):
             suffix = ""
 
         dt = get_ff_date(input_path)
-        return self.output_dir / f"{stem}-{dt.year:04d}{dt.month:02d}{suffix}.nc"
+        return DelayedCubePath(self.output_dir / f"{stem}-{dt.year:04d}{dt.month:02d}{suffix}.nc")

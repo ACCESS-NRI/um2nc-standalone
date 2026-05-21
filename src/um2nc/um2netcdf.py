@@ -14,7 +14,6 @@ import collections
 import datetime
 import logging
 import os
-from pathlib import Path
 import warnings
 
 import cf_units
@@ -31,6 +30,7 @@ from iris.fileformats.pp import PPField
 import um2nc
 from um2nc.common import PostProcessingError, StrictWarning, UnsupportedTimeSeriesError
 from um2nc.stashmasters import StashVar
+from um2nc.drivers.common import DelayedCubePath
 
 # Opt-in to the new behaviour to avoid warnings
 iris.FUTURE.date_microseconds = True
@@ -511,7 +511,7 @@ def _write_cube(cube, saver, infile, dims, fill, compression_level=1, add_histor
     cube.data = dask.array.zeros(cube.data.shape)
 
 
-def process(infile, outfile, args):
+def process(infile, outfile: DelayedCubePath, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
@@ -526,33 +526,32 @@ def process(infile, outfile, args):
         field_name_list = []
 
         for c, fill, dims in process_cubes(cubes, mv, args):
-            field_name = c.var_name
-
             # Check for field name collisions
             # Check here rather than at file output so that old files can be overwritten
-            if field_name in field_name_list:
-                new_field_name = field_name
+            if c.var_name in field_name_list:
+                new_field_name = c.var_name
                 while new_field_name in field_name_list:
                     new_field_name = increment_name(new_field_name)
 
                 logging.info("There is already an output field called {field_name}, renaming to {new_field_name}")
-                field_name = new_field_name
+                # Update the field name in the cube
+                # TODO: This will change the nc variable/field name - is this what we want?
+                c.var_name = new_field_name
 
-            field_name_list.append(field_name)
+            field_name_list.append(c.var_name)
 
-            # Prefix the filename with the field's name and _
-            if not isinstance(outfile, Path):
-                # Sometimes outfile is just a string
-                outfile = Path(outfile)
-            filename = f'{outfile.parent}/{field_name}_{outfile.name}'
+            filepath = outfile.resolve_cube(c)
 
-            with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
+            with iris.fileformats.netcdf.Saver(filepath, NC_FORMATS[args.ncformat]) as sman:
                 _write_cube(
                     c, sman, infile, dims, fill,
                     compression_level=args.compression,
                     add_history=not args.nohist
                 )
     else:
+        # Resolve any portions of the filename that need info from the cube
+        outfile = outfile.resolve_cubelist(cubes, infile)
+
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
             for c, fill, dims in process_cubes(cubes, mv, args):
                 _write_cube(

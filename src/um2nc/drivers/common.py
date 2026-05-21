@@ -8,12 +8,14 @@ import os
 import re
 import warnings
 
+from iris.cube import Cube, CubeList
 import mule
 
 from abc import ABC, abstractmethod
 from datetime import datetime
 from functools import cached_property
-from pathlib import Path
+from pathlib import Path, PosixPath
+
 from um2nc.common import UnsupportedTimeSeriesError
 
 
@@ -105,6 +107,23 @@ class ModelDriver(ABC):
                 logging.info(f"Successfully converted {input_path} to {output_path}")
                 if delete_ff:
                     os.remove(input_path)
+
+
+class DelayedCubePath(PosixPath):
+    """
+    Allows for the definition of filepaths that cannot be fully resolved without
+    a Iris Cube object
+    """
+    def resolve_cube(self, cube: Cube):
+        # If an individual cube has been supplied that presume that the filename
+        # should be customised with the cube's variable name so prefix the
+        # filename with the field's name and _
+        return Path(f'{self.parent}/{cube.var_name}_{self.name}')
+
+    def resolve_cubelist(self, _cubelist: CubeList,
+        input_filename: Path=None, output_file_freq: str=None):
+        # Return the path unchanged
+        return Path(self)
 
 
 def find_matching_files(directory, pattern):

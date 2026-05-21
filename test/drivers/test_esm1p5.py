@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
+from um2nc.drivers.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver, ESM1P5_UNIT_SUFFIXES
 
 
@@ -243,6 +244,6 @@ def test_convert(mock_atmosphere_dir):
     """Test that the process function is called."""
     driver = Esm1p5Driver(Path("fake_model_dir"))
     with mock.patch("um2nc.drivers.esm1p5.process") as mock_process:
-        driver.convert(Path("input_file"), Path("output_file"), process_args=None)
+        driver.convert(Path("input_file"), DelayedCubePath("output_file"), process_args=None)
 
     mock_process.assert_called()

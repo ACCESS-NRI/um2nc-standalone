@@ -8,6 +8,7 @@ from iris.exceptions import CoordinateNotFoundError
 import operator
 
 from um2nc.common import StrictWarning, UnsupportedTimeSeriesError
+from um2nc.drivers.common import DelayedCubePath
 import um2nc.um2netcdf as um2nc
 
 import pytest
@@ -380,7 +381,7 @@ def test_ancillary_files_no_support():
         mload.return_value = af
 
         with pytest.raises(NotImplementedError):
-            um2nc.process("fake_infile", "fake_outfile", args=None)
+            um2nc.process("fake_infile", DelayedCubePath("fake_outfile"), args=None)
 
 
 def test_stash_code_to_item_code_conversion():

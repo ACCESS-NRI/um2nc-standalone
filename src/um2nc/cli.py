@@ -10,6 +10,7 @@ from pathlib import Path
 import um2nc
 from um2nc.stashmasters import STASHmaster
 from um2nc.um2netcdf import process, StrictWarning
+from um2nc.drivers.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver
 from um2nc.drivers.esm1p6 import Esm1p6Driver
 
@@ -315,7 +316,7 @@ def parse_args():
 def run_command(args):
     # Run selected command
     if args.command == "convert":
-        process(args.infile, args.outfile, args)
+        process(args.infile, DelayedCubePath(args.outfile), args)
     elif args.command == "driver":
         driver = model_drivers[args.model_driver](Path(args.model_directory))
         driver.run_conversion(args.delete_ff, args)

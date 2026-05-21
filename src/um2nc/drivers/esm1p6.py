@@ -5,6 +5,10 @@ Defines a ModelDriver class for running the conversion on ESM1.6 history
 directories
 """
 
+import iris
+import re
+
+from um2nc.drivers.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver
 
 ESM1P6_UNIT_SUFFIXES = {
@@ -23,3 +27,101 @@ class Esm1p6Driver(Esm1p5Driver):
         self._unit_suffixes = ESM1P6_UNIT_SUFFIXES
         # Write netCDF directly to the atmosphere directory
         self._output_dir = self.atmosphere_dir
+
+    def get_output_path(self, input_path):
+        """
+        Return the output path for a given input path.
+
+        Parameters:
+        -----------
+        input_path: Path to input fields file.
+
+        Returns:
+        --------
+        output_path: Path for writing output netCDF.
+        """
+        # Use the ESM1.5 output paths for multi-variable files
+        # Esm1p6DelayedCubePath.resolve_cube will build single-variable filename
+        delayed_path = Esm1p6DelayedCubePath(super().get_output_path(input_path))
+
+        # FIXME: There's surely a better way of handling these but *Path's have
+        #  awkward constructors, @property's?
+        delayed_path.input_path = input_path
+        delayed_path.output_file_freq = "1yr"
+
+        return delayed_path
+
+class Esm1p6DelayedCubePath(DelayedCubePath):
+    template = "access-esm1p6.um{um_version}.{dimensions}.{field_name}.{freq}{time_cell_method}{datestamp}.nc"
+
+    # The following methods are @staticmethod since they are not instance specific
+    # but are specific to to the class
+    @staticmethod
+    def _get_field_name_from_cube(cube):
+        return cube.var_name
+
+    @staticmethod
+    def _get_um_version_from_cube(cube):
+        return cube.metadata.attributes['um_version'].replace('.', 'p')
+
+    @staticmethod
+    def _get_dimensions_from_cube(cube):
+        # Count the number of non-time dimensions
+        ndims = len([coord for coord in cube.dim_coords if coord.name() != "time"])
+        return f"{ndims}d"
+
+    @staticmethod
+    def _get_time_cell_method_from_cube(cube):
+        # Get the cell_method for time if there is one
+        for cell_method in cube.metadata.cell_methods:
+            if 'time' in cell_method.coord_names:
+                method = f".{cell_method.method}"
+                break
+        else:
+            method = ""
+        return method
+
+    def _get_freq_from_input_filename(self):
+        # Determine the freq from the input filename
+        filename = self.input_path.name
+        if "aiihca.pa" in filename:
+            return "1mon"
+        elif "aiihca.pe" in filename:
+            return "1day"
+        elif "aiihca.pj" in filename:
+            return "6hr"
+        elif "aiihca.pi" in filename:
+            return "3hr"
+        elif "aiihca.pc" in filename:
+            return "1hr"
+        else:
+            raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_path}")
+
+    def _get_datestamp_from_cube(self, cube):
+        # Datestamp truncation depends on range of file
+        # e.g. for datestamp 1234-01-01 00:00:00
+        #   For file containing a whole year - 1234
+        #   For file containing a month - 1234-01
+        #   For file containing a day - 1234-01-01
+        if re.match(r'\d+(yr|dec)', self.output_file_freq):
+            fmt = '%4Y'
+        elif re.match(r'\d+mon', self.output_file_freq):
+            fmt = '%4Y-%m'
+        else:
+            fmt = '%4Y-%m-%d'
+        # Get the appropriately truncated datetime for the average time
+        d_str = cube.coord('time').units.num2date(cube.coord('time').points.mean()).strftime(fmt)
+        return f".{d_str}"
+
+    def resolve_cube(self, cube: iris.cube.Cube):
+        d = {
+            "field_name": self._get_field_name_from_cube(cube),
+            "um_version": self._get_um_version_from_cube(cube),
+            "dimensions": self._get_dimensions_from_cube(cube),
+            "time_cell_method": self._get_time_cell_method_from_cube(cube),
+            "freq": self._get_freq_from_input_filename(),
+            "datestamp": self._get_datestamp_from_cube(cube),
+        }
+
+        # Return the output directory with the customised template as the filename
+        return self.parent / self.template.format(**d)
