@@ -41,6 +41,8 @@ def unpack_fieldsfile(tmp_path):
         (False, 1),
     ],
 )
+@pytest.mark.filterwarnings("ignore:Units mismatch for cube")
+@pytest.mark.filterwarnings("ignore:Standard name mismatch for cube")
 def test_single_field_mock_output(unpack_fieldsfile, command, driver, input, output, single_field, expected_number_nc):
     input_dir = unpack_fieldsfile
 
