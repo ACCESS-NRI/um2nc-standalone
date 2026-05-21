@@ -135,5 +135,5 @@ class Esm1p5Driver(ModelDriver):
             )
             suffix = ""
 
-        year, month, _ = get_ff_date(input_path)
-        return self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc"
+        dt = get_ff_date(input_path)
+        return self.output_dir / f"{stem}-{dt.year:04d}{dt.month:02d}{suffix}.nc"

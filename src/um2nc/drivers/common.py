@@ -11,6 +11,7 @@ import warnings
 import mule
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from um2nc.common import UnsupportedTimeSeriesError
@@ -142,4 +143,4 @@ def get_ff_date(fields_file_path):
     header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
 
-    return header.t2_year, header.t2_month, header.t2_day
+    return datetime(header.t2_year, header.t2_month, header.t2_day)
