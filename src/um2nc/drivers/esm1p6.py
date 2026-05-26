@@ -58,6 +58,10 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
     # but are specific to to the class
     @staticmethod
     def _get_field_name_from_cube(cube):
+        var_name = cube.var_name
+        if var_name is None:
+            raise KeyError(f"Unable to get variable name from cube: {cube}")
+
         return cube.var_name
 
     @staticmethod
@@ -74,6 +78,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
     def _get_time_cell_method_from_cube(cube):
         # Get the cell_method for time if there is one
         for cell_method in cube.metadata.cell_methods:
+            # cell_methods.coord_names is a tuple of coord names
             if 'time' in cell_method.coord_names:
                 method = f".{cell_method.method}"
                 break
@@ -83,6 +88,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
 
     def _get_freq_from_input_filename(self):
         # Determine the freq from the input filename
+        # FIXME: This function should use ESM1P6_UNIT_SUFFIXES 
         filename = self.input_path.name
         if "aiihca.pa" in filename:
             return "1mon"
