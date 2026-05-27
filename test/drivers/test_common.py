@@ -1,7 +1,6 @@
 import logging
 import pytest
 
-from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -63,10 +62,10 @@ def test_get_ff_date():
     return_date = SimpleNamespace(t2_year=1981, t2_month=7, t2_day=20)
     with mock.patch("mule.FixedLengthHeader.from_file") as mock_read_header:
         mock_read_header.return_value = return_date
-        ff_datetime = drivers_common.get_ff_date(Path("fake_file"))
+        ff_date = drivers_common.get_ff_date(Path("fake_file"))
 
     mock_read_header.assert_called()
-    assert ff_datetime == datetime(1981, 7, 20)
+    assert ff_date == (1981, 7, 20)
 
 
 class TestDriver(drivers_common.ModelDriver):

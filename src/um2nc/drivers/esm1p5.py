@@ -135,5 +135,5 @@ class Esm1p5Driver(ModelDriver):
             )
             suffix = ""
 
-        dt = get_ff_date(input_path)
-        return DelayedCubePath(self.output_dir / f"{stem}-{dt.year:04d}{dt.month:02d}{suffix}.nc")
+        year, month, _ = get_ff_date(input_path)
+        return DelayedCubePath(self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc")

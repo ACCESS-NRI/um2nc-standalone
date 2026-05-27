@@ -1,6 +1,5 @@
 import pytest
 
-from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -127,22 +126,22 @@ def test_input_name_pattern(mock_atmosphere_dir, mock_runid):
                          [
                             (
                                 Path("input_dir/aiihca.paa1feb"),
-                                datetime(101, 2, 1),
+                                (101, 2, 1),
                                 Path("output_dir/aiihca.pa-010102_mon.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pe50dec"),
-                                datetime(1850, 12, 21),
+                                (1850, 12, 21),
                                 Path("output_dir/aiihca.pe-185012_dai.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pi87jun"),
-                                datetime(1887, 6, 12),
+                                (1887, 6, 12),
                                 Path("output_dir/aiihca.pi-188706_3hr.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pjc0jan"),
-                                datetime(120, 1, 7),
+                                (120, 1, 7),
                                 Path("output_dir/aiihca.pj-012001_6hr.nc")
                             ),
                          ])
@@ -170,7 +169,7 @@ def test_get_output_path_unrecognized_unit(mock_atmosphere_dir, mock_runid,
     driver = Esm1p5Driver(Path("fake_model_dir"))
     mock_runid.return_value = "aiihc"
     mock_output_dir.return_value = Path("output_dir")
-    mock_get_ff_date.return_value = datetime(50, 7, 1)
+    mock_get_ff_date.return_value = (50, 7, 1)
 
     unknown_key = "w"
     assert unknown_key not in ESM1P5_UNIT_SUFFIXES.keys()

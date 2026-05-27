@@ -12,7 +12,6 @@ from iris.cube import Cube, CubeList
 import mule
 
 from abc import ABC, abstractmethod
-from datetime import datetime
 from functools import cached_property
 from pathlib import Path, PosixPath
 
@@ -162,4 +161,4 @@ def get_ff_date(fields_file_path):
     header = mule.FixedLengthHeader.from_file(
                                             str(fields_file_path))
 
-    return datetime(header.t2_year, header.t2_month, header.t2_day)
+    return header.t2_year, header.t2_month, header.t2_day
