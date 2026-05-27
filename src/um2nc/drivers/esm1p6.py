@@ -57,7 +57,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
     # The following methods are @staticmethod since they are not instance specific
     # but are specific to to the class
     @staticmethod
-    def _get_field_name_from_cube(cube):
+    def _get_var_name(cube):
         var_name = cube.var_name
         if var_name is None:
             raise KeyError(f"Unable to get variable name from cube: {cube}")
@@ -65,17 +65,17 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         return cube.var_name
 
     @staticmethod
-    def _get_um_version_from_cube(cube):
+    def _get_um_version(cube):
         return cube.metadata.attributes['um_version'].replace('.', 'p')
 
     @staticmethod
-    def _get_dimensions_from_cube(cube):
+    def _get_dimensions(cube):
         # Count the number of non-time dimensions
         ndims = len([coord for coord in cube.dim_coords if coord.name() != "time"])
         return f"{ndims}d"
 
     @staticmethod
-    def _get_time_cell_method_from_cube(cube):
+    def _get_time_cell_method(cube):
         # Get the cell_method for time if there is one
         for cell_method in cube.metadata.cell_methods:
             # cell_methods.coord_names is a tuple of coord names
@@ -86,7 +86,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
             method = ""
         return method
 
-    def _get_freq_from_input_filename(self):
+    def _get_freq(self):
         # Determine the freq from the input filename
         # FIXME: This function should use ESM1P6_UNIT_SUFFIXES 
         filename = self.input_path.name
@@ -103,7 +103,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         else:
             raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_path}")
 
-    def _get_datestamp_from_cube(self, cube):
+    def _get_datestamp(self, cube):
         # Datestamp truncation depends on range of file
         # e.g. for datestamp 1234-01-01 00:00:00
         #   For file containing a whole year - 1234
@@ -121,12 +121,12 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
 
     def resolve_cube(self, cube: iris.cube.Cube):
         d = {
-            "field_name": self._get_field_name_from_cube(cube),
-            "um_version": self._get_um_version_from_cube(cube),
-            "dimensions": self._get_dimensions_from_cube(cube),
-            "time_cell_method": self._get_time_cell_method_from_cube(cube),
-            "freq": self._get_freq_from_input_filename(),
-            "datestamp": self._get_datestamp_from_cube(cube),
+            "field_name": self._get_var_name(cube),
+            "um_version": self._get_um_version(cube),
+            "dimensions": self._get_dimensions(cube),
+            "time_cell_method": self._get_time_cell_method(cube),
+            "freq": self._get_freq(),
+            "datestamp": self._get_datestamp(cube),
         }
 
         # Return the output directory with the customised template as the filename

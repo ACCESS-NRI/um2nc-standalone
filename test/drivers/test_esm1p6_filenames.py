@@ -87,16 +87,16 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
         ("varname", None),
     ]
 )
-def test__get_field_name_from_cube(varname, expected_error):
+def test__get_var_name(varname, expected_error):
     cube = Cube([1, 2, 3])
     if varname:
         cube.var_name = varname
 
     if expected_error:
         with pytest.raises(expected_exception=expected_error):
-            Esm1p6DelayedCubePath._get_field_name_from_cube(cube)
+            Esm1p6DelayedCubePath._get_var_name(cube)
     else:
-        field_name = Esm1p6DelayedCubePath._get_field_name_from_cube(cube)
+        field_name = Esm1p6DelayedCubePath._get_var_name(cube)
         assert field_name == varname
 
 
@@ -110,16 +110,16 @@ def test__get_field_name_from_cube(varname, expected_error):
         ("henry", "henry", None),
     ]
 )
-def test__get_um_version_from_cube(um_version, expected_version, expected_error):
+def test__get_um_version(um_version, expected_version, expected_error):
     cube = Cube([1, 2, 3])
     if um_version:
         cube.metadata.attributes["um_version"] = um_version
 
     if expected_error:
         with pytest.raises(expected_exception=expected_error):
-            Esm1p6DelayedCubePath._get_um_version_from_cube(cube)
+            Esm1p6DelayedCubePath._get_um_version(cube)
     else:
-        um_v = Esm1p6DelayedCubePath._get_um_version_from_cube(cube)
+        um_v = Esm1p6DelayedCubePath._get_um_version(cube)
         assert um_v == expected_version
 
 
@@ -140,7 +140,7 @@ def test__get_um_version_from_cube(um_version, expected_version, expected_error)
         (["a", "b", "c", "time"], "3d"),
     ]
 )
-def test__get_dimensions_from_cube(dim_list, ndims):
+def test__get_dimensions(dim_list, ndims):
     # Create a cube with minimal data
     data = np.empty(shape=[1]*len(dim_list))
     cube = Cube(data)
@@ -150,7 +150,7 @@ def test__get_dimensions_from_cube(dim_list, ndims):
         d = iris.coords.DimCoord(points=[0], var_name=dim_name)
         cube.add_dim_coord(d, data_dim=i)
 
-    cube_dims = Esm1p6DelayedCubePath._get_dimensions_from_cube(cube)
+    cube_dims = Esm1p6DelayedCubePath._get_dimensions(cube)
 
     assert cube_dims == ndims
 
@@ -177,7 +177,7 @@ def test__get_dimensions_from_cube(dim_list, ndims):
         ),
     ]
 )
-def test__get_time_cell_method_from_cube(cell_method_list, expected_method):
+def test__get_time_cell_method(cell_method_list, expected_method):
     # Create the cell methods iterable to pass to the cube
     if cell_method_list:
         cell_methods = []
@@ -188,7 +188,7 @@ def test__get_time_cell_method_from_cube(cell_method_list, expected_method):
 
     cube = Cube([1, 2, 3], cell_methods=cell_methods)
 
-    m = Esm1p6DelayedCubePath._get_time_cell_method_from_cube(cube)
+    m = Esm1p6DelayedCubePath._get_time_cell_method(cube)
 
     assert m == expected_method
 
@@ -205,16 +205,16 @@ def test__get_time_cell_method_from_cube(cell_method_list, expected_method):
         ("aiihca.px01apr", None, ValueError),
     ]
 )
-def test__get_freq_from_input_filename(input_filepath, expected_freq, expected_error):
+def test__get_freq(input_filepath, expected_freq, expected_error):
     delayed_path = Esm1p6DelayedCubePath("output_file.nc")
     # FIXME: Update setting the input path here once a better solution is found
     delayed_path.input_path = Path(input_filepath)
 
     if expected_error:
         with pytest.raises(expected_exception=expected_error):
-            _freq = delayed_path._get_freq_from_input_filename()
+            _freq = delayed_path._get_freq()
     else:
-        freq = delayed_path._get_freq_from_input_filename()
+        freq = delayed_path._get_freq()
 
         assert freq == expected_freq
 
@@ -238,7 +238,7 @@ def test__get_freq_from_input_filename(input_filepath, expected_freq, expected_e
         ((1, 5, 26), "1yr", ".0001"),
     ]
 )
-def test__get_datestamp_from_cube(date,output_freq,expected_datestamp):
+def test__get_datestamp(date,output_freq,expected_datestamp):
     # TODO: This test does not explore the averaging of the time coord.
     #   e.g. cube.coord('time').points.mean()
 
@@ -260,6 +260,6 @@ def test__get_datestamp_from_cube(date,output_freq,expected_datestamp):
     )
     cube.add_dim_coord(time, data_dim=0)
 
-    datestamp = delayed_path._get_datestamp_from_cube(cube)
+    datestamp = delayed_path._get_datestamp(cube)
 
     assert datestamp == expected_datestamp
