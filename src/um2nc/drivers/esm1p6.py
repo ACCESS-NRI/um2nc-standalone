@@ -22,8 +22,8 @@ ESM1P6_UNIT_SUFFIXES = {
 
 class Esm1p6Driver(Esm1p5Driver):
 
-    def __init__(self, model_directory):
-        super().__init__(model_directory)
+    def __init__(self, model_directory, one_nc_per_stash_variable):
+        super().__init__(model_directory, one_nc_per_stash_variable)
         self._unit_suffixes = ESM1P6_UNIT_SUFFIXES
         # Write netCDF directly to the atmosphere directory
         self._output_dir = self.atmosphere_dir
@@ -40,30 +40,22 @@ class Esm1p6Driver(Esm1p5Driver):
         --------
         output_path: Path for writing output netCDF.
         """
-        # Use the ESM1.5 output paths for multi-variable files
-        # Esm1p6DelayedCubePath.resolve_cube will build single-variable filename
-        delayed_path = Esm1p6DelayedCubePath(super().get_output_path(input_path))
-
-        # FIXME: There's surely a better way of handling these but *Path's have
-        #  awkward constructors, @property's?
-        delayed_path.input_path = input_path
-        delayed_path.output_file_freq = "1yr"
-
-        return delayed_path
+        if self.one_nc_per_stash_variable:
+            return Esm1p6DelayedCubePath(self.output_dir, input_path.name, "1yr")
+        else:
+            # Use the ESM1.5 output paths for multi-variable files
+            return super().get_output_path(input_path)
 
 class Esm1p6DelayedCubePath(DelayedCubePath):
     template = "access-esm1p6.um{um_version}.{dimensions}.{field_name}.{freq}{time_cell_method}{datestamp}.nc"
 
+    def __init__(self, output_dir_path, input_filename, output_file_freq):
+        self.output_dir_path = output_dir_path
+        self.input_filename = input_filename
+        self.output_file_freq = output_file_freq
+
     # The following methods are @staticmethod since they are not instance specific
     # but are specific to to the class
-    @staticmethod
-    def _get_var_name(cube):
-        var_name = cube.var_name
-        if var_name is None:
-            raise KeyError(f"Unable to get variable name from cube: {cube}")
-
-        return cube.var_name
-
     @staticmethod
     def _get_um_version(cube):
         return cube.metadata.attributes['um_version'].replace('.', 'p')
@@ -89,7 +81,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
     def _get_freq(self):
         # Determine the freq from the input filename
         # FIXME: This function should use ESM1P6_UNIT_SUFFIXES 
-        filename = self.input_path.name
+        filename = self.input_filename
         if "aiihca.pa" in filename:
             return "1mon"
         elif "aiihca.pe" in filename:
@@ -101,7 +93,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         elif "aiihca.pc" in filename:
             return "1hr"
         else:
-            raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_path}")
+            raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_filename}")
 
     def _get_datestamp(self, cube):
         # Datestamp truncation depends on range of file
@@ -130,4 +122,4 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         }
 
         # Return the output directory with the customised template as the filename
-        return self.parent / self.template.format(**d)
+        return self.output_dir_path / self.template.format(**d)

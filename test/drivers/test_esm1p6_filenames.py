@@ -43,8 +43,9 @@ def unpack_fieldsfile(tmp_path):
         ),
     ],
 )
+@pytest.mark.parametrize("one_nc", [True, False])
 def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
-    expected_filename_single, expected_filename_multi):
+    expected_filename_single, expected_filename_multi, one_nc):
     """
     Test filename construction
     """
@@ -53,29 +54,30 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
     ff_path = model_dir / "atmosphere" / "aiihca.pa01apr"
 
     # Get the driver
-    driver = Esm1p6Driver(model_dir)
+    driver = Esm1p6Driver(model_dir, one_nc)
 
     # Get the output path from the driver
-    delayed_output_path = driver.get_output_path(ff_path)
+    output_path = driver.get_output_path(ff_path)
 
-    assert isinstance(delayed_output_path, Esm1p6DelayedCubePath)
+    if one_nc:
+        assert isinstance(output_path, Esm1p6DelayedCubePath)
 
-    # Load a cube
-    cube_list = iris.load(ff_path)
+        # Load a cube
+        cube_list = iris.load(ff_path)
 
-    cube = cube_list[0]
-    
-    # Set the var name in the cube here, it's usually set elsewhere in um2nc
-    cube.var_name = "varname"
+        cube = cube_list[0]
+        
+        # Set the var name in the cube here, it's usually set elsewhere in um2nc
+        cube.var_name = "varname"
 
-    # Resolve the filename for
-    #   a cube/single field file output and
-    #   a cubelist/multi-field file output
-    resolved_path_single_field = delayed_output_path.resolve_cube(cube_list[0])
-    resolved_path_multi_field = delayed_output_path.resolve_cubelist(cube_list)
+        # Resolve the filename
+        resolved_path_single_field = output_path.resolve_cube(cube_list[0])
 
-    assert resolved_path_single_field.name == expected_filename_single
-    assert resolved_path_multi_field.name == expected_filename_multi
+        assert resolved_path_single_field.name == expected_filename_single
+    else:
+        assert isinstance(output_path, Path)
+
+        assert output_path.name == expected_filename_multi
 
 
 @pytest.mark.parametrize(
@@ -194,7 +196,7 @@ def test__get_time_cell_method(cell_method_list, expected_method):
 
 
 @pytest.mark.parametrize(
-    "input_filepath,expected_freq,expected_error",
+    "input_filename,expected_freq,expected_error",
     [
         ("aiihca.pa01apr", "1mon", None),
         ("aiihca.pe01apr", "1day", None),
@@ -205,10 +207,8 @@ def test__get_time_cell_method(cell_method_list, expected_method):
         ("aiihca.px01apr", None, ValueError),
     ]
 )
-def test__get_freq(input_filepath, expected_freq, expected_error):
-    delayed_path = Esm1p6DelayedCubePath("output_file.nc")
-    # FIXME: Update setting the input path here once a better solution is found
-    delayed_path.input_path = Path(input_filepath)
+def test__get_freq(input_filename, expected_freq, expected_error):
+    delayed_path = Esm1p6DelayedCubePath("output_dir", input_filename, "1yr")
 
     if expected_error:
         with pytest.raises(expected_exception=expected_error):
@@ -238,13 +238,11 @@ def test__get_freq(input_filepath, expected_freq, expected_error):
         ((1, 5, 26), "1yr", ".0001"),
     ]
 )
-def test__get_datestamp(date,output_freq,expected_datestamp):
+def test__get_datestamp(date, output_freq, expected_datestamp):
     # TODO: This test does not explore the averaging of the time coord.
     #   e.g. cube.coord('time').points.mean()
 
-    delayed_path = Esm1p6DelayedCubePath("output_file.nc")
-    # FIXME: Update setting the output freq here once a better solution is found
-    delayed_path.output_file_freq = output_freq
+    delayed_path = Esm1p6DelayedCubePath("output_dir", "output_file.nc", output_freq)
 
     # Create a cube with a proper time coord
     dt_ref = datetime(1, 1, 1)

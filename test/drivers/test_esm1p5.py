@@ -3,6 +3,8 @@ import pytest
 from pathlib import Path
 from unittest import mock
 
+from iris.cube import Cube
+
 from um2nc.drivers.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver, ESM1P5_UNIT_SUFFIXES
 
@@ -55,16 +57,18 @@ def mock_get_ff_date():
     patcher.stop()
 
 
-def test_esm1p5_initialisation(mock_atmosphere_dir):
+@pytest.mark.parametrize("one_nc", [True, False])
+def test_esm1p5_initialisation(mock_atmosphere_dir, one_nc):
     """Test initialisation of the Esm1p5Driver."""
     model_dir = Path("model_dir")
     atmosphere_dir = model_dir / "atmosphere"
     output_dir = atmosphere_dir / "netCDF"
     mock_atmosphere_dir.return_value = atmosphere_dir
-    instance = Esm1p5Driver(model_dir)
+    instance = Esm1p5Driver(model_dir, one_nc)
     assert instance._atmosphere_dir == atmosphere_dir
     assert instance._output_dir == output_dir
     assert instance._unit_suffixes == ESM1P5_UNIT_SUFFIXES
+    assert instance._one_nc_per_stash_variable == one_nc
 
 
 def test_atmosphere_dir_not_found():
@@ -122,40 +126,57 @@ def test_input_name_pattern(mock_atmosphere_dir, mock_runid):
     assert driver.input_name_pattern.pattern == "^(?P<stem>aiihca.p(?P<unit>[a-z]))[a-z0-9]+$"
 
 
-@pytest.mark.parametrize("input_path,ff_date,expected_output",
+@pytest.mark.parametrize("input_path,ff_date,single_var,expected_output",
                          [
                             (
                                 Path("input_dir/aiihca.paa1feb"),
                                 (101, 2, 1),
+                                False,
                                 Path("output_dir/aiihca.pa-010102_mon.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pe50dec"),
                                 (1850, 12, 21),
+                                False,
                                 Path("output_dir/aiihca.pe-185012_dai.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pi87jun"),
                                 (1887, 6, 12),
+                                False,
                                 Path("output_dir/aiihca.pi-188706_3hr.nc")
                             ),
                             (
                                 Path("input_dir/aiihca.pjc0jan"),
                                 (120, 1, 7),
+                                False,
                                 Path("output_dir/aiihca.pj-012001_6hr.nc")
                             ),
+                            (
+                                Path("input_dir/aiihca.pjc0jan"),
+                                (120, 1, 7),
+                                True,
+                                Path("output_dir/var_aiihca.pj-012001_6hr.nc")
+                            ),
                          ])
-def test_get_output_path(input_path, ff_date, expected_output, mock_atmosphere_dir,
+def test_get_output_path(input_path, ff_date, single_var, expected_output, mock_atmosphere_dir,
                          mock_runid, mock_output_dir, mock_get_ff_date):
     """
     Check that the get_output_path method produces expected file paths.
     """
-    driver = Esm1p5Driver(Path("fake_model_dir"))
+    driver = Esm1p5Driver(Path("fake_model_dir"), single_var)
     mock_runid.return_value = "aiihc"
     mock_output_dir.return_value = Path("output_dir")
     mock_get_ff_date.return_value = ff_date
 
     output_path = driver.get_output_path(input_path)
+
+    if single_var:
+        # output_path will be a DelayedCubePath
+        cube = Cube([])
+        cube.var_name = "var"
+
+        output_path = output_path.resolve_cube(cube)
 
     assert output_path == expected_output
 

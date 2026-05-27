@@ -511,7 +511,7 @@ def _write_cube(cube, saver, infile, dims, fill, compression_level=1, add_histor
     cube.data = dask.array.zeros(cube.data.shape)
 
 
-def process(infile, outfile: DelayedCubePath, args):
+def process(infile, outfile, args):
     with warnings.catch_warnings():
         # NB: Information from STASHmaster file is not required by `process`.
         # Hence supress missing STASHmaster warnings.
@@ -540,6 +540,7 @@ def process(infile, outfile: DelayedCubePath, args):
 
             field_name_list.append(c.var_name)
 
+            # For one_nc_per_stash_variable, outfile should be a DelayedCubePath
             filepath = outfile.resolve_cube(c)
 
             with iris.fileformats.netcdf.Saver(filepath, NC_FORMATS[args.ncformat]) as sman:
@@ -549,9 +550,6 @@ def process(infile, outfile: DelayedCubePath, args):
                     add_history=not args.nohist
                 )
     else:
-        # Resolve any portions of the filename that need info from the cube
-        outfile = outfile.resolve_cubelist(cubes, infile)
-
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
             for c, fill, dims in process_cubes(cubes, mv, args):
                 _write_cube(

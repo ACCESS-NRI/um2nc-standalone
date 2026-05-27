@@ -8,12 +8,12 @@ import os
 import re
 import warnings
 
-from iris.cube import Cube, CubeList
+from iris.cube import Cube
 import mule
 
 from abc import ABC, abstractmethod
 from functools import cached_property
-from pathlib import Path, PosixPath
+from pathlib import Path
 
 from um2nc.common import UnsupportedTimeSeriesError
 
@@ -24,8 +24,9 @@ class ModelDriver(ABC):
     which are followed by the drivers.
     """
 
-    def __init__(self, model_directory):
+    def __init__(self, model_directory, one_nc_per_stash_variable=False):
         self._model_directory = model_directory
+        self._one_nc_per_stash_variable = one_nc_per_stash_variable
         self._input_paths = None
         self._output_paths = None
         self._input_output_mapping = None
@@ -33,6 +34,10 @@ class ModelDriver(ABC):
     @property
     def model_directory(self):
         return self._model_directory
+
+    @property
+    def one_nc_per_stash_variable(self):
+        return self._one_nc_per_stash_variable
 
     @property
     def input_paths(self):
@@ -108,21 +113,26 @@ class ModelDriver(ABC):
                     os.remove(input_path)
 
 
-class DelayedCubePath(PosixPath):
+class DelayedCubePath:
     """
     Allows for the definition of filepaths that cannot be fully resolved without
     a Iris Cube object
     """
-    def resolve_cube(self, cube: Cube):
-        # If an individual cube has been supplied that presume that the filename
-        # should be customised with the cube's variable name so prefix the
-        # filename with the field's name and _
-        return Path(f'{self.parent}/{cube.var_name}_{self.name}')
+    def __init__(self, output_path):
+        self.output_path = Path(output_path)
 
-    def resolve_cubelist(self, _cubelist: CubeList,
-        input_filename: Path=None, output_file_freq: str=None):
-        # Return the path unchanged
-        return Path(self)
+    @staticmethod
+    def _get_var_name(cube):
+        var_name = cube.var_name
+        if var_name is None:
+            raise KeyError(f"Unable to get variable name from cube: {cube}")
+
+        return cube.var_name
+
+    def resolve_cube(self, cube: Cube):
+        # Prepend the output filename with the variable name
+        filename = f"{self._get_var_name(cube)}_{self.output_path.name}"
+        return Path(f"{self.output_path.parent}/{filename}")
 
 
 def find_matching_files(directory, pattern):

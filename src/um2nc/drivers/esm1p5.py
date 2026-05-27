@@ -36,8 +36,8 @@ ESM1P5_UNIT_SUFFIXES = {
 
 class Esm1p5Driver(ModelDriver):
 
-    def __init__(self, model_directory):
-        super().__init__(model_directory)
+    def __init__(self, model_directory, one_nc_per_stash_variable=False):
+        super().__init__(model_directory, one_nc_per_stash_variable)
         self._atmosphere_dir = model_directory / "atmosphere"
         self._output_dir = self.atmosphere_dir / "netCDF"
         self._unit_suffixes = ESM1P5_UNIT_SUFFIXES
@@ -136,4 +136,8 @@ class Esm1p5Driver(ModelDriver):
             suffix = ""
 
         year, month, _ = get_ff_date(input_path)
-        return DelayedCubePath(self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc")
+
+        if self.one_nc_per_stash_variable:
+            return DelayedCubePath(self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc")
+        else:
+            return self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc"
