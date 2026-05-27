@@ -80,20 +80,13 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
 
     def _get_freq(self):
         # Determine the freq from the input filename
-        # FIXME: This function should use ESM1P6_UNIT_SUFFIXES 
-        filename = self.input_filename
-        if "aiihca.pa" in filename:
-            return "1mon"
-        elif "aiihca.pe" in filename:
-            return "1day"
-        elif "aiihca.pj" in filename:
-            return "6hr"
-        elif "aiihca.pi" in filename:
-            return "3hr"
-        elif "aiihca.pc" in filename:
-            return "1hr"
-        else:
-            raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_filename}")
+        if match := re.match(r"\w+\.p(\w)", self.input_filename):
+            unit_key = match[1]
+
+            if unit_key in ESM1P6_UNIT_SUFFIXES:
+                return ESM1P6_UNIT_SUFFIXES[unit_key]
+
+        raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_filename}")
 
     def _get_datestamp(self, cube):
         # Datestamp truncation depends on range of file
