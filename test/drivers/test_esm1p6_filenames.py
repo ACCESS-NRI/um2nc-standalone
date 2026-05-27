@@ -81,28 +81,6 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
 
 
 @pytest.mark.parametrize(
-    "varname,expected_error",
-    [
-        # Test if var_name has not been set
-        (None, KeyError),
-        # Test if var_name has been set
-        ("varname", None),
-    ]
-)
-def test__get_var_name(varname, expected_error):
-    cube = Cube([1, 2, 3])
-    if varname:
-        cube.var_name = varname
-
-    if expected_error:
-        with pytest.raises(expected_exception=expected_error):
-            Esm1p6DelayedCubePath._get_var_name(cube)
-    else:
-        field_name = Esm1p6DelayedCubePath._get_var_name(cube)
-        assert field_name == varname
-
-
-@pytest.mark.parametrize(
     "um_version,expected_version,expected_error",
     [
         # Test if um_version has not been set
@@ -261,3 +239,36 @@ def test__get_datestamp(date, output_freq, expected_datestamp):
     datestamp = delayed_path._get_datestamp(cube)
 
     assert datestamp == expected_datestamp
+
+def test_resolve_cube():
+    delayed_path = Esm1p6DelayedCubePath(
+        Path("parentdir"),
+        "aiihca.pa01apr",
+        "1yr"
+    )
+
+    # Create a cube
+    cube = Cube([1])
+
+    # Add metadata
+    cube.var_name = "var"
+    cube.metadata.attributes["um_version"] = "7.3"
+
+    # Add time
+    dt_ref = datetime(1, 1, 1)
+    dt = datetime(2026, 5, 27)
+    n_days = (dt - dt_ref).days
+
+    units = cf_units.Unit("days since 0001-01-01", calendar="proleptic_gregorian")
+    time = iris.coords.DimCoord(
+        points=[n_days],
+        var_name="time",
+        units=units,
+    )
+    cube.add_dim_coord(time, data_dim=0)
+
+    # Call resolve_cube
+    path = delayed_path.resolve_cube(cube)
+
+    assert isinstance(path, Path)
+    assert path == Path("parentdir/access-esm1p6.um7p3.0d.var.1mon.2026.nc")
