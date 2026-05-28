@@ -70,14 +70,14 @@ class Esm1p5Driver(ModelDriver):
         # regex pattern for matching input files
         return re.compile(rf"^(?P<stem>{self.runid}a.p(?P<unit>[a-z]))[a-z0-9]+$")
 
-    def convert(self, input_path, output_path: DelayedCubePath, process_args):
+    def convert(self, input_path, output_path, process_args):
         """
         Convert an individual input fields file to netCDF.
 
         Parameters:
         -----------
         input_path: Path to input fields file.
-        output_path: Path for writing output netCDF.
+        output_path: Path or DelayedCubePath for writing output netCDF.
         process_args: conversion arguments.
         """
         process(input_path, output_path, process_args)
