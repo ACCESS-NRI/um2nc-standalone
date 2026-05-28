@@ -15,7 +15,7 @@ from um2nc.common import DelayedCubePath
 )
 def test_DelayedCubePath__init__(p):
     delayed_path = DelayedCubePath(p)
-    delayed_path.output_path == Path(p)
+    assert delayed_path.output_path == Path(p)
 
 
 @pytest.mark.parametrize(
