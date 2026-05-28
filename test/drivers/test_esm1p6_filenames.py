@@ -9,6 +9,7 @@ import iris
 from iris.cube import Cube
 
 from um2nc.drivers.esm1p6 import Esm1p6Driver, Esm1p6DelayedCubePath
+from test_esm1p6 import mock_atmosphere_dir
 
 
 # FIXME: This should be imported from test_single_field not duplicated
@@ -185,8 +186,15 @@ def test__get_time_cell_method(cell_method_list, expected_method):
         ("aiihca.px01apr", None, ValueError),
     ]
 )
-def test__get_freq(input_filename, expected_freq, expected_error):
-    delayed_path = Esm1p6DelayedCubePath("output_dir", input_filename, "1yr")
+def test__get_freq(mock_atmosphere_dir, input_filename, expected_freq, expected_error):
+    # Setup the mocked driver
+    output_dir = Path("output_dir")
+    driver = Esm1p6Driver(output_dir, True)
+    driver.runid = "aiihc"
+
+    delayed_path = Esm1p6DelayedCubePath(
+        output_dir, input_filename, "1yr", driver.input_name_pattern
+    )
 
     if expected_error:
         with pytest.raises(expected_exception=expected_error):
@@ -216,11 +224,18 @@ def test__get_freq(input_filename, expected_freq, expected_error):
         ((1, 5, 26), "1yr", ".0001"),
     ]
 )
-def test__get_datestamp(date, output_freq, expected_datestamp):
+def test__get_datestamp(mock_atmosphere_dir, date, output_freq, expected_datestamp):
     # TODO: This test does not explore the averaging of the time coord.
     #   e.g. cube.coord('time').points.mean()
 
-    delayed_path = Esm1p6DelayedCubePath("output_dir", "output_file.nc", output_freq)
+    # Setup the mocked driver
+    output_dir = Path("output_dir")
+    driver = Esm1p6Driver(output_dir, True)
+    driver.runid = "aiihc"
+
+    delayed_path = Esm1p6DelayedCubePath(
+        "output_dir", "output_file.nc", output_freq, driver.input_name_pattern,
+    )
 
     # Create a cube with a proper time coord
     dt_ref = datetime(1, 1, 1)
@@ -240,11 +255,17 @@ def test__get_datestamp(date, output_freq, expected_datestamp):
 
     assert datestamp == expected_datestamp
 
-def test_resolve_cube():
+def test_resolve_cube(mock_atmosphere_dir):
+    # Setup the mocked driver
+    output_dir = Path("output_dir")
+    driver = Esm1p6Driver(output_dir, True)
+    driver.runid = "aiihc"
+
     delayed_path = Esm1p6DelayedCubePath(
         Path("parentdir"),
         "aiihca.pa01apr",
-        "1yr"
+        "1yr",
+        driver.input_name_pattern
     )
 
     # Create a cube

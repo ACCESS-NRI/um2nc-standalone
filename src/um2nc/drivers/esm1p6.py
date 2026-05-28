@@ -41,7 +41,7 @@ class Esm1p6Driver(Esm1p5Driver):
         output_path: Path for writing output netCDF.
         """
         if self.one_nc_per_stash_variable:
-            return Esm1p6DelayedCubePath(self.output_dir, input_path.name, "1yr")
+            return Esm1p6DelayedCubePath(self.output_dir, input_path.name, "1yr", self.input_name_pattern)
         else:
             # Use the ESM1.5 output paths for multi-variable files
             return super().get_output_path(input_path)
@@ -49,13 +49,12 @@ class Esm1p6Driver(Esm1p5Driver):
 class Esm1p6DelayedCubePath(DelayedCubePath):
     template = "access-esm1p6.um{um_version}.{dimensions}.{field_name}.{freq}{time_cell_method}{datestamp}.nc"
 
-    def __init__(self, output_dir_path, input_filename, output_file_freq):
+    def __init__(self, output_dir_path, input_filename, output_file_freq, filename_regex):
         self.output_dir_path = output_dir_path
         self.input_filename = input_filename
         self.output_file_freq = output_file_freq
+        self.filename_regex = filename_regex
 
-    # The following methods are @staticmethod since they are not instance specific
-    # but are specific to to the class
     @staticmethod
     def _get_um_version(cube):
         return cube.metadata.attributes['um_version'].replace('.', 'p')
@@ -80,8 +79,8 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
 
     def _get_freq(self):
         # Determine the freq from the input filename
-        if match := re.match(r"\w+\.p(\w)", self.input_filename):
-            unit_key = match[1]
+        if match := self.filename_regex.match(self.input_filename):
+            unit_key = match['unit']
 
             if unit_key in ESM1P6_UNIT_SUFFIXES:
                 return ESM1P6_UNIT_SUFFIXES[unit_key]
