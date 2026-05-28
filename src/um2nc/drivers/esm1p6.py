@@ -8,7 +8,7 @@ directories
 import iris
 import re
 
-from um2nc.drivers.common import DelayedCubePath
+from um2nc.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver
 
 ESM1P6_UNIT_SUFFIXES = {

@@ -7,8 +7,7 @@ import cf_units
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
-from um2nc.common import StrictWarning, UnsupportedTimeSeriesError
-from um2nc.drivers.common import DelayedCubePath
+from um2nc.common import StrictWarning, UnsupportedTimeSeriesError, DelayedCubePath
 import um2nc.um2netcdf as um2nc
 
 import pytest

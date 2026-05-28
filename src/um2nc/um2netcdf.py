@@ -30,7 +30,6 @@ from iris.fileformats.pp import PPField
 import um2nc
 from um2nc.common import PostProcessingError, StrictWarning, UnsupportedTimeSeriesError
 from um2nc.stashmasters import StashVar
-from um2nc.drivers.common import DelayedCubePath
 
 # Opt-in to the new behaviour to avoid warnings
 iris.FUTURE.date_microseconds = True

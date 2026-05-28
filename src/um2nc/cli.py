@@ -8,9 +8,9 @@ from enum import Enum
 from pathlib import Path
 
 import um2nc
+from um2nc.common import DelayedCubePath
 from um2nc.stashmasters import STASHmaster
 from um2nc.um2netcdf import process, StrictWarning
-from um2nc.drivers.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver
 from um2nc.drivers.esm1p6 import Esm1p6Driver
 

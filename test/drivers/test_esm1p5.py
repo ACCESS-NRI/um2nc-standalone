@@ -5,7 +5,7 @@ from unittest import mock
 
 from iris.cube import Cube
 
-from um2nc.drivers.common import DelayedCubePath
+from um2nc.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver, ESM1P5_UNIT_SUFFIXES
 
 
