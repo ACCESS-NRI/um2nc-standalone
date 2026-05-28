@@ -41,7 +41,7 @@ class Esm1p6Driver(Esm1p5Driver):
         output_path: Path for writing output netCDF.
         """
         if self.one_nc_per_stash_variable:
-            return Esm1p6DelayedCubePath(self.output_dir, input_path.name, "1yr", self.input_name_pattern)
+            return Esm1p6DelayedCubePath(self.output_dir, input_path.name, self.input_name_pattern)
         else:
             # Use the ESM1.5 output paths for multi-variable files
             return super().get_output_path(input_path)
@@ -49,10 +49,9 @@ class Esm1p6Driver(Esm1p5Driver):
 class Esm1p6DelayedCubePath(DelayedCubePath):
     template = "access-esm1p6.um{um_version}.{dimensions}.{field_name}.{freq}{time_cell_method}{datestamp}.nc"
 
-    def __init__(self, output_dir_path, input_filename, output_file_freq, filename_regex):
+    def __init__(self, output_dir_path, input_filename, filename_regex):
         self.output_dir_path = output_dir_path
         self.input_filename = input_filename
-        self.output_file_freq = output_file_freq
         self.filename_regex = filename_regex
 
     @staticmethod
@@ -88,17 +87,10 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_filename}")
 
     def _get_datestamp(self, cube):
-        # Datestamp truncation depends on range of file
-        # e.g. for datestamp 1234-01-01 00:00:00
-        #   For file containing a whole year - 1234
-        #   For file containing a month - 1234-01
-        #   For file containing a day - 1234-01-01
-        if re.match(r'\d+(yr|dec)', self.output_file_freq):
-            fmt = '%4Y'
-        elif re.match(r'\d+mon', self.output_file_freq):
-            fmt = '%4Y-%m'
-        else:
-            fmt = '%4Y-%m-%d'
+        # Since ESM1.6 output files are yearly, just need YYYY for the datestamp
+        # Ensure years with less than 4 digits are formatted with leading zeros
+        fmt = '%4Y'
+
         # Get the appropriately truncated datetime for the average time
         d_str = cube.coord('time').units.num2date(cube.coord('time').points.mean()).strftime(fmt)
         return f".{d_str}"

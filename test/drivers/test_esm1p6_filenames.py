@@ -193,7 +193,7 @@ def test__get_freq(mock_atmosphere_dir, input_filename, expected_freq, expected_
     driver.runid = "aiihc"
 
     delayed_path = Esm1p6DelayedCubePath(
-        output_dir, input_filename, "1yr", driver.input_name_pattern
+        output_dir, input_filename, driver.input_name_pattern
     )
 
     if expected_error:
@@ -206,25 +206,17 @@ def test__get_freq(mock_atmosphere_dir, input_filename, expected_freq, expected_
 
 
 @pytest.mark.parametrize(
-    "date,output_freq,expected_datestamp",
+    "date,expected_datestamp",
     [
-        ((2026, 5, 26), "1dec", ".2026"),
-        ((2026, 5, 26), "1yr", ".2026"),
-        ((2026, 5, 26), "1mon", ".2026-05"),
-        ((2026, 5, 26), "1day", ".2026-05-26"),
-        # The follow output_freqs are not expected thus they just use yyyy-mm-dd
-        ((2026, 5, 26), "1hr", ".2026-05-26"),
-        ((2026, 5, 26), "10min", ".2026-05-26"),
-        ((2026, 5, 26), "subhr", ".2026-05-26"),
-        ((2026, 5, 26), "notafreq", ".2026-05-26"),
+        ((2026, 5, 26), ".2026"),
         # Ensure years with <4 digits are correctly formatted
-        ((1234, 5, 26), "1yr", ".1234"),
-        ((123, 5, 26), "1yr", ".0123"),
-        ((12, 5, 26), "1yr", ".0012"),
-        ((1, 5, 26), "1yr", ".0001"),
+        ((1234, 5, 26), ".1234"),
+        ((123, 5, 26), ".0123"),
+        ((12, 5, 26), ".0012"),
+        ((1, 5, 26), ".0001"),
     ]
 )
-def test__get_datestamp(mock_atmosphere_dir, date, output_freq, expected_datestamp):
+def test__get_datestamp(mock_atmosphere_dir, date, expected_datestamp):
     # TODO: This test does not explore the averaging of the time coord.
     #   e.g. cube.coord('time').points.mean()
 
@@ -234,7 +226,7 @@ def test__get_datestamp(mock_atmosphere_dir, date, output_freq, expected_datesta
     driver.runid = "aiihc"
 
     delayed_path = Esm1p6DelayedCubePath(
-        "output_dir", "output_file.nc", output_freq, driver.input_name_pattern,
+        "output_dir", "output_file.nc", driver.input_name_pattern,
     )
 
     # Create a cube with a proper time coord
@@ -264,7 +256,6 @@ def test_resolve_cube(mock_atmosphere_dir):
     delayed_path = Esm1p6DelayedCubePath(
         Path("parentdir"),
         "aiihca.pa01apr",
-        "1yr",
         driver.input_name_pattern
     )
 
