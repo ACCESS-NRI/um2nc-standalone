@@ -3,6 +3,7 @@ import pytest
 import cf_units
 from datetime import datetime
 import numpy as np
+import os
 from pathlib import Path
 import tarfile
 import iris
@@ -42,9 +43,15 @@ def unpack_fieldsfile(tmp_path):
             "access-esm1p6.um7p3.3d.varname.1mon.mean.0001.nc",
             "aiihca.pa-000104_1mon.nc"
         ),
+        (
+            "this_file_doesnt_match_regex",
+            ValueError,
+            "this_file_doesnt_match_regex.nc"
+        ),
     ],
 )
 @pytest.mark.parametrize("one_nc", [True, False])
+@pytest.mark.filterwarnings("ignore:Input filename this_file_doesnt_match_regex does not match pattern")
 def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
     expected_filename_single, expected_filename_multi, one_nc):
     """
@@ -52,7 +59,10 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
     """
     # Unpack the fieldsfile so we don't have to construct a complicated cube
     model_dir = unpack_fieldsfile
-    ff_path = model_dir / "atmosphere" / "aiihca.pa01apr"
+    original_ff_path = model_dir / "atmosphere" / "aiihca.pa01apr"
+    ff_path = model_dir / "atmosphere" / input_filename
+
+    os.rename(original_ff_path, ff_path)
 
     # Get the driver
     driver = Esm1p6Driver(model_dir, one_nc)
@@ -72,9 +82,12 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
         cube.var_name = "varname"
 
         # Resolve the filename
-        resolved_path_single_field = output_path.resolve_cube(cube_list[0])
-
-        assert resolved_path_single_field.name == expected_filename_single
+        if isinstance(expected_filename_single, str):
+            resolved_path_single_field = output_path.resolve_cube(cube_list[0])
+            assert resolved_path_single_field.name == expected_filename_single
+        else:
+            with pytest.raises(expected_filename_single):
+                output_path.resolve_cube(cube_list[0])
     else:
         assert isinstance(output_path, Path)
 
