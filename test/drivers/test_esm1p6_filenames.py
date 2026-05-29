@@ -45,7 +45,7 @@ def unpack_fieldsfile(tmp_path):
         ),
         (
             "this_file_doesnt_match_regex",
-            ValueError,
+            "access-esm1p6.um7p3.3d.varname.unknown_freq.mean.0001.nc",
             "this_file_doesnt_match_regex.nc"
         ),
     ],
@@ -188,18 +188,18 @@ def test__get_time_cell_method(cell_method_list, expected_method):
 
 
 @pytest.mark.parametrize(
-    "input_filename,expected_freq,expected_error",
+    "input_filename,expected_freq",
     [
-        ("aiihca.pa01apr", "1mon", None),
-        ("aiihca.pe01apr", "1day", None),
-        ("aiihca.pj01apr", "6hr", None),
-        ("aiihca.pi01apr", "3hr", None),
-        ("aiihca.pc01apr", "1hr", None),
-        ("foobar", None, ValueError),
-        ("aiihca.px01apr", None, ValueError),
+        ("aiihca.pa01apr", "1mon"),
+        ("aiihca.pe01apr", "1day"),
+        ("aiihca.pj01apr", "6hr"),
+        ("aiihca.pi01apr", "3hr"),
+        ("aiihca.pc01apr", "1hr"),
+        ("foobar", "unknown_freq"),
+        ("aiihca.px01apr", "unknown_freq"),
     ]
 )
-def test__get_freq(mock_atmosphere_dir, input_filename, expected_freq, expected_error):
+def test__get_freq(mock_atmosphere_dir, input_filename, expected_freq):
     # Setup the mocked driver
     output_dir = Path("output_dir")
     driver = Esm1p6Driver(output_dir, True)
@@ -209,13 +209,7 @@ def test__get_freq(mock_atmosphere_dir, input_filename, expected_freq, expected_
         output_dir, input_filename, driver.input_name_pattern
     )
 
-    if expected_error:
-        with pytest.raises(expected_exception=expected_error):
-            _freq = delayed_path._get_freq()
-    else:
-        freq = delayed_path._get_freq()
-
-        assert freq == expected_freq
+    assert delayed_path._get_freq() == expected_freq
 
 
 @pytest.mark.parametrize(

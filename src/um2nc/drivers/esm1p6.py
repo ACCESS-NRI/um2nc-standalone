@@ -6,7 +6,6 @@ directories
 """
 
 import iris
-import re
 
 from um2nc.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver
@@ -84,7 +83,7 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
             if unit_key in ESM1P6_UNIT_SUFFIXES:
                 return ESM1P6_UNIT_SUFFIXES[unit_key]
 
-        raise ValueError(f"Unable to deduce frequency from filename while building output filename for {self.input_filename}")
+        return "unknown_freq"
 
     def _get_datestamp(self, cube):
         # Since ESM1.6 output files are yearly, just need YYYY for the datestamp
