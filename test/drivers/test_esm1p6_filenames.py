@@ -260,7 +260,15 @@ def test__get_datestamp(mock_atmosphere_dir, date, expected_datestamp):
 
     assert datestamp == expected_datestamp
 
-def test_resolve_cube(mock_atmosphere_dir):
+
+@pytest.mark.parametrize(
+    "alternative_var_name,expected_filename",
+    [
+        (None, "access-esm1p6.um7p3.0d.var.1mon.2026.nc"),
+        ("alt_var_name", "access-esm1p6.um7p3.0d.alt_var_name.1mon.2026.nc"),
+    ]
+)
+def test_resolve_cube(mock_atmosphere_dir, alternative_var_name, expected_filename):
     # Setup the mocked driver
     output_dir = Path("output_dir")
     driver = Esm1p6Driver(output_dir, True)
@@ -293,7 +301,7 @@ def test_resolve_cube(mock_atmosphere_dir):
     cube.add_dim_coord(time, data_dim=0)
 
     # Call resolve_cube
-    path = delayed_path.resolve_cube(cube)
+    path = delayed_path.resolve_cube(cube, alternative_var_name)
 
     assert isinstance(path, Path)
-    assert path == Path("parentdir/access-esm1p6.um7p3.0d.var.1mon.2026.nc")
+    assert path == Path(f"parentdir/{expected_filename}")

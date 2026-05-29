@@ -39,7 +39,10 @@ class DelayedCubePath:
 
         return cube.var_name
 
-    def resolve_cube(self, cube: Cube):
+    def resolve_cube(self, cube: Cube, output_var_name=None):
         # Prepend the output filename with the variable name
-        filename = f"{self._get_var_name(cube)}_{self.output_path.name}"
+        if not output_var_name:
+            output_var_name = self._get_var_name(cube)
+
+        filename = f"{output_var_name}_{self.output_path.name}"
         return Path(f"{self.output_path.parent}/{filename}")

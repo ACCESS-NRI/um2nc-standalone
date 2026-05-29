@@ -40,13 +40,20 @@ def test_DelayedCubePath__get_var_name(varname, expected_error):
         assert field_name == varname
 
 
-def test_DelayedCubePath_resolve_cube():
+@pytest.mark.parametrize(
+    "alternative_varname,expected_filename",
+    [
+        (None, "var_filename"),
+        ("alternative", "alternative_filename"),
+    ]
+)
+def test_DelayedCubePath_resolve_cube(alternative_varname, expected_filename):
     delayed_path = DelayedCubePath("parentdir/filename")
 
     cube = Cube([1, 2, 3])
     cube.var_name = "var"
 
-    path = delayed_path.resolve_cube(cube)
+    path = delayed_path.resolve_cube(cube, alternative_varname)
 
     assert isinstance(path, Path)
-    assert path == Path("parentdir/var_filename")
+    assert path == Path(f"parentdir/{expected_filename}")

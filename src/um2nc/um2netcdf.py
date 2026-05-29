@@ -491,6 +491,22 @@ def increment_name(name, initial_num=1):
     return f"{name}_{num}"
 
 
+def _check_name_collisions(name):
+    """
+    Check name for collision with previous names and return a collision-free
+    name.
+
+    Uses a function attribute, name_list to track previous names.
+    """
+    print("name_list:", _check_name_collisions.name_list)
+    while name in _check_name_collisions.name_list:
+        name = increment_name(name)
+
+    _check_name_collisions.name_list.append(name)
+
+    return name
+
+
 def _add_global_attrs(saver, infile, add_history=True):
     if add_history:
         add_global_history(infile, saver)
@@ -522,25 +538,17 @@ def process(infile, outfile, args):
 
     if args.one_nc_per_stash_variable:
         # Keep a list of field names used in case of name collisions
-        field_name_list = []
+        _check_name_collisions.name_list = []
 
         for c, fill, dims in process_cubes(cubes, mv, args):
             # Check for field name collisions
             # Check here rather than at file output so that old files can be overwritten
-            if c.var_name in field_name_list:
-                new_field_name = c.var_name
-                while new_field_name in field_name_list:
-                    new_field_name = increment_name(new_field_name)
-
-                logging.info("There is already an output field called {field_name}, renaming to {new_field_name}")
-                # Update the field name in the cube
-                # TODO: This will change the nc variable/field name - is this what we want?
-                c.var_name = new_field_name
-
-            field_name_list.append(c.var_name)
+            output_var_name = _check_name_collisions(c.var_name)
+            if output_var_name != c.var_name:
+                logging.info(f"There is already an output field called {c.var_name}, renaming to {output_var_name}")
 
             # For one_nc_per_stash_variable, outfile should be a DelayedCubePath
-            filepath = outfile.resolve_cube(c)
+            filepath = outfile.resolve_cube(c, output_var_name)
 
             with iris.fileformats.netcdf.Saver(filepath, NC_FORMATS[args.ncformat]) as sman:
                 _write_cube(

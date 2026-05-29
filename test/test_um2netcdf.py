@@ -1282,3 +1282,24 @@ def test__write_cube(tmp_path):
         # These are updated by _write_cube
         cube.attributes[attr] = cube_from_file.attributes[attr]
     assert str(cube) == str(cube_from_file)
+
+
+@pytest.mark.parametrize(
+    "name_list,expected_final_name_list",
+    [
+        (["a"], ["a"]),
+        (["a", "b", "c"], ["a", "b", "c"]),
+        (["a", "a", "b"], ["a", "a_1", "b"]),
+        (["a", "a", "a"], ["a", "a_1", "a_2"]),
+        (["a", "a", "b", "b"], ["a", "a_1", "b", "b_1"]),
+    ]
+)
+def test__check_name_collisions(name_list, expected_final_name_list):
+    final_name_list = []
+
+    # Need to clear the name list for each set of calls
+    um2nc._check_name_collisions.name_list = []
+    for name in name_list:
+        final_name_list.append(um2nc._check_name_collisions(name))
+  
+    assert final_name_list == expected_final_name_list
