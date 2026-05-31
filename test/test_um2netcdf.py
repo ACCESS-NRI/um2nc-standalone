@@ -1240,24 +1240,6 @@ def test_fix_fill_value_defaults(cube_data, expected_fill_val):
     assert fake_cube.attributes["missing_value"][0] == expected_fill_val
 
 
-@pytest.mark.parametrize(
-    "input,output",
-    [
-        ("x", "x_1"),
-        ("x_0", "x_1"),
-        ("x_9", "x_10"),
-        ("x_10", "x_11"),
-        ("x_-1", "x_-1_1"),
-        ("x_y", "x_y_1"),
-        ("x_1e6", "x_1e6_1"),
-        ("x_one", "x_one_1"),
-        ("x____", "x_____1"),
-    ]
-)
-def test_increment_name(input, output):
-    assert um2nc.increment_name(input) == output
-
-
 def test__write_cube(tmp_path):
     # Create an iris cube
     arr = [1, 2, 3]
@@ -1283,23 +1265,3 @@ def test__write_cube(tmp_path):
         cube.attributes[attr] = cube_from_file.attributes[attr]
     assert str(cube) == str(cube_from_file)
 
-
-@pytest.mark.parametrize(
-    "name_list,expected_final_name_list",
-    [
-        (["a"], ["a"]),
-        (["a", "b", "c"], ["a", "b", "c"]),
-        (["a", "a", "b"], ["a", "a_1", "b"]),
-        (["a", "a", "a"], ["a", "a_1", "a_2"]),
-        (["a", "a", "b", "b"], ["a", "a_1", "b", "b_1"]),
-    ]
-)
-def test__check_name_collisions(name_list, expected_final_name_list):
-    final_name_list = []
-
-    # Need to clear the name list for each set of calls
-    um2nc._check_name_collisions.name_list = []
-    for name in name_list:
-        final_name_list.append(um2nc._check_name_collisions(name))
-  
-    assert final_name_list == expected_final_name_list

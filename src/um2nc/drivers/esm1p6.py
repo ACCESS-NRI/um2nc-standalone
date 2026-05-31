@@ -94,18 +94,16 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         d_str = cube.coord('time').units.num2date(cube.coord('time').points.mean()).strftime(fmt)
         return f".{d_str}"
 
-    def resolve_cube(self, cube: iris.cube.Cube, output_var_name=None):
-        if not output_var_name:
-            output_var_name = self._get_var_name(cube)
-
+    def _build_filename(self, cube):
         d = {
-            "field_name": output_var_name,
+            "field_name": self._get_var_name(cube),
             "um_version": self._get_um_version(cube),
             "dimensions": self._get_dimensions(cube),
             "time_cell_method": self._get_time_cell_method(cube),
             "freq": self._get_freq(),
             "datestamp": self._get_datestamp(cube),
         }
+        return self.template.format(**d)
 
-        # Return the output directory with the customised template as the filename
-        return self.output_dir_path / self.template.format(**d)
+    def _get_output_dir(self):
+        return self.output_dir_path

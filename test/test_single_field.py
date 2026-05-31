@@ -26,6 +26,17 @@ def unpack_fieldsfile(tmp_path):
     return dst
 
 
+@pytest.fixture
+def cleanup_DelayedCubePath():
+    """
+    DelayedCubePath keeps a list of filename used to detect collisions.
+    Need to clean this up after each test.
+    """
+    um2nc.common.DelayedCubePath.clear_filename_list()
+    yield
+    um2nc.common.DelayedCubePath.clear_filename_list()
+
+
 @pytest.mark.parametrize(
     "command,driver,input,output",
     [
@@ -69,10 +80,11 @@ def test_single_field_mock_output(unpack_fieldsfile, command, driver, input, out
 @pytest.mark.parametrize(
     "n", [1, 2, 3, 10]
 )
-def test_name_collisions(unpack_fieldsfile, n):
+def test_name_collisions(unpack_fieldsfile, cleanup_DelayedCubePath, n):
     input_dir = unpack_fieldsfile
 
-    base_filename = "file.nc"
+    base_stem, base_ext = "file", ".nc"
+    base_filename = f"{base_stem}{base_ext}"
     args_list = [
         "convert",
         "--one-nc-per-stash-variable",
@@ -102,10 +114,9 @@ def test_name_collisions(unpack_fieldsfile, n):
         assert len(filenames_list) == len(filenames_set) == n
 
         # Check that the vars were labelled correctly
-        # Get the variable name from the last file in the list
-        # The last file will always be the un-incremented one due to sorting
-        varname = filenames_list[-1].split(f'_{base_filename}')[0]
+        # Get the variable name from the first (unincremented) file in the list
+        varname = filenames_list[0].split(f'_{base_stem}')[0]
 
-        expected_paths = {f"{varname}_{base_filename}"} | {f"{varname}_{i}_{base_filename}" for i in range(1, n)}
+        expected_paths = {f"{varname}_{base_filename}"} | {f"{varname}_{base_stem}_{i}{base_ext}" for i in range(1, n)}
 
         assert filenames_set == expected_paths

@@ -5,6 +5,7 @@ from datetime import datetime
 import numpy as np
 import os
 from pathlib import Path
+import re
 import tarfile
 import iris
 from iris.cube import Cube
@@ -256,13 +257,24 @@ def test__get_datestamp(mock_atmosphere_dir, date, expected_datestamp):
 
 
 @pytest.mark.parametrize(
-    "alternative_var_name,expected_filename",
+    "output_dir,expected_output_dir",
     [
-        (None, "access-esm1p6.um7p3.0d.var.1mon.2026.nc"),
-        ("alt_var_name", "access-esm1p6.um7p3.0d.alt_var_name.1mon.2026.nc"),
+        ("parentdir", "parentdir"),
+        ("/a/much/longer/parentdir", "/a/much/longer/parentdir"),
+        (".", "."),
     ]
 )
-def test_resolve_cube(mock_atmosphere_dir, alternative_var_name, expected_filename):
+def test__get_output_dir(output_dir, expected_output_dir):
+    delayed_path = Esm1p6DelayedCubePath(
+        Path(output_dir),
+        "doesn't matter",
+        "doesn't matter"  
+    )
+
+    assert str(delayed_path._get_output_dir()) == expected_output_dir
+
+
+def test__build_filename(mock_atmosphere_dir):
     # Setup the mocked driver
     output_dir = Path("output_dir")
     driver = Esm1p6Driver(output_dir, True)
@@ -295,7 +307,119 @@ def test_resolve_cube(mock_atmosphere_dir, alternative_var_name, expected_filena
     cube.add_dim_coord(time, data_dim=0)
 
     # Call resolve_cube
-    path = delayed_path.resolve_cube(cube, alternative_var_name)
+    filename = delayed_path._build_filename(cube)
+
+    assert isinstance(filename, str)
+    assert filename == "access-esm1p6.um7p3.0d.var.1mon.2026.nc"
+
+
+def test_resolve_cube(mock_atmosphere_dir):
+    # Setup the mocked driver
+    output_dir = Path("output_dir")
+    driver = Esm1p6Driver(output_dir, True)
+    driver.runid = "aiihc"
+
+    delayed_path = Esm1p6DelayedCubePath(
+        Path("parentdir"),
+        "aiihca.pa01apr",
+        driver.input_name_pattern
+    )
+
+    # Create a cube
+    cube = Cube([1])
+
+    # Add metadata
+    cube.var_name = "var"
+    cube.metadata.attributes["um_version"] = "7.3"
+
+    # Add time
+    dt_ref = datetime(1, 1, 1)
+    dt = datetime(2026, 5, 27)
+    n_days = (dt - dt_ref).days
+
+    units = cf_units.Unit("days since 0001-01-01", calendar="proleptic_gregorian")
+    time = iris.coords.DimCoord(
+        points=[n_days],
+        var_name="time",
+        units=units,
+    )
+    cube.add_dim_coord(time, data_dim=0)
+
+    # Call resolve_cube
+    path = delayed_path.resolve_cube(cube)
 
     assert isinstance(path, Path)
-    assert path == Path(f"parentdir/{expected_filename}")
+    assert path == Path("parentdir/access-esm1p6.um7p3.0d.var.1mon.2026.nc")
+
+
+@pytest.mark.parametrize(
+    "output_dir_list,filename_list,var_list",
+    [
+        (["parentdir"], ["aiihca.pa01apr"], ["var"]),
+        # Test multiple
+        (["parentdir"], ["aiihca.pa01apr", "aiihca.pa02apr"], ["var"]),
+        (["parentdir1", "parentdir2"], ["aiihca.pa01apr"], ["var"]),
+        (["parentdir"], ["aiihca.pa01apr"], ["var1", "var2"]),
+        # Test duplicate vars
+        (["parentdir"], ["aiihca.pa01apr"], ["var", "var"]),
+        # Test duplicate output dirs
+        (["parentdir", "parentdir"], ["aiihca.pa01apr", "aiihca.pa01apr"], ["var"]),
+        # Test duplicate filenames
+        (["parentdir"], ["aiihca.pa01apr", "aiihca.pa01apr"], ["var"]),
+        # Test duplicate combo
+        (["parentdir", "parentdir"], ["aiihca.pa01apr", "aiihca.pa01apr"], ["var", "var"]),
+    ]
+)
+def test_resolve_cube_multiple_paths(mock_atmosphere_dir, output_dir_list, filename_list, var_list):
+    """
+    Do multiple calls to resolve_cube to test the filepath collision detection
+    """
+    paths = []
+    for output_dir in output_dir_list:
+        # Setup the mocked driver
+        output_dir = Path(output_dir)
+        driver = Esm1p6Driver(output_dir, True)
+        driver.runid = "aiihc"
+
+        for input_filename in filename_list:
+            delayed_path = Esm1p6DelayedCubePath(
+                Path(output_dir),
+                input_filename,
+                driver.input_name_pattern
+            )
+
+            for var_name in var_list:
+                # Create a cube
+                cube = Cube([1])
+
+                # Add metadata
+                cube.var_name = var_name
+                cube.metadata.attributes["um_version"] = "7.3"
+
+                # Add time
+                dt_ref = datetime(1, 1, 1)
+                dt = datetime(2026, 5, 27)
+                n_days = (dt - dt_ref).days
+
+                units = cf_units.Unit("days since 0001-01-01", calendar="proleptic_gregorian")
+                time = iris.coords.DimCoord(
+                    points=[n_days],
+                    var_name="time",
+                    units=units,
+                )
+                cube.add_dim_coord(time, data_dim=0)
+
+                # Call resolve_cube
+                path = delayed_path.resolve_cube(cube)
+
+                expected_path = re.escape(rf"{output_dir}/access-esm1p6.um7p3.0d.{var_name}.1mon.2026")
+                expected_path += r"(_\d+)?\.nc"
+
+                assert isinstance(path, Path)
+                assert re.match(expected_path, str(path)), f"{path} failed to match {expected_path}"
+
+                paths.append(path)
+
+    # Check there's the expected number of paths and that they're all unique
+    expected_number_paths = len(output_dir_list) * len(filename_list) * len(var_list)
+    assert len(paths) == expected_number_paths == len(set(paths))
