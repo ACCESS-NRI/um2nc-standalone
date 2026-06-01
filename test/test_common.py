@@ -154,7 +154,7 @@ def test_DelayedCubePath_resolve_cube_multiple_paths(cleanup_DelayedCubePath, ou
     for output_path in output_path_list:
         output_path = Path(output_path)
 
-        # Iterate over the ouput paths, simuluating multiple input/output pairs
+        # Iterate over the ouput paths, simulating multiple input/output pairs
         delayed_path = DelayedCubePath(output_path)
 
         for var in var_list:
