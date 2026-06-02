@@ -1,47 +1,64 @@
 on:
   workflow_call:
+    inputs:
+      ref:
+        type: string
+        description: |
+          Ref in the repository which will correspond to the um2nc development version.
+          Cannot be used together with 'version' input.
+        required: false
+      version:
+        type: string
+        description: |
+          Version of um2nc to be used in the binary executable.
+          Cannot be used together with 'ref' input.
+        required: false
   workflow_dispatch:
     inputs:
-      version:
+      ref:
+        type: string
         description: |
-          Version of um2nc to create the binary for.
-          This should match a tag in the repository.
-          Only versions >2.0.0 are supported.
-        required: true
+          Ref in the repository which will correspond to the um2nc development version.
+          Cannot be used together with 'version' input.
+        required: false
+      version:
+        type: string
+        description: |
+          Version of um2nc to be used in the binary executable.
+          Cannot be used together with 'ref' input.
+        required: false
 
 jobs:
+  inputs-sanity-check:
+    runs-on: ubuntu-latest
+    name: Inputs sanity check
+    steps:
+      - name: Check that only one of 'ref' and 'version' inputs is provided
+        run: |
+          if [[ -n "${{ inputs.ref }}" && -n "${{ inputs.version }}" ]]; then
+            echo "Error: Both 'ref' and 'version' inputs are provided. Please provide only one of them."
+            exit 1
+          elif [[ -z "${{ inputs.ref }}" && -z "${{ inputs.version }}" ]]; then
+            echo "Error: Neither 'ref' nor 'version' input is provided. Please provide one of them."
+            exit 1
+          fi
+
   create-binary-executable:
     name: Create binary executable
     runs-on: ubuntu-latest
     environment: gadi
     env:
       MICROMAMBA_DOWNLOAD_URL: https://micro.mamba.pm/api/micromamba/linux-64/latest
-      UM2NC_DIST_DIR: ${{ secrets.UM2NC_DIST_DIR }}
+      UM2NC_DIST_DIR: ${{ secrets.UM2NC_DIST_DIR }}_${{ github.run_id }}
       PYINSTALLER_SPEC_PATH: binary_dist/pyinstaller.spec
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+      INTEGRATION_TEST_SCRIPT: integration/regression_test.py
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Set UM2NC_VERSION env variable
-        run: |
-          if [[ '${{ github.event_name }}' == workflow_dispatch ]]; then
-            version='${{ github.event.inputs.version }}'
-            # Sanity check on version
-            if ! git ls-remote --exit-code --tags origin "refs/tags/$version" > /dev/null; then
-              echo "::error::Version $version does not match any tag in the repository"
-              exit 1
-            fi
-            if [[ -z $(git ls-tree -r "refs/tags/$version" "$PYINSTALLER_SPEC_PATH") ]]; then
-              echo "::error::Tag $version does not contain the required file: $PYINSTALLER_SPEC_PATH"
-              exit 1
-            fi
-          else
-            version='${{ github.ref_name }}'
-          fi
-          echo UM2NC_VERSION=$version >> $GITHUB_ENV
 
       - name: Set up SSH
         uses: access-nri/actions/.github/actions/setup-ssh@main
@@ -57,9 +74,10 @@ jobs:
           set -exo pipefail
           work_dir=$(mktemp -d)
           trap "rm -rf $work_dir" EXIT
-          repo_dir=$work_dir/${{ github.event.repository.name }}
-          mkdir -p $repo_dir
-          cd $repo_dir
+          repo_dir="$work_dir"/'${{ github.event.repository.name }}'
+          # Clone the repository on Gadi
+          git clone '${{ env.REPO_URL }}' "$repo_dir"
+          cd "$repo_dir"
           echo "Setting up pyinstaller environment"
           export MAMBA_EXE=$work_dir/micromamba
           export MAMBA_ROOT_PREFIX=$work_dir/mamba_root
@@ -74,27 +92,26 @@ jobs:
             -y \
             --prefix $env_prefix \
             --no-rc \
-            -c conda-forge \
             -c accessnri \
             -c nodefaults \
-            pyinstaller \
-            um2nc=${{ env.UM2NC_VERSION }}
-          # Get pyinstaller.spec from this repository
-          spec_file_url='https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/${{ env.UM2NC_VERSION }}/${{ env.PYINSTALLER_SPEC_PATH }}'
-          spec_file="$work_dir/pyinstaller.spec"
-          curl -L -o "$spec_file" "$spec_file_url"
+            pyinstaller ${{ inputs.version && format('um2nc=={0}', inputs.version) }}
+          # Install um2nc if ref is provided
+          if [[ -n "${{ inputs.ref }}" ]]; then
+            "$MAMBA_EXE" run \
+                --prefix $env_prefix \
+                pip install . --no-deps --no-build-isolation
+          fi
           # Create binary executable with pyinstaller
           $MAMBA_EXE run \
             --prefix $env_prefix \
-            pyinstaller "$spec_file" --distpath um2nc_dist
+            pyinstaller "${{ env.PYINSTALLER_SPEC_PATH }}" --distpath ${{ env.UM2NC_DIST_DIR }}
           # Find the created executable and test it
-          UM2NC_EXE=$(find um2nc_dist -type f -name 'um2nc*' -exec realpath {} \;)
+          UM2NC_EXE=$(find ${{ env.UM2NC_DIST_DIR }} -type f -name 'um2nc*' -exec realpath {} \;)
           # Test the binary executable
+          echo "Testing the binary executable..."
           version=$("$UM2NC_EXE" --version)
-          if [[ "$version" != ${{ env.UM2NC_VERSION }} ]]; then
-            echo "Unexpected um2nc version: $version. Expected: ${{ env.UM2NC_VERSION }}"
-            exit 1
-          fi
+          echo "um2nc version: $version"
+          bash '${{ env.INTEGRATION_TEST_SCRIPT }}'
           # Move the created executable to a shared location on Gadi
           mkdir -p ${{ env.UM2NC_DIST_DIR }}
           mv "$UM2NC_EXE" ${{ env.UM2NC_DIST_DIR }}
@@ -109,6 +126,7 @@ jobs:
             find "$um2nc_exe_dir" -type f -name 'um2nc*' -exec realpath {} \;
           )
           echo "um2nc-exe=$um2nc_exe_on_github_runner" >> $GITHUB_OUTPUT
+          echo "um2nc-version=$version" >> $GITHUB_OUTPUT
         
       - name: Upload artifact
         uses: actions/upload-artifact@v7

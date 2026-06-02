@@ -94,6 +94,8 @@ jobs:
     name: Create binary executable
     needs: release-conda-package
     uses: ./.github/workflows/create_binary.yml
+    with:
+      version: ${{ github.ref_name }}
     secrets: inherit
     
   create-github-release:
@@ -112,8 +114,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda #v3.0.0
         with:
-          tag_name: test
-          name: ${{needs.get-package-name.outputs.package-name}} test
+          tag_name: ${{ github.ref_name }}
+          name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: ${{steps.download-artifacts.outputs.download-path}}/*

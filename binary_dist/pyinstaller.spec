@@ -9,7 +9,7 @@ from importlib.util import find_spec
 os_name = platform.system().lower() # e.g. 'linux'
 arch = platform.machine() # e.g. 'x86_64'
 version = version('um2nc')
-binary_name = f'um2nc-{version}-{os_name}-{arch}'
+binary_name = f'um2nc-{version}-{os_name}_{arch}'
 
 # Add dist-info for common packages that need it
 packages=(
