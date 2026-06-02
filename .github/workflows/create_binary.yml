@@ -93,6 +93,7 @@ jobs:
             --prefix $env_prefix \
             --no-rc \
             -c accessnri \
+            -c conda-forge \
             -c nodefaults \
             pyinstaller ${{ inputs.version && format('um2nc=={0}', inputs.version) }}
           # Install um2nc if ref is provided
