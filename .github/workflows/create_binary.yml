@@ -52,13 +52,13 @@ jobs:
       UM2NC_DIST_DIR: ${{ secrets.UM2NC_DIST_DIR }}_${{ github.run_id }}
       PYINSTALLER_SPEC_PATH: binary_dist/pyinstaller.spec
       REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-      INTEGRATION_TEST_SCRIPT: integration/regression_test.py
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
+          ref: "${{ github.ref }}"
 
       - name: Set up SSH
         uses: access-nri/actions/.github/actions/setup-ssh@main
@@ -70,7 +70,7 @@ jobs:
       - name: Create executable
         id: create-executable
         run: |
-          ssh gadi << 'EOF'
+          ssh gadi << 'GADI_SSH_EOF'
           set -exo pipefail
           work_dir=$(mktemp -d)
           trap "rm -rf $work_dir" EXIT
@@ -78,6 +78,8 @@ jobs:
           # Clone the repository on Gadi
           git clone '${{ env.REPO_URL }}' "$repo_dir"
           cd "$repo_dir"
+          git fetch origin '${{ github.ref }}'
+          git checkout FETCH_HEAD
           echo "Setting up pyinstaller environment"
           export MAMBA_EXE=$work_dir/micromamba
           export MAMBA_ROOT_PREFIX=$work_dir/mamba_root
@@ -95,7 +97,8 @@ jobs:
             -c accessnri \
             -c conda-forge \
             -c nodefaults \
-            pyinstaller ${{ inputs.version && format('um2nc=={0}', inputs.version) }}
+            pyinstaller \
+            ${{ inputs.version && format('um2nc=={0}', inputs.version) || 'pip' }}
           # Install um2nc if ref is provided
           if [[ -n "${{ inputs.ref }}" ]]; then
             "$MAMBA_EXE" run \
@@ -103,34 +106,37 @@ jobs:
                 pip install . --no-deps --no-build-isolation
           fi
           # Create binary executable with pyinstaller
+          dist_dir="$work_dir/dist"
           $MAMBA_EXE run \
             --prefix $env_prefix \
-            pyinstaller "${{ env.PYINSTALLER_SPEC_PATH }}" --distpath ${{ env.UM2NC_DIST_DIR }}
+            pyinstaller "${{ env.PYINSTALLER_SPEC_PATH }}" --distpath "$dist_dir"
           # Find the created executable and test it
-          UM2NC_EXE=$(find ${{ env.UM2NC_DIST_DIR }} -type f -name 'um2nc*' -exec realpath {} \;)
+          UM2NC_EXE=$(find "$dist_dir" -type f -name 'um2nc*' -exec realpath {} \;)
           # Test the binary executable
           echo "Testing the binary executable..."
           version=$("$UM2NC_EXE" --version)
           echo "um2nc version: $version"
-          bash '${{ env.INTEGRATION_TEST_SCRIPT }}'
+          bash integration/regression_tests.sh --exe "$UM2NC_EXE" -q
           # Move the created executable to a shared location on Gadi
-          mkdir -p ${{ env.UM2NC_DIST_DIR }}
-          mv "$UM2NC_EXE" ${{ env.UM2NC_DIST_DIR }}
-          EOF
+          mkdir -p '${{ env.UM2NC_DIST_DIR }}'
+          mv "$UM2NC_EXE" '${{ env.UM2NC_DIST_DIR }}'
+          GADI_SSH_EOF
           # Copy the executable from Gadi to the local runner
           um2nc_exe_dir='${{ github.workspace }}/um2nc_dist'
           mkdir -p "$um2nc_exe_dir"
-          rsync gadi:${{ env.UM2NC_DIST_DIR }}/* "$um2nc_exe_dir"
+          rsync gadi:'${{ env.UM2NC_DIST_DIR }}'/* "$um2nc_exe_dir"
           # Delete the executable from Gadi after copying it to the GitHub runner
           ssh gadi 'rm -rf ${{ env.UM2NC_DIST_DIR }}'
           um2nc_exe_on_github_runner=$(
             find "$um2nc_exe_dir" -type f -name 'um2nc*' -exec realpath {} \;
           )
-          echo "um2nc-exe=$um2nc_exe_on_github_runner" >> $GITHUB_OUTPUT
+          um2nc_exe_on_github_runner_basename=$(basename "$um2nc_exe_on_github_runner")
+          echo "um2nc-exe-path=$um2nc_exe_on_github_runner" >> $GITHUB_OUTPUT
+          echo "um2nc-exe-name=$um2nc_exe_on_github_runner_basename" >> $GITHUB_OUTPUT
           echo "um2nc-version=$version" >> $GITHUB_OUTPUT
         
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: um2nc-exe
-          path: ${{ steps.create-executable.outputs.um2nc-exe }}
+          name: ${{ steps.create-executable.outputs.um2nc-exe-name }}
+          path: ${{ steps.create-executable.outputs.um2nc-exe-path }}

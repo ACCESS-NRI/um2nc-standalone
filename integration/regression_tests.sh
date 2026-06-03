@@ -219,5 +219,6 @@ if [ "${#FAILED_FILES[@]}" -gt 0 ]; then # If any comparisons failed
 else # Tests successful
     if [[ "$CLEAN_OUTPUT" != true ]]; then
         echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+    fi
     echo "All tests passed successfully."
 fi
