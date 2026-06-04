@@ -1,48 +1,22 @@
 on:
   workflow_call:
     inputs:
-      ref:
-        type: string
-        description: |
-          Ref in the repository which will correspond to the um2nc development version.
-          Cannot be used together with 'version' input.
-        required: false
       version:
         type: string
         description: |
           Version of um2nc to be used in the binary executable.
-          Cannot be used together with 'ref' input.
+          If not provided, the development version from the `github.sha` commit will be used.
         required: false
   workflow_dispatch:
     inputs:
-      ref:
-        type: string
-        description: |
-          Ref in the repository which will correspond to the um2nc development version.
-          Cannot be used together with 'version' input.
-        required: false
       version:
         type: string
         description: |
           Version of um2nc to be used in the binary executable.
-          Cannot be used together with 'ref' input.
+          If not provided, the development version from the `github.sha` commit will be used.
         required: false
 
 jobs:
-  inputs-sanity-check:
-    runs-on: ubuntu-latest
-    name: Inputs sanity check
-    steps:
-      - name: Check that only one of 'ref' and 'version' inputs is provided
-        run: |
-          if [[ -n "${{ inputs.ref }}" && -n "${{ inputs.version }}" ]]; then
-            echo "Error: Both 'ref' and 'version' inputs are provided. Please provide only one of them."
-            exit 1
-          elif [[ -z "${{ inputs.ref }}" && -z "${{ inputs.version }}" ]]; then
-            echo "Error: Neither 'ref' nor 'version' input is provided. Please provide one of them."
-            exit 1
-          fi
-
   create-binary-executable:
     name: Create binary executable
     runs-on: ubuntu-latest
@@ -58,7 +32,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          ref: "${{ github.ref }}"
+          ref: ${{ github.sha }}
 
       - name: Set up SSH
         uses: access-nri/actions/.github/actions/setup-ssh@main
@@ -78,8 +52,6 @@ jobs:
           # Clone the repository on Gadi
           git clone '${{ env.REPO_URL }}' "$repo_dir"
           cd "$repo_dir"
-          git fetch origin '${{ github.ref }}'
-          git checkout FETCH_HEAD
           echo "Setting up pyinstaller environment"
           export MAMBA_EXE=$work_dir/micromamba
           export MAMBA_ROOT_PREFIX=$work_dir/mamba_root
@@ -90,20 +62,28 @@ jobs:
           "$MAMBA_EXE" --version
           # Create conda environment and install pyinstaller
           env_prefix="$work_dir/pyinstaller"
-          $MAMBA_EXE create \
-            -y \
-            --prefix $env_prefix \
-            --no-rc \
-            -c accessnri \
-            -c conda-forge \
-            -c nodefaults \
-            pyinstaller \
-            ${{ inputs.version && format('um2nc=={0}', inputs.version) || 'pip' }}
-          # Install um2nc if ref is provided
-          if [[ -n "${{ inputs.ref }}" ]]; then
-            "$MAMBA_EXE" run \
+          git fetch origin '${{ github.sha }}'
+          git checkout FETCH_HEAD
+          if [[ -n "${{ inputs.version }}" ]]; then
+            $MAMBA_EXE create \
+              -y \
+              --prefix $env_prefix \
+              --no-rc \
+              -c accessnri \
+              -c conda-forge \
+              -c nodefaults \
+              pyinstaller \
+              um2nc==${{ inputs.version }}
+            else
+              $MAMBA_EXE create \
+                -y \
                 --prefix $env_prefix \
-                pip install . --no-deps --no-build-isolation
+                --no-rc \
+                -f .conda/env_dev.yml
+              # Install pyinstaller and um2nc
+              "$MAMBA_EXE" run \
+                --prefix $env_prefix \
+                pip install . pyinstaller --no-build-isolation
           fi
           # Create binary executable with pyinstaller
           dist_dir="$work_dir/dist"
@@ -116,27 +96,34 @@ jobs:
           echo "Testing the binary executable..."
           version=$("$UM2NC_EXE" --version)
           echo "um2nc version: $version"
-          bash integration/regression_tests.sh --exe "$UM2NC_EXE" -q
+          bash integration/regression_tests.sh \
+            --exe "$UM2NC_EXE" \
+            -q \
+            -d full
           # Move the created executable to a shared location on Gadi
           mkdir -p '${{ env.UM2NC_DIST_DIR }}'
           mv "$UM2NC_EXE" '${{ env.UM2NC_DIST_DIR }}'
           GADI_SSH_EOF
-          # Copy the executable from Gadi to the local runner
+          echo "um2nc-version=$version" >> $GITHUB_OUTPUT
+
+      # Copy the executable from Gadi to the local runner
+      - name: Copy executable
+        id: copy-executable
+        run: |
           um2nc_exe_dir='${{ github.workspace }}/um2nc_dist'
-          mkdir -p "$um2nc_exe_dir"
+          mkdir -vp "$um2nc_exe_dir"
           rsync gadi:'${{ env.UM2NC_DIST_DIR }}'/* "$um2nc_exe_dir"
           # Delete the executable from Gadi after copying it to the GitHub runner
-          ssh gadi 'rm -rf ${{ env.UM2NC_DIST_DIR }}'
+          ssh gadi 'rm -vrf ${{ env.UM2NC_DIST_DIR }}'
           um2nc_exe_on_github_runner=$(
             find "$um2nc_exe_dir" -type f -name 'um2nc*' -exec realpath {} \;
           )
           um2nc_exe_on_github_runner_basename=$(basename "$um2nc_exe_on_github_runner")
           echo "um2nc-exe-path=$um2nc_exe_on_github_runner" >> $GITHUB_OUTPUT
           echo "um2nc-exe-name=$um2nc_exe_on_github_runner_basename" >> $GITHUB_OUTPUT
-          echo "um2nc-version=$version" >> $GITHUB_OUTPUT
         
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.create-executable.outputs.um2nc-exe-name }}
-          path: ${{ steps.create-executable.outputs.um2nc-exe-path }}
+          name: ${{ steps.copy-executable.outputs.um2nc-exe-name }}
+          path: ${{ steps.copy-executable.outputs.um2nc-exe-path }}

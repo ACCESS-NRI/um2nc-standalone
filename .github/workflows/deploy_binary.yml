@@ -1,0 +1,86 @@
+description: |
+  Workflow to deploy the um2nc binary executable on Gadi as either STABLE (release)
+  or DEVELOPMENT (prerelease) module.
+
+on:
+  workflow_call:
+    inputs:
+      module-version:
+        type: string
+        description: |
+          Module version to be deployed.
+        required: true
+      binary-artifact-id:
+        type: string
+        description: |
+          The artifact ID of the binary executable created by the `create_binary.yml` workflow.
+        required: true
+
+jobs:
+  # Set module version as `<um2nc-version>[-pr<PR-NUM>]`
+  set_version:
+    name: Set version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+    steps:
+      - name: Set module version
+        env:
+          TZ: "Australia/Sydney"
+        run: |
+          date=$(date +%Y%m%dT%H%M%S)
+          sha='${{ github.event.pull_request.head.sha || github.sha }}'
+          short_sha=${sha::7}
+          pr_number='${{ github.event.pull_request.number }}'
+          pr_prefix="${pr_number:+-pr$pr_number}"
+          version="${dev_prefix}${date}-${short_sha}${pr_prefix}"
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+  deploy-binary-executable:
+    name: Deploy binary executable
+    runs-on: ubuntu-latest
+    environment: gadi
+    env:
+      BASE_DIR: ${{ vars.STABLE_PRODUCTION_BASE_DIR }}
+      BINARY_DOWNLOAD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ inputs.binary-artifact-id }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        with:
+          hosts: "${{ secrets.HOST }}:gadi"
+          user: ${{ secrets.USER }}
+          private-key: ${{ secrets.SSH_KEY }}
+        
+      - name: Deploy executable
+        id: deploy-executable
+        run: |
+          ssh gadi << 'GADI_SSH_EOF'
+          set -exo pipefail
+          work_dir=$(mktemp -d)
+          trap "rm -rf $work_dir" EXIT
+          cd "$work_dir"
+          # Get gh CLI working on Gadi
+          module use /g/data/vk83/modules
+          module -v load system-tools/gh
+          # Download the binary executable artifact
+          curl -L "${{ env.BINARY_DOWNLOAD_URL }}"
+          # Set up directories and files paths
+          base_dir='${{ env.BASE_DIR }}'
+          moduledir="$base_dir/modules/um2nc"
+          appdir="$base_dir/apps/um2nc"
+          # Create file manifest
+          file_manifest_name="file_manifest.txt"
+          cat > "$file_manifest_name" <<EOF
+            $MODULE_FILE_PATH
+            $ACTIVATION_SCRIPT_PATH
+            $ENV_VERSION_DIR
+          EOF
+          # Download the binary executable artifact created by the `create_binary.yml` workflow
+
+          GADI_SSH_EOF

@@ -1,0 +1,13 @@
+#%Module1.0
+
+# Prevent loading multiple versions of this module at the same time
+conflict um2nc
+
+# Prepend um2nc executable directory to PATH
+prepend-path PATH {{ env['MODULE_VERSION_DIR'] }}
+
+# Log info about module version loaded
+if {[module-info mode load]} {
+    puts stderr {Loaded module {{ env['MODULE_VERSION'] }}}
+}
+
