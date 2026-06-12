@@ -1,6 +1,8 @@
 import pytest
 import tarfile
 
+from um2nc.common import DelayedCubePath
+
 
 @pytest.fixture
 def unpack_fieldsfile(tmp_path):
@@ -20,3 +22,14 @@ def unpack_fieldsfile(tmp_path):
     tar.extractall(dst, filter="data")
 
     return dst
+
+
+@pytest.fixture
+def cleanup_DelayedCubePath():
+    """
+    DelayedCubePath keeps a list of filename used to detect collisions.
+    Need to clean this up after each test.
+    """
+    DelayedCubePath.clear_filename_list()
+    yield
+    DelayedCubePath.clear_filename_list()

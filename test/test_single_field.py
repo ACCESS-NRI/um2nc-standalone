@@ -5,17 +5,6 @@ import um2nc
 from um2nc.cli import run_command
 
 
-@pytest.fixture
-def cleanup_DelayedCubePath():
-    """
-    DelayedCubePath keeps a list of filename used to detect collisions.
-    Need to clean this up after each test.
-    """
-    um2nc.common.DelayedCubePath.clear_filename_list()
-    yield
-    um2nc.common.DelayedCubePath.clear_filename_list()
-
-
 @pytest.mark.parametrize(
     "command,driver,input,output",
     [

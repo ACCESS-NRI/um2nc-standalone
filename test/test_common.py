@@ -7,17 +7,6 @@ from iris.cube import Cube
 from um2nc.common import DelayedCubePath
 
 
-@pytest.fixture
-def cleanup_DelayedCubePath():
-    """
-    DelayedCubePath keeps a list of filename used to detect collisions.
-    Need to clean this up after each test.
-    """
-    DelayedCubePath.clear_filename_list()
-    yield
-    DelayedCubePath.clear_filename_list()
-
-
 @pytest.mark.parametrize(
     "p",
     [
