@@ -60,12 +60,8 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
         cube.var_name = "varname"
 
         # Resolve the filename
-        if isinstance(expected_filename_single, str):
-            resolved_path_single_field = output_path.resolve_cube(cube_list[0])
-            assert resolved_path_single_field.name == expected_filename_single
-        else:
-            with pytest.raises(expected_filename_single):
-                output_path.resolve_cube(cube_list[0])
+        resolved_path_single_field = output_path.resolve_cube(cube_list[0])
+        assert resolved_path_single_field.name == expected_filename_single
     else:
         assert isinstance(output_path, Path)
 
