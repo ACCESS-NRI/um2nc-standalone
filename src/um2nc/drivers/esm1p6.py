@@ -5,7 +5,6 @@ Defines a ModelDriver class for running the conversion on ESM1.6 history
 directories
 """
 
-import iris
 
 from um2nc.common import DelayedCubePath
 from um2nc.drivers.esm1p5 import Esm1p5Driver
@@ -37,7 +36,7 @@ class Esm1p6Driver(Esm1p5Driver):
 
         Returns:
         --------
-        output_path: Path for writing output netCDF.
+        output_path: Path or DelayedCubePath for writing output netCDF.
         """
         if self.one_nc_per_stash_variable:
             return Esm1p6DelayedCubePath(self.output_dir, input_path.name, self.input_name_pattern)

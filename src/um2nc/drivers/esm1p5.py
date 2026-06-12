@@ -111,7 +111,7 @@ class Esm1p5Driver(ModelDriver):
 
         Returns:
         --------
-        output_path: Path for writing output netCDF.
+        output_path: Path or DelayedCubePath for writing output netCDF.
         """
 
         input_name = input_path.name

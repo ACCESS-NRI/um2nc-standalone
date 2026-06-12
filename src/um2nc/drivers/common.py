@@ -8,7 +8,6 @@ import os
 import re
 import warnings
 
-from iris.cube import Cube
 import mule
 
 from abc import ABC, abstractmethod

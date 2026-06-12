@@ -5,8 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from iris.cube import Cube
-
 import um2nc.drivers.common as drivers_common
 from um2nc.stashmasters import STASHmaster
 from um2nc.common import UnsupportedTimeSeriesError
