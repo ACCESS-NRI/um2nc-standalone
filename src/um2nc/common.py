@@ -38,7 +38,7 @@ class DelayedCubePath:
 
     @classmethod
     def clear_filename_list(cls):
-        cls._filename_list = []
+        cls._filename_list.clear()
 
     @staticmethod
     def _increment_name(name, initial_num=1):
