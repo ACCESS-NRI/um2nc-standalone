@@ -163,3 +163,18 @@ def test_DelayedCubePath_resolve_cube_multiple_paths(cleanup_DelayedCubePath, ou
 
     # Check there's the expected number of paths and that they're all unique
     assert len(paths) == len(output_path_list) * len(var_list) == len(set(paths))
+
+
+def test_DelayedCubePath_filelist(cleanup_DelayedCubePath):
+    """
+    Test the filelist is persistent accross multiple DelayedCubePaths as expected
+    """
+    for i in range(10):
+        p = DelayedCubePath(f"file{i}")
+
+        cube = Cube([1, 2, 3])
+        cube.var_name = f"var{i}"
+
+        _filename = p.resolve_cube(cube)
+
+        assert len(DelayedCubePath._filename_list) == i+1

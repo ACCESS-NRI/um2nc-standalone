@@ -30,7 +30,7 @@ from test_esm1p6 import mock_atmosphere_dir
 )
 @pytest.mark.parametrize("one_nc", [True, False])
 @pytest.mark.filterwarnings("ignore:Input filename this_file_doesnt_match_regex does not match pattern")
-def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
+def test_esm1p6_filenames(unpack_fieldsfile, cleanup_DelayedCubePath, input_filename,
     expected_filename_single, expected_filename_multi, one_nc):
     """
     Test filename construction
@@ -60,7 +60,7 @@ def test_esm1p6_filenames(unpack_fieldsfile, input_filename,
         cube.var_name = "varname"
 
         # Resolve the filename
-        resolved_path_single_field = output_path.resolve_cube(cube_list[0])
+        resolved_path_single_field = output_path.resolve_cube(cube)
         assert resolved_path_single_field.name == expected_filename_single
     else:
         assert isinstance(output_path, Path)
@@ -286,7 +286,7 @@ def test__build_filename(mock_atmosphere_dir):
     assert filename == "access-esm1p6.um7p3.0d.var.1mon.2026.nc"
 
 
-def test_resolve_cube(mock_atmosphere_dir):
+def test_resolve_cube(mock_atmosphere_dir, cleanup_DelayedCubePath):
     # Setup the mocked driver
     output_dir = Path("output_dir")
     driver = Esm1p6Driver(output_dir, True)
@@ -343,7 +343,8 @@ def test_resolve_cube(mock_atmosphere_dir):
         (["parentdir", "parentdir"], ["aiihca.pa01apr", "aiihca.pa01apr"], ["var", "var"]),
     ]
 )
-def test_resolve_cube_multiple_paths(mock_atmosphere_dir, output_dir_list, filename_list, var_list):
+def test_resolve_cube_multiple_paths(mock_atmosphere_dir, cleanup_DelayedCubePath,
+    output_dir_list, filename_list, var_list):
     """
     Do multiple calls to resolve_cube to test the filepath collision detection
     """
