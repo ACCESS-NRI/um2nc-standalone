@@ -279,7 +279,7 @@ def test__build_filename(mock_atmosphere_dir):
     )
     cube.add_dim_coord(time, data_dim=0)
 
-    # Call resolve_cube
+    # Call _build_filename
     filename = delayed_path._build_filename(cube)
 
     assert isinstance(filename, str)
