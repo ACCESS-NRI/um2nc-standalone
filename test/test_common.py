@@ -58,11 +58,9 @@ def test_DelayedCubePath_increment_name(input, output):
         (["a", "a", "b", "b"], ["a", "a_1", "b", "b_1"]),
     ]
 )
-def test_DelayedCubePath_check_filename_collisions(name_list, expected_final_name_list):
+def test_DelayedCubePath_check_filename_collisions(cleanup_DelayedCubePath, name_list, expected_final_name_list):
     final_name_list = []
 
-    # Need to clear the name list for each set of calls
-    DelayedCubePath.clear_filename_list()
     for name in name_list:
         final_name_list.append(
             DelayedCubePath._check_filename_collisions(Path(name))
@@ -117,7 +115,7 @@ def test_DelayedCubePath__get_output_dir(path, expected_output_dir):
     assert str(delayed_path._get_output_dir()) == expected_output_dir
 
 
-def test_DelayedCubePath_resolve_cube():
+def test_DelayedCubePath_resolve_cube(cleanup_DelayedCubePath):
     delayed_path = DelayedCubePath("parentdir/filename")
 
     cube = Cube([1, 2, 3])
