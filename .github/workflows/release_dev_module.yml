@@ -2,53 +2,42 @@ name: Release DEVELOPMENT um2nc module
 description: |
   This workflow deploys DEVELOPMENT um2nc modules when a PR is opened/synchronised
   having `main` as its base.
+  It can also be triggered manually (workflow_dispatch), by specifying the Git reference
+  used to create the um2nc binary executable. If no reference is provided, the workflow
+  will use the commit SHA of the workflow trigger event.
 
 on:
   pull_request:
     branches: main
     types: [opened, synchronize]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Name of the environment to deploy. Must match a subfolder name under this repository's `environments/` directory."
-        required: true
-        type: string
 
 jobs:
-  create-binary-executable:
-    name: Create binary executable
-    uses: ./.github/workflows/create_binary.yml
-    with:
-      ref: ${{ github.sha }}
-    secrets: inherit
-
-  # Set module version as `<um2nc-version>-<date>-pr<PR-NUM>`
+  # Set version to `<date>-<short-github-sha>[-pr<PR-NUM>]`
   set_version:
     name: Set version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.set-version.outputs.version }}
     steps:
-      - name: Set module version
-        env:
-          TZ: "Australia/Sydney"
-        run: |
-          date=$(date +%Y%m%dT%H%M%S)
-          sha='${{ github.event.pull_request.head.sha || github.sha }}'
-          short_sha=${sha::7}
-          pr_number='${{ github.event.pull_request.number }}'
-          pr_prefix="${pr_number:+-pr$pr_number}"
-          version="${dev_prefix}${date}-${short_sha}${pr_prefix}"
-          echo "version=$version" >> $GITHUB_OUTPUT
+    - name: Set version
+      id: set-version
+      env:
+        TZ: "Australia/Sydney"
+      run: |
+        date=$(TZ=Australia/Sydney date +%FT%T)
+        sha='${{ github.event.pull_request.head.sha || github.sha }}'
+        short_sha=${sha::7}
+        pr_number='${{ github.event.pull_request.number }}'
+        pr_suffix="${pr_number:+-pr$pr_number}"
+        version="dev${date}-${short_sha}${pr_suffix}"
+        echo "version=$version" >> $GITHUB_OUTPUT
   
   deploy:
-    name: Deploy DEVELOPMENT ${{ inputs.environment }} environment to PRODUCTION
-    needs: [set_version]
-    uses: ./.github/workflows/deploy_env.yml
+    name: Deploy DEVELOPMENT module
+    needs: set_version
+    uses: ./.github/workflows/deploy_module.yml
     with:
-      environment: "${{ inputs.environment }}"
       version: "${{ needs.set_version.outputs.version }}"
-      staging: true
-      production: true
       is_stable: false
     secrets: inherit

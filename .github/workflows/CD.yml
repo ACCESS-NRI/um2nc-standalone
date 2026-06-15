@@ -90,18 +90,19 @@ jobs:
           name: conda-packages
           path: ${{steps.reformat-paths.outputs.newline-separated-paths}}
 
-  create-binary-executable:
-    name: Create binary executable
+  deploy-binary-executable:
+    name: Deploy binary executable
     needs: release-conda-package
-    uses: ./.github/workflows/create_binary.yml
+    uses: ./.github/workflows/deploy_module.yml
     with:
       version: ${{ github.ref_name }}
+      is_stable: true
     secrets: inherit
     
   create-github-release:
     runs-on: ubuntu-latest
     name: Create GitHub release with conda packages and binary executable
-    needs: [get-package-name, create-binary-executable]
+    needs: [get-package-name, deploy-binary-executable]
     permissions:
       contents: write
     steps:

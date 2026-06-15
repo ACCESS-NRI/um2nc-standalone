@@ -1,0 +1,189 @@
+description: |
+  Workflow to deploy the um2nc module on Gadi as either STABLE (release)
+  or DEVELOPMENT (prerelease).
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        description: Version of the module to deploy (e.g., 1.0.0).
+        required: true
+      is_stable:
+        description: |
+          true for STABLE environments, false for DEVELOPMENT environments.
+          Default is false.
+        type: boolean
+        default: false
+        required: false
+    outputs:
+      exe-artifact-id:
+        description: The artifact ID of the uploaded executable artifact.
+        value: ${{ jobs.deploy-module.outputs.exe-artifact-id }}
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -xeuo pipefail {0}
+
+jobs:
+  get-date:
+    name: Get current date
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.get-date.outputs.date }}
+    steps:
+      - name: Get date
+        id: get-date
+        run: |
+          date=$(TZ='Australia/Sydney' date '+%FT%T %Z')
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+
+  deploy-module:
+    name: Deploy module
+    runs-on: ubuntu-latest
+    environment: gadi
+    needs: get-date
+    outputs:
+      exe-artifact-id: ${{ steps.upload-artifact.outputs.artifact-id }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        with:
+          hosts: ${{ secrets.HOST }}:hpc
+          user: ${{ secrets.USER }}
+          private-key: ${{ secrets.SSH_KEY }}
+  
+      # We create a temporary directory on the HPC system, to exchange files between
+      # the GitHub runner and the HPC system.
+      # We keep track of its path so we can use it in subsequent steps both within the
+      # HPC system and the GitHub runner.
+      - name: Create temporary exchange directory on HPC system
+        id: create-temp-dir
+        shell: bash
+        run: |
+          temp_exchange_dir=$(
+            ssh hpc 'mktemp -d'
+          )
+          echo "TEMP_EXCHANGE_DIR=$temp_exchange_dir" >> $GITHUB_ENV
+
+
+    #   # We set the env variable that stores the path to the hpc_target_deployment_info.json file containing
+    #   # information about the deployment to pass to the GitHub runner.
+    #   # For simplicity, we set this path to be within the REPO_PATH directory. This way, the file will
+    #   # also be deleted when we delete the REPO_PATH directory.
+    #   # We also set the path to the hpc_target_deployment_info.json file on the GitHub runner, which
+    #   # we will use to retrieve the file from the HPC system and upload it as an artifact at the end of the workflow.
+    #   - name: Set hpc_target_deployment_info.json path env variable
+    #     shell: bash
+    #     run: |
+    #       json_name='hpc_target_deployment_info_${{ job.check_run_id }}.json'
+    #       echo "HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH=$REPO_PATH/$json_name" >> $GITHUB_ENV
+    #       echo "HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER=${{ github.workspace }}/$json_name" >> $GITHUB_ENV
+
+      # We create a bash script to export variables from
+      # the GitHub runner environment to the HPC system
+      - name: Set GitHub runner environment export script
+        shell: bash
+        env:
+          STABLE_PRODUCTION_BASE_DIR: ${{ vars.STABLE_PRODUCTION_BASE_DIR }}
+          MODULE_NAME: um2nc
+          MODULE_VERSION: ${{ inputs.version }}
+          GROUP_OWNER: ${{ vars.GROUP_OWNER }}
+          PBS_PROJECT: ${{ vars.PBS_PROJECT }}
+          PBS_STORAGE: ${{ vars.PBS_STORAGE }}
+          JQ_EXE: ${{ vars.JQ_EXE }}
+          STARTED_AT: ${{ needs.get-date.outputs.date }}
+          ENV_TYPE: ${{ inputs.is_stable == true && 'STABLE' || 'DEVELOPMENT' }}
+          HPC_TARGET: gadi
+        run: |
+          # Set GitHub runner environment export script path within the HPC system
+          gh_env_export_script_on_hpc="$TEMP_EXCHANGE_DIR/gh_env_exports.sh"
+          gh_env_export_script_on_gh_runner=gh_env_exports_on_gh_runner.sh
+          # Generate GitHub runner environment export script
+          source binary_dist/scripts/github_runner_env_export.sh > "$gh_env_export_script_on_gh_runner"
+          echo "GH_ENV_EXPORT_SCRIPT=$gh_env_export_script_on_hpc" >> $GITHUB_ENV
+          # Copy the GitHub runner environment export script to the HPC system
+          rsync "$gh_env_export_script_on_gh_runner" hpc:"$gh_env_export_script_on_hpc"
+            
+      # We clone the repository to make the repository files available within the HPC system.
+      # For simplicity, instead of actually cloning the whole repository, we just initialise
+      # an empty git repository, add the remote, fetch the specific commit and check it out.
+      # This saves time and disk space, especially for large repositories.
+      - name: Clone repository on HPC system
+        id: clone-repo
+        shell: bash
+        run: |
+          ssh hpc << 'HPC_SSH_EOF'
+            set -xeuo pipefail
+            # GitHub runner environment export
+            source '${{ env.GH_ENV_EXPORT_SCRIPT }}'
+            # Initialise an empty git repository 
+            # REPO_PATH is set in the exported GitHub runner environment variables
+            git init "$REPO_PATH"
+            # Add remote with GH_TOKEN for authentication
+            git -C "$REPO_PATH" \
+              remote add origin 'https://x-access-token:${{ secrets.ACTIONS_READ_TOKEN }}@github.com/${{ github.repository }}.git'
+            # Fetch the specific commit and check it out
+            git -C "$REPO_PATH" \
+              fetch --depth 1 origin '${{ github.sha }}'
+            git -C "$REPO_PATH" \
+              checkout FETCH_HEAD
+          HPC_SSH_EOF
+
+      - name: Deploy
+        id: deploy
+        run: |
+          ssh hpc << 'HPC_SSH_EOF'
+            set -xeuo pipefail
+            # GitHub runner environment export
+            source '${{ env.GH_ENV_EXPORT_SCRIPT }}'
+            # Set job name prefix
+            export JOB_NAME_PREFIX=deploy
+            source "$INFRA_SCRIPTS_DIR/submit_pbs_job.sh" "$INFRA_SCRIPTS_DIR/build_and_deploy.sh"
+          HPC_SSH_EOF
+    
+      # Get files from TEMP_EXCHANGE_DIR
+      - name: Get files from temporary exchange directory on HPC system
+        id: get-files-from-HPC
+        shell: bash -xeuo pipefail {0}
+        run: |
+          # Get files from TEMP_EXCHANGE_DIR on HPC system to GitHub runner
+          mkdir -p from_hpc
+          rsync \
+            -avh \
+            --no-perms \
+            --no-owner \
+            --no-group \
+            hpc:"$TEMP_EXCHANGE_DIR/" from_hpc
+
+      - name: Get executable
+        id: get-executable
+        run: |
+          # Find um2nc exe inside the `from_hpc` directory
+          exe_path=$(find ./from_hpc -type f -name um2nc* -exec realpath {} \;)
+          exe_name=$(basename "$exe-path")
+          echo "exe-path=$exe_path" >> $GITHUB_OUTPUT
+          echo "exe_name=$exe_name" >> $GITHUB_OUTPUT
+    
+      - name: Upload executable artifact
+        id: upload-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.get-executable.outputs.exe-name }}
+          path: ${{ steps.get-executable.outputs.exe-path }}
+
+      # Delete the temporary exchange directory that we created on the HPC system
+      - name: Delete temporary exchange directory on HPC system
+        id: delete-temp-dir
+        if: steps.create-temp-dir.outcome == 'success'
+        # $TEMP_EXCHANGE_DIR is evaluated within the GitHub runner
+        run: |
+          temp_exchange_dir=$(
+            ssh hpc 'rm -rfv $TEMP_EXCHANGE_DIR'
+          )

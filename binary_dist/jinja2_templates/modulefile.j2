@@ -4,7 +4,7 @@
 conflict um2nc
 
 # Prepend um2nc executable directory to PATH
-prepend-path PATH {{ env['MODULE_VERSION_DIR'] }}
+prepend-path PATH {{ env['APP_VERSION_DIR'] }}
 
 # Log info about module version loaded
 if {[module-info mode load]} {
