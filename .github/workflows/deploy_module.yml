@@ -183,7 +183,4 @@ jobs:
         id: delete-temp-dir
         if: always() && steps.create-temp-dir.outcome == 'success'
         # $TEMP_EXCHANGE_DIR is evaluated within the GitHub runner
-        run: |
-          temp_exchange_dir=$(
-            ssh hpc 'rm -rfv $TEMP_EXCHANGE_DIR'
-          )
+        run: ssh hpc "rm -rfv $TEMP_EXCHANGE_DIR"
