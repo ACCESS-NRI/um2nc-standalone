@@ -33,11 +33,11 @@ export APP_VERSION_DIR="$app_dir/$MODULE_VERSION"
 file_manifest_name=file_manifest.txt
 export FILE_MANIFEST_PATH="$APP_VERSION_DIR/$file_manifest_name"
 # Path to the directory containing all versions of the module
-module_dir="$BASE_DIR/modules/$MODULE_NAME"
+export MODULE_DIR="$BASE_DIR/modules/$MODULE_NAME"
 # Full path of the modulefile
-export MODULE_FILE_PATH="$module_dir/$MODULE_VERSION"
+export MODULE_FILE_PATH="$MODULE_DIR/$MODULE_VERSION"
 # Full path of the modulefile
-export MODULERC_FILE_PATH="$module_dir/.modulerc"
+export MODULERC_FILE_PATH="$MODULE_DIR/.modulerc"
 
 # Create temporary working directory
 export TEMP_WORKING_DIR="$(mktemp -d)"
