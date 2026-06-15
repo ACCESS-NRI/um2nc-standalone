@@ -47,8 +47,8 @@ fi
 mkdir -pv "$APP_VERSION_DIR"
 mkdir -pv "$MODULE_DIR"
 
-### Create file_manifest file
-# Create a file_manifest file, listing all the files and folders related to the current version deployment:
+### Create files_manifest file
+# Create a files_manifest file, listing all the files and folders related to the current version deployment:
 # - Modulefile
 # - App version folder
 
