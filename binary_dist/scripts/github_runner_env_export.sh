@@ -1,7 +1,7 @@
 # This script is used to export variables from the GitHub runner environment to the HPC system
 
 # Path to the repository clone on the HPC system
-repo_path="$STABLE_PRODUCTION_BASE_DIR/repository_clone"
+repo_path="$TEMP_EXCHANGE_DIR/repository_clone"
 # Path to the infrastructure scripts
 infra_scripts_dir="$repo_path/binary_dist/scripts"
 # Path to the infrastructure jinja2 templates
