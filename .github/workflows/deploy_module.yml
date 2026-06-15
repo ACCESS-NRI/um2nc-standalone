@@ -169,7 +169,7 @@ jobs:
         run: |
           # Find um2nc exe inside the `from_hpc` directory
           exe_path=$(find ./from_hpc -type f -name um2nc* -exec realpath {} \;)
-          exe_name=$(basename "$exe-path")
+          exe_name=$(basename "$exe_path")
           echo "exe-path=$exe_path" >> $GITHUB_OUTPUT
           echo "exe_name=$exe_name" >> $GITHUB_OUTPUT
     
