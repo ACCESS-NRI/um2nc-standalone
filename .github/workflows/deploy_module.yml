@@ -118,6 +118,8 @@ jobs:
       - name: Clone repository on HPC system
         id: clone-repo
         shell: bash
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           ssh hpc << 'HPC_SSH_EOF'
             set -xeuo pipefail
@@ -131,7 +133,7 @@ jobs:
               remote add origin 'https://x-access-token:${{ secrets.ACTIONS_READ_TOKEN }}@github.com/${{ github.repository }}.git'
             # Fetch the specific commit and check it out
             git -C "$REPO_PATH" \
-              fetch --depth 1 origin '${{ github.sha }}'
+              fetch --depth 1 origin '${{ env.GITHUB_SHA }}'
             git -C "$REPO_PATH" \
               checkout FETCH_HEAD
           HPC_SSH_EOF
