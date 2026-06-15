@@ -34,7 +34,7 @@ temp_pbs_log=$(mktemp)
 trap "rm -vf '$JOB_LOG_FILE' '$temp_pbs_log'" EXIT
 
 # Using ::group:: to start GitHub Actions log grouping
-echo "::group::=== JOB LOGS ==="
+echo "::group::========= JOB LOGS ========="
 qsub \
   -N "$pbs_job_name" \
   -P "$PBS_PROJECT" \
