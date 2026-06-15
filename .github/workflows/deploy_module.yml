@@ -181,7 +181,7 @@ jobs:
       # Delete the temporary exchange directory that we created on the HPC system
       - name: Delete temporary exchange directory on HPC system
         id: delete-temp-dir
-        if: steps.create-temp-dir.outcome == 'success'
+        if: always() && steps.create-temp-dir.outcome == 'success'
         # $TEMP_EXCHANGE_DIR is evaluated within the GitHub runner
         run: |
           temp_exchange_dir=$(
