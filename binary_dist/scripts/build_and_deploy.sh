@@ -63,7 +63,12 @@ create_deployment_info() {
     if [ $_exit_status -eq 0 ]; then
         export SUCCESS=true
         # Module usage instructions
-        export MODULE_USAGE_INSTRUCTIONS="module use $ALL_MODULES_DIR\nmodule load $MODULE_NAME/$MODULE_VERSION"
+        export MODULE_USAGE_INSTRUCTIONS="$(
+            printf 'module use %s\nmodule load %s/%s' \
+                "$ALL_MODULES_DIR" \
+                "$MODULE_NAME" \
+                "$MODULE_VERSION"
+        )"
     else
         export SUCCESS=false
     fi
