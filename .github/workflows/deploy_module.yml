@@ -61,8 +61,9 @@ jobs:
   
       # We create a temporary directory on the HPC system, to exchange files between
       # the GitHub runner and the HPC system.
-      # We keep track of its path so we can use it in subsequent steps both within the
-      # HPC system and the GitHub runner.
+      # We also define the path to the correspective directory and other useful files
+      # on the GitHub runner so we can use them in subsequent steps both within the HPC
+      # system and the GitHub runner.
       - name: Create temporary exchange directory on HPC system
         id: create-exchange-dir
         shell: bash
@@ -71,6 +72,17 @@ jobs:
             ssh hpc 'mktemp -d'
           )
           echo "TEMP_EXCHANGE_DIR=$temp_exchange_dir" >> $GITHUB_ENV
+          # Set the path to the temporary exchange directory on the GitHub runner
+          temp_exchange_dir_on_gh_runner="${{github.workspace}}/from_hpc"
+          echo "TEMP_EXCHANGE_DIR_ON_GH=$temp_exchange_dir_on_gh_runner" >> $GITHUB_ENV
+          # Set the name of the deployment info JSON file
+          deployment_info_json_filename=deployment_info.json
+          # Set the path to the deployment_info.json file on the HPC
+          echo "DEPLOYMENT_INFO_JSON_ON_HPC=$temp_exchange_dir/$deployment_info_json_filename" >> $GITHUB_ENV
+          # Set the path to the deployment_info.json file on the GH runner
+          echo "DEPLOYMENT_INFO_JSON_ON_GH=$temp_exchange_dir_on_gh_runner/$deployment_info_json_filename" >> $GITHUB_ENV
+          # Path to the repository clone on the HPC system
+          echo "REPO_PATH=$temp_exchange_dir/repository_clone" >> $GITHUB_ENV
 
       # We create a bash script to export variables from
       # the GitHub runner environment to the HPC system
@@ -87,6 +99,8 @@ jobs:
           STARTED_AT: ${{ needs.get-date.outputs.date }}
           ENV_TYPE: ${{ inputs.is_stable == true && 'STABLE' || 'DEVELOPMENT' }}
           HPC_TARGET: gadi
+          DEPLOYMENT_INFO_JSON_PATH: ${{ env.DEPLOYMENT_INFO_JSON_ON_HPC }}
+          REPO_PATH: ${{ env.REPO_PATH }}
         run: |
           # Set GitHub runner environment export script path within the HPC system
           gh_env_export_script_on_hpc="$TEMP_EXCHANGE_DIR/gh_env_exports.sh"
@@ -109,18 +123,16 @@ jobs:
         run: |
           ssh hpc << 'HPC_SSH_EOF'
             set -xeuo pipefail
-            # GitHub runner environment export
-            source '${{ env.GH_ENV_EXPORT_SCRIPT }}'
+            repo_path='${{ env.REPO_PATH }}'
             # Initialise an empty git repository 
-            # REPO_PATH is set in the exported GitHub runner environment variables
-            git init "$REPO_PATH"
+            git init "$repo_path"
             # Add remote with GH_TOKEN for authentication
-            git -C "$REPO_PATH" \
+            git -C "$repo_path" \
               remote add origin 'https://x-access-token:${{ secrets.ACTIONS_READ_TOKEN }}@github.com/${{ github.repository }}.git'
             # Fetch the specific commit and check it out
-            git -C "$REPO_PATH" \
+            git -C "$repo_path" \
               fetch --depth 1 origin '${{ env.GITHUB_SHA }}'
-            git -C "$REPO_PATH" \
+            git -C "$repo_path" \
               checkout FETCH_HEAD
           HPC_SSH_EOF
 
@@ -143,17 +155,13 @@ jobs:
         shell: bash -xeuo pipefail {0}
         run: |
           # Get files from TEMP_EXCHANGE_DIR on HPC system to GitHub runner
-          exchange_dir_on_gh_runner=from_hpc
-          echo "EXCHANGE_DIR_ON_GH_RUNNER=$exchange_dir_on_gh_runner" >> $GITHUB_ENV
-          mkdir -p "$exchange_dir_on_gh_runner"
+          mkdir -p "$TEMP_EXCHANGE_DIR_ON_GH"
           rsync \
             -avh \
             --no-perms \
             --no-owner \
             --no-group \
-            hpc:"$TEMP_EXCHANGE_DIR/" "$exchange_dir_on_gh_runner"
-          # Set the path to the hpc_target_deployment_info.json file on the GitHub runner
-          echo "HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER=$exchange_dir_on_gh_runner/hpc_target_deployment_info.json" >> $GITHUB_ENV
+            hpc:"$TEMP_EXCHANGE_DIR/" "$TEMP_EXCHANGE_DIR_ON_GH"
 
       - name: Get executable
         id: get-executable
@@ -162,9 +170,9 @@ jobs:
           steps.deploy.outcome == 'success' &&
           steps.get-files-from-HPC.outcome == 'success'
         run: |
-          # Find um2nc exe inside the $exchange_dir_on_gh_runner directory
+          # Find um2nc exe inside the temp exchange directory on the GitHub runner
           exe_path=$(
-            find "$EXCHANGE_DIR_ON_GH_RUNNER" \
+            find "$TEMP_EXCHANGE_DIR_ON_GH" \
             -type f \
             -name um2nc* \
             -exec realpath {} \;
@@ -186,8 +194,8 @@ jobs:
           always() && !cancelled() &&
           steps.get-files-from-HPC.outcome == 'success'
         run: |
-          if [[ ! -f "$HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER" ]]; then
-            echo "Error: hpc_target_deployment_info.json file not found in the GitHub Runner directory"
+          if [[ ! -f "$DEPLOYMENT_INFO_JSON_ON_GH" ]]; then
+            echo "Error: Deployment info json file not found."
             exit 1
           fi
 
@@ -200,7 +208,7 @@ jobs:
         with:
           ref: main
           message-type: summary
-          data-file: "${{ env.HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER }}"
+          data-file: "${{ env.DEPLOYMENT_INFO_JSON_ON_GH }}"
         
       - name: Set message in the step summary
         if: always() && !cancelled() && steps.set-message-summary.outcome == 'success'
@@ -210,7 +218,7 @@ jobs:
         if: always() && !cancelled() && steps.verify-deployment-info-json.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          path: "${{ env.HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER }}"
+          path: "${{ env.DEPLOYMENT_INFO_JSON_ON_GH }}"
           name: deployment_info_um2nc_${{ inputs.version }}
 
       # Delete the temporary exchange directory that we created on the HPC system
