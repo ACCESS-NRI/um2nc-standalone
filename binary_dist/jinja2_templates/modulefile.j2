@@ -8,6 +8,6 @@ prepend-path PATH {{ env['APP_VERSION_DIR'] }}
 
 # Log info about module version loaded
 if {[module-info mode load]} {
-    puts stderr {Loaded module {{ env['MODULE_VERSION'] }}}
+    puts stderr {Loaded module {{ env['MODULE_NAME'] }}/{{ env['MODULE_VERSION'] }}}
 }
 
