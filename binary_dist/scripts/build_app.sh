@@ -43,11 +43,11 @@ exe_name=$(basename "$exe")
 # Test the executable
 version=$("$exe" --version)
 echo "um2nc version: $version"
-# Run integration tests
+# Run integration tests (full data for STABLE modules, light data for DEV modules)
 bash "$REPO_PATH/integration/regression_tests.sh" \
     --exe "$exe" \
     -q \
-    -d full
+    -d $( [[ "$ENV_TYPE" == STABLE ]] && echo full || echo light )
 
 # Move the created executable to the app version directory
 mv -v "$exe" "$APP_VERSION_DIR"
