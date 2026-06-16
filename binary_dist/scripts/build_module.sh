@@ -16,14 +16,14 @@ env_prefix="./jinja2_env"
 "$MAMBA_EXE" run \
     --prefix $env_prefix \
     python "$INFRA_SCRIPTS_DIR/render_jinja2_template.py" \
-    $INFRA_TEMPLATES_DIR/modulefile.j2
+    $INFRA_TEMPLATES_DIR/modulefile.j2 \
     > "$MODULE_FILE_PATH"
 
 # Render the .modulerc template and save it to the module directory
 "$MAMBA_EXE" run \
     --prefix $env_prefix \
     python "$INFRA_SCRIPTS_DIR/render_jinja2_template.py" \
-    $INFRA_TEMPLATES_DIR/.modulerc.j2
+    $INFRA_TEMPLATES_DIR/.modulerc.j2 \
     > "$MODULERC_FILE_PATH"
 
 set_perms "$MODULE_FILE_PATH"
