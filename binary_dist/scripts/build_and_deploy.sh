@@ -34,7 +34,7 @@ cleanup_env() {
     # _exit_status vaiable is initialised within the register_exit_trap_cmd function
     if [ $_exit_status -ne 0 ]; then
         echo "Error! Build failed. Cleaning up version '$MODULE_NAME/$MODULE_VERSION' related files..." >&2
-        delete_files_in_manifest "$FILE_MANIFEST_PATH"
+        delete_files_in_manifest "$FILES_MANIFEST_PATH"
     fi
 }
 register_exit_trap_cmd cleanup_env $TRAP_PRIORITY_LAST
@@ -52,7 +52,7 @@ mkdir -pv "$MODULE_DIR"
 # - Modulefile
 # - App version folder
 
-cat > "$FILE_MANIFEST_PATH" <<EOF
+cat > "$FILES_MANIFEST_PATH" <<EOF
 $MODULE_FILE_PATH
 $APP_VERSION_DIR
 EOF

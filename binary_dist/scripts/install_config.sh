@@ -30,8 +30,8 @@ app_dir="$BASE_DIR/apps/$MODULE_NAME"
 # Path to the directory containing the specific version of the app
 export APP_VERSION_DIR="$app_dir/$MODULE_VERSION"
 # Files manifest for tracking all files for a specific app version
-files_manifest_name=files_manifest.txt
-export FILE_MANIFEST_PATH="$APP_VERSION_DIR/$files_manifest_name"
+export FILES_MANIFEST_NAME=files_manifest.txt
+export FILES_MANIFEST_PATH="$APP_VERSION_DIR/$FILES_MANIFEST_NAME"
 # Path to the directory containing all versions of the module
 export MODULE_DIR="$BASE_DIR/modules/$MODULE_NAME"
 # Full path of the modulefile
