@@ -13,7 +13,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Set version to `<date>-<short-github-sha>[-pr<PR-NUM>]`
   set_version:
     name: Set version
     runs-on: ubuntu-latest
@@ -22,16 +21,7 @@ jobs:
     steps:
     - name: Set version
       id: set-version
-      env:
-        TZ: "Australia/Sydney"
-      run: |
-        date=$(TZ=Australia/Sydney date '+%Y%m%dT%H%M%S')
-        sha='${{ github.event.pull_request.head.sha || github.sha }}'
-        short_sha=${sha::7}
-        pr_number='${{ github.event.pull_request.number }}'
-        pr_suffix="${pr_number:+-pr$pr_number}"
-        version="dev${date}-${short_sha}${pr_suffix}"
-        echo "version=$version" >> $GITHUB_OUTPUT
+      uses: access-nri/containerised-environments-infra/.github/actions/set_version@main
   
   deploy:
     name: Deploy DEVELOPMENT module

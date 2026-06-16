@@ -2,6 +2,8 @@
 
 # Path to the repository clone on the HPC system
 repo_path="$TEMP_EXCHANGE_DIR/repository_clone"
+# Path to the HPC_TARGET_DEOPLOYMENT_INFO JSON file on the HPC system
+hpc_target_deployment_info_json_path="$TEMP_EXCHANGE_DIR/deployment_info.json"
 # Path to the infrastructure scripts
 infra_scripts_dir="$repo_path/binary_dist/scripts"
 # Path to the infrastructure jinja2 templates
@@ -23,6 +25,5 @@ export JQ_EXE='$JQ_EXE'
 export STARTED_AT='$STARTED_AT'
 export ENV_TYPE='$ENV_TYPE'
 export HPC_TARGET='$HPC_TARGET'
-
-export HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH='$HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH'
+export HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH='$hpc_target_deployment_info_json_path'
 EOF

@@ -57,20 +57,20 @@ $MODULE_FILE_PATH
 $APP_VERSION_DIR
 EOF
 
-# # Set a trap function to update the HPC target deployment info JSON when the script exits
-# update_hpc_target_deployment_info() {
-#     # _exit_status variable is initialised within the register_exit_trap_cmd function
-#     if [ $_exit_status -eq 0 ]; then
-#         export SUCCESS=true
-#         # Module usage instructions
-#         export MODULE_USAGE_INSTRUCTIONS="module use $ALL_MODULES_DIR\nmodule load $MODULE_NAME/$MODULE_VERSION"
-#     else
-#         export SUCCESS=false
-#     fi
-#     # Update the HPC target deployment info JSON
-#     source "$INFRA_SCRIPTS_DIR/create_hpc_target_deployment_info_json.sh" "$HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH"
-# }
-# register_exit_trap_cmd update_hpc_target_deployment_info $TRAP_PRIORITY_FIRST
+# Set a trap function to create the HPC target deployment info JSON when the script exits
+create_hpc_target_deployment_info() {
+    # _exit_status variable is initialised within the register_exit_trap_cmd function
+    if [ $_exit_status -eq 0 ]; then
+        export SUCCESS=true
+        # Module usage instructions
+        export MODULE_USAGE_INSTRUCTIONS="module use $ALL_MODULES_DIR\nmodule load $MODULE_NAME/$MODULE_VERSION"
+    else
+        export SUCCESS=false
+    fi
+    # create the HPC target deployment info JSON
+    source "$INFRA_SCRIPTS_DIR/create_hpc_target_deployment_info_json.sh" "$HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH"
+}
+register_exit_trap_cmd create_hpc_target_deployment_info $TRAP_PRIORITY_FIRST
 
 ### Build App
 source "$INFRA_SCRIPTS_DIR/build_app.sh"

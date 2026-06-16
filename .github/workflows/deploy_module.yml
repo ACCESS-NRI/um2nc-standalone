@@ -64,27 +64,13 @@ jobs:
       # We keep track of its path so we can use it in subsequent steps both within the
       # HPC system and the GitHub runner.
       - name: Create temporary exchange directory on HPC system
-        id: create-temp-dir
+        id: create-exchange-dir
         shell: bash
         run: |
           temp_exchange_dir=$(
             ssh hpc 'mktemp -d'
           )
           echo "TEMP_EXCHANGE_DIR=$temp_exchange_dir" >> $GITHUB_ENV
-
-
-    #   # We set the env variable that stores the path to the hpc_target_deployment_info.json file containing
-    #   # information about the deployment to pass to the GitHub runner.
-    #   # For simplicity, we set this path to be within the REPO_PATH directory. This way, the file will
-    #   # also be deleted when we delete the REPO_PATH directory.
-    #   # We also set the path to the hpc_target_deployment_info.json file on the GitHub runner, which
-    #   # we will use to retrieve the file from the HPC system and upload it as an artifact at the end of the workflow.
-    #   - name: Set hpc_target_deployment_info.json path env variable
-    #     shell: bash
-    #     run: |
-    #       json_name='hpc_target_deployment_info_${{ job.check_run_id }}.json'
-    #       echo "HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH=$REPO_PATH/$json_name" >> $GITHUB_ENV
-    #       echo "HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER=${{ github.workspace }}/$json_name" >> $GITHUB_ENV
 
       # We create a bash script to export variables from
       # the GitHub runner environment to the HPC system
@@ -153,26 +139,40 @@ jobs:
       # Get files from TEMP_EXCHANGE_DIR
       - name: Get files from temporary exchange directory on HPC system
         id: get-files-from-HPC
+        if: always() && !cancelled() && steps.create-exchange-dir.outcome == 'success'
         shell: bash -xeuo pipefail {0}
         run: |
           # Get files from TEMP_EXCHANGE_DIR on HPC system to GitHub runner
-          mkdir -p from_hpc
+          exchange_dir_on_gh_runner=from_hpc
+          echo "EXCHANGE_DIR_ON_GH_RUNNER=$exchange_dir_on_gh_runner" >> $GITHUB_ENV
+          mkdir -p "$exchange_dir_on_gh_runner"
           rsync \
             -avh \
             --no-perms \
             --no-owner \
             --no-group \
-            hpc:"$TEMP_EXCHANGE_DIR/" from_hpc
+            hpc:"$TEMP_EXCHANGE_DIR/" "$exchange_dir_on_gh_runner"
+          # Set the path to the hpc_target_deployment_info.json file on the GitHub runner
+          echo "HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER=$exchange_dir_on_gh_runner/hpc_target_deployment_info.json" >> $GITHUB_ENV
 
       - name: Get executable
         id: get-executable
+        if: >
+          always() && !cancelled() &&
+          steps.deploy.outcome == 'success' &&
+          steps.get-files-from-HPC.outcome == 'success'
         run: |
-          # Find um2nc exe inside the `from_hpc` directory
-          exe_path=$(find ./from_hpc -type f -name um2nc* -exec realpath {} \;)
+          # Find um2nc exe inside the $exchange_dir_on_gh_runner directory
+          exe_path=$(
+            find "$EXCHANGE_DIR_ON_GH_RUNNER" \
+            -type f \
+            -name um2nc* \
+            -exec realpath {} \;
+          )
           exe_name=$(basename "$exe_path")
           echo "exe-path=$exe_path" >> $GITHUB_OUTPUT
           echo "exe-name=$exe_name" >> $GITHUB_OUTPUT
-    
+            
       - name: Upload executable artifact
         id: upload-artifact
         uses: actions/upload-artifact@v7
@@ -180,9 +180,42 @@ jobs:
           name: ${{ steps.get-executable.outputs.exe-name }}
           path: ${{ steps.get-executable.outputs.exe-path }}
 
+      - name: Sanity check on hpc_target_deployment_info json file
+        id: verify-deployment-info-json
+        if: >
+          always() && !cancelled() &&
+          steps.get-files-from-HPC.outcome == 'success'
+        run: |
+          if [[ ! -f "$HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER" ]]; then
+            echo "Error: hpc_target_deployment_info.json file not found in the GitHub Runner directory"
+            exit 1
+          fi
+
+      - name: Set message for summary
+        if: >
+          always() && !cancelled() &&
+          steps.get-files-from-HPC.outcome == 'success'
+        id: set-message-summary
+        uses: access-nri/containerised-environments-infra/.github/actions/set_message@main
+        with:
+          ref: main
+          message-type: summary
+          data-file: "${{ env.HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER }}"
+        
+      - name: Set message in the step summary
+        if: always() && !cancelled() && steps.set-message-summary.outcome == 'success'
+        run: cat "${{ steps.set-message-summary.outputs.message-file-path }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Save hpc_target_deployment_info JSON as an artifact
+        if: always() && !cancelled() && steps.verify-deployment-info-json.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          path: "${{ env.HPC_TARGET_DEPLOYMENT_INFO_JSON_PATH_ON_GITHUB_RUNNER }}"
+          name: deployment_info_um2nc_${{ inputs.version }}
+
       # Delete the temporary exchange directory that we created on the HPC system
       - name: Delete temporary exchange directory on HPC system
         id: delete-temp-dir
-        if: always() && steps.create-temp-dir.outcome == 'success'
+        if: always() && steps.create-exchange-dir.outcome == 'success'
         # $TEMP_EXCHANGE_DIR is evaluated within the GitHub runner
         run: ssh hpc "rm -rfv $TEMP_EXCHANGE_DIR"
