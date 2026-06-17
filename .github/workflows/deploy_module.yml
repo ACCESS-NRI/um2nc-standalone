@@ -11,7 +11,7 @@ on:
         required: true
       is_stable:
         description: |
-          true for STABLE environments, false for DEVELOPMENT environments.
+          true for STABLE modules, false for DEVELOPMENT modules.
           Default is false.
         type: boolean
         default: false
@@ -97,7 +97,7 @@ jobs:
           PBS_STORAGE: ${{ vars.PBS_STORAGE }}
           JQ_EXE: ${{ vars.JQ_EXE }}
           STARTED_AT: ${{ needs.get-date.outputs.date }}
-          ENV_TYPE: ${{ inputs.is_stable == true && 'STABLE' || 'DEVELOPMENT' }}
+          MODULE_TYPE: ${{ inputs.is_stable == true && 'STABLE' || 'DEVELOPMENT' }}
           HPC_TARGET: gadi
           DEPLOYMENT_INFO_JSON_PATH: ${{ env.DEPLOYMENT_INFO_JSON_ON_HPC }}
           REPO_PATH: ${{ env.REPO_PATH }}

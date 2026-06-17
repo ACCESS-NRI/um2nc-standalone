@@ -30,14 +30,14 @@ fi
 ### Initialise directories
 # Create a trap function that would delete the app version related files
 # in case the script fails
-cleanup_env() {
+cleanup_app_version() {
     # _exit_status vaiable is initialised within the register_exit_trap_cmd function
     if [ $_exit_status -ne 0 ]; then
         echo "Error! Build failed. Cleaning up version '$MODULE_NAME/$MODULE_VERSION' related files..." >&2
         delete_files_in_manifest "$FILES_MANIFEST_PATH"
     fi
 }
-register_exit_trap_cmd cleanup_env $TRAP_PRIORITY_LAST
+register_exit_trap_cmd cleanup_app_version $TRAP_PRIORITY_LAST
 
 echo 'Initialising directories...'
 if [[ ! -d "$BASE_DIR" ]]; then
@@ -84,7 +84,7 @@ source "$INFRA_SCRIPTS_DIR/build_app.sh"
 source "$INFRA_SCRIPTS_DIR/build_module.sh"
 
 ### Cleanup oldest development app versions
-if [[ "$ENV_TYPE" == DEVELOPMENT ]]; then
+if [[ "$MODULE_TYPE" == DEVELOPMENT ]]; then
     source "$INFRA_SCRIPTS_DIR/cleanup_old_dev_versions.sh"
 fi
 

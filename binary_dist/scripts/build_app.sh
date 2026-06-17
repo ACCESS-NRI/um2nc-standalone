@@ -4,7 +4,7 @@
 
 # Creating pyinstaller environment
 env_prefix="./pyinstaller_env"
-if [[ "$ENV_TYPE" == STABLE ]]; then
+if [[ "$MODULE_TYPE" == STABLE ]]; then
     "$MAMBA_EXE" create \
         -y \
         --prefix $env_prefix \
@@ -47,7 +47,7 @@ echo "um2nc version: $version"
 bash "$REPO_PATH/integration/regression_tests.sh" \
     --exe "$exe" \
     -q \
-    -d $( [[ "$ENV_TYPE" == STABLE ]] && echo full || echo light )
+    -d $( [[ "$MODULE_TYPE" == STABLE ]] && echo full || echo light )
 
 # Move the created executable to the app version directory
 mv -v "$exe" "$APP_VERSION_DIR"

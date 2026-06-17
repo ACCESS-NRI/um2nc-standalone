@@ -11,14 +11,14 @@ export TRAP_PRIORITY_LAST=90 # Runs last (e.g. used for commands that delete fil
 # If a new deployment causes the total to exceed this limit, the oldest version is deleted.
 export MAX_DEV_VERSIONS=3
 
-# Sanity check on ENV_TYPE
-if [[ "$ENV_TYPE" != STABLE && "$ENV_TYPE" != DEVELOPMENT ]]; then
-    echo "Error: Invalid ENV_TYPE '$ENV_TYPE'. Must be either 'STABLE' or 'DEVELOPMENT'." >&2
+# Sanity check on MODULE_TYPE
+if [[ "$MODULE_TYPE" != STABLE && "$MODULE_TYPE" != DEVELOPMENT ]]; then
+    echo "Error: Invalid MODULE_TYPE '$MODULE_TYPE'. Must be either 'STABLE' or 'DEVELOPMENT'." >&2
     exit 1
 fi
 
-# Set BASE_DIR depending on the environment type:
-if [[ "$ENV_TYPE" == DEVELOPMENT ]]; then
+# Set BASE_DIR depending on the module type:
+if [[ "$MODULE_TYPE" == DEVELOPMENT ]]; then
     BASE_DIR="$STABLE_PRODUCTION_BASE_DIR/prerelease"
 else
     BASE_DIR="$STABLE_PRODUCTION_BASE_DIR"
