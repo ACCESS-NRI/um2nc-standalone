@@ -145,6 +145,7 @@ jobs:
             source '${{ env.GH_ENV_EXPORT_SCRIPT }}'
             # Set job name prefix
             export JOB_NAME_PREFIX=deploy
+            export DEPLOYMENT_STAGE=PRODUCTION
             source "$INFRA_SCRIPTS_DIR/submit_pbs_job.sh" "$INFRA_SCRIPTS_DIR/build_and_deploy.sh"
           HPC_SSH_EOF
     
