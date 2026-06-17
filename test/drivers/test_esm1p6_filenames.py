@@ -128,12 +128,17 @@ def test__get_dimensions(dim_list, ndims):
     [
         (None, ""),
         (
+            [("mean", "lat")],
+            ""
+        ),
+        (
             [("mean", "time")],
             ".mean"
         ),
         (
+            # Instantaneous files (i.e. "time: point") return ".snap" instead
             [("mean", "latitude"), ("point", "longitude"), ("point", "time")],
-            ".point"
+            ".snap"
         ),
         (
             [("max", "time"), ("mean", "lat"), ("point", "lon")],

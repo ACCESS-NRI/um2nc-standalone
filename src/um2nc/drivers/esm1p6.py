@@ -68,11 +68,12 @@ class Esm1p6DelayedCubePath(DelayedCubePath):
         for cell_method in cube.metadata.cell_methods:
             # cell_methods.coord_names is a tuple of coord names
             if 'time' in cell_method.coord_names:
-                method = f".{cell_method.method}"
-                break
-        else:
-            method = ""
-        return method
+                if cell_method.method == "point":
+                    return ".snap"
+                else:
+                    return f".{cell_method.method}"
+
+        return ""
 
     def _get_freq(self):
         # Determine the freq from the input filename
