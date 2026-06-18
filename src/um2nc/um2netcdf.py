@@ -423,20 +423,31 @@ def convert_proleptic(time):
     time.units = newunits
 
 
-def fix_cell_methods(cell_methods):
+def fix_cell_methods(cube):
     """
-    Removes misleading 'hour' from interval naming, leaving other names intact.
-
-    TODO: is this an iris bug?
+    Fix cell_methods in a couple of ways:
+    - Add a cell_method, time: point, for instantaneous variables
+    - Removes misleading 'hour' from interval naming, leaving other names intact.
+        TODO: is this an iris bug?
 
     Parameters
     ----------
-    cell_methods : the cell methods from a Cube (usually a tuple)
+    cube : the Cube to fix the cell_methods of
 
     Returns
     -------
-    A tuple of cell methods, with "hour" removed from interval names
+    A tuple of cell methods, with time: point possibly added and "hour" removed from interval names
     """
+    cell_methods = cube.cell_methods
+    
+    # Add missing CellMethod for instantaneous data
+    if any([coord.standard_name == "time" and not coord.has_bounds() for coord in cube.coords()]) and \
+        not any(["time" in cm.coord_names for cm in cell_methods]):
+        # i.e. variable has time but not time_bnds and doesn't have any time cell_methods
+        # Assume that if there are time_bnds they are not equal to the time values
+        cell_methods += (CellMethod('point', ('time',)),)
+
+    # Fix misleading interval naming
     return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments) for m in cell_methods)
 
 
@@ -548,8 +559,10 @@ def process_cubes(cubes, mv, args):
         fix_long_name(c, st.long_name)
         fix_units(c, st.units)
 
-        # Interval in cell methods isn't reliable so better to remove it.
-        c.cell_methods = fix_cell_methods(c.cell_methods)
+        # Fix cell_methods
+        #   Add time: point for instantaneous variables
+        #   Interval in cell methods isn't reliable so better to remove it.
+        c.cell_methods = fix_cell_methods(c)
 
         fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
         fix_level_coord(c, mv.z_rho, mv.z_theta)

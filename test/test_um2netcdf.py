@@ -2,13 +2,15 @@ import unittest.mock as mock
 import warnings
 from dataclasses import dataclass
 from collections import namedtuple
+from datetime import datetime
 
 import cf_units
 from iris.exceptions import CoordinateNotFoundError
 import operator
 
-from um2nc.common import StrictWarning, UnsupportedTimeSeriesError, DelayedCubePath
+from um2nc.common import StrictWarning, UnsupportedTimeSeriesError
 import um2nc.um2netcdf as um2nc
+import um2nc.cli as um2nc_cli
 
 import pytest
 import numpy as np
@@ -915,8 +917,12 @@ def test_fix_latlon_coords_missing_coord_error(ua_plev_cube):
 def test_fix_cell_methods_drop_hours():
     # ensure cell methods with "hour" in the interval name are translated to
     # empty intervals
+
+    # Make a cube with the cell_methods
     cm = iris.coords.CellMethod("mean", "time", "3 hour")
-    modified = um2nc.fix_cell_methods((cm,))
+    cube = iris.cube.Cube([], cell_methods=[cm])
+
+    modified = um2nc.fix_cell_methods(cube)
     assert len(modified) == 1
 
     mod = modified[0]
@@ -927,14 +933,90 @@ def test_fix_cell_methods_drop_hours():
 
 def test_fix_cell_methods_keep_weeks():
     # ensure cell methods with non "hour" intervals are left as is
+
+    # Make a cube with the cell_methods
     cm = iris.coords.CellMethod("mean", "time", "week")
-    modified = um2nc.fix_cell_methods((cm,))
+    cube = iris.cube.Cube([], cell_methods=[cm])
+
+    modified = um2nc.fix_cell_methods(cube)
     assert len(modified) == 1
 
     mod = modified[0]
     assert mod.method == cm.method
     assert mod.coord_names == cm.coord_names
     assert mod.intervals[0] == "week"
+
+
+@pytest.mark.parametrize(
+    "has_time, has_bnds, cell_methods, is_snap",
+    [
+        # No time axis
+        (False, False, [], False),
+        # No time bounds
+        (True, False, [], True),
+        # Has time bounds
+        (True, True, [], False),
+        # Already has non-time cell_method
+        (True, False, [('max', 'longitude')], True),
+        # Already has non-time cell_method but method is "time" for some reason
+        (True, False, [('time', 'bar')], True),
+        # Already has time cell_method
+        (True, False, [('mean', 'time')], False),
+        # Already has time: point cell_method
+        (True, False, [('point', 'time')], True),
+        # Already have cell_method with "time" in the coord name
+        (True, False, [('max', 'timely')], True),
+        # Multiple cell_methods, none are time
+        (True, False, [('mean', 'lat'), ('mean', 'lon'), ('max', 'height')], True),
+        # Multiple cell_methods, one is time
+        (True, False, [('mean', 'lat'), ('mean', 'lon'), ('max', 'time')], False),
+        # Cell method with multiple coords, none are time
+        (True, False, [('mean', ['lat', 'lon', 'height'])], True),
+        # Cell method with multiple coords, one is time
+        (True, False, [('mean', ['lat', 'lon', 'time'])], False),
+    ]
+)
+def test_fix_cell_methods_time_cell_methods(has_time, has_bnds, cell_methods, is_snap):
+    # Add cell_methods
+    cms = []
+    for method, coord in cell_methods:
+        cms.append(iris.coords.CellMethod(method, coord))
+    
+    # Make the cube with 10 data point
+    data = [0] * 10
+    cube = iris.cube.Cube(data, cell_methods=cms)
+
+    # Add time to the cube (with 10 points)
+    if has_time:
+        dt_ref = datetime(1, 1, 1)
+        dt = datetime(2026, 6, 18)
+        n_days = (dt - dt_ref).days
+
+        units = cf_units.Unit("days since 0001-01-01", calendar="proleptic_gregorian")
+        time = iris.coords.DimCoord(
+            points=range(n_days, n_days+10),
+            standard_name="time",
+            units=units,
+        )
+
+        # Add time_bnds too
+        if has_bnds:
+            time.guess_bounds()
+
+        cube.add_dim_coord(time, data_dim=0)
+
+    # Test fix_cell_methods
+    modified = um2nc.fix_cell_methods(cube)
+
+    time_point_present = [cm.method == 'point' and \
+            len(cm.coord_names)==1 and 'time' in cm.coord_names \
+            for cm in modified]
+    
+    assert any(time_point_present) == is_snap, f"Expected {str(modified)} to match {is_snap}"
+
+    # There should only be one cell_method that matches
+    if is_snap:
+        assert sum(time_point_present) == 1
 
 
 @pytest.fixture
@@ -1265,3 +1347,31 @@ def test__write_cube(tmp_path):
         cube.attributes[attr] = cube_from_file.attributes[attr]
     assert str(cube) == str(cube_from_file)
 
+
+def test_instantaneous_variable_cell_methods(unpack_fieldsfile, cleanup_DelayedCubePath):
+    """
+    Test that the cell_methods for instantaneous variables are corrected to
+    include 'time: point'
+    """
+    input_dir = unpack_fieldsfile
+
+    args_list = [
+        "convert",
+        "--one-nc-per-stash-variable",
+        f"{input_dir}/atmosphere/aiihca.pa01apr",
+        f"{input_dir}/atmosphere/file.nc",
+        "--include", "3906", # M01S03I906 is instantaneous
+    ]
+    args = um2nc_cli.parser.parse_args(args_list)
+
+    with mock.patch("um2nc.um2netcdf._write_cube") as m:
+        um2nc_cli.run_command(args)
+
+    cube_list = [call.args[0] for call in m.call_args_list]
+
+    # There should only be one _write_cube call
+    assert len(cube_list) == 1
+
+    # The cube itself should have a cell_method with method=='point' and coord_name=='time'
+    cms = cube_list[0].cell_methods
+    assert any([cm.method == 'point' and len(cm.coord_names)==1 and 'time' in cm.coord_names for cm in cms])
