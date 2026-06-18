@@ -14,7 +14,6 @@ import collections
 import datetime
 import logging
 import os
-from pathlib import Path
 import warnings
 
 import cf_units
@@ -29,6 +28,7 @@ from iris.coords import CellMethod
 from iris.fileformats.pp import PPField
 
 import um2nc
+from um2nc.common import PostProcessingError, StrictWarning, UnsupportedTimeSeriesError
 from um2nc.stashmasters import StashVar
 
 # Opt-in to the new behaviour to avoid warnings
@@ -80,28 +80,6 @@ FORECAST_PERIOD = "forecast_period"
 TIME = "time"
 
 DEFAULT_FILL_VAL_FLOAT = 1.0e20
-
-
-class PostProcessingError(Exception):
-    """Generic class for um2nc specific errors."""
-
-    pass
-
-
-class UnsupportedTimeSeriesError(PostProcessingError):
-    """
-    Error to be raised when latitude and longitude coordinates
-    are missing.
-    """
-
-    pass
-
-
-class StrictWarning(UserWarning):
-    """
-    Warnings which should be promoted to errors when the strict flag is True.
-    """
-    pass
 
 
 # Override the PP file calendar function to use Proleptic Gregorian rather than Gregorian.
@@ -445,20 +423,31 @@ def convert_proleptic(time):
     time.units = newunits
 
 
-def fix_cell_methods(cell_methods):
+def fix_cell_methods(cube):
     """
-    Removes misleading 'hour' from interval naming, leaving other names intact.
-
-    TODO: is this an iris bug?
+    Fix cell_methods in a couple of ways:
+    - Add a cell_method, time: point, for instantaneous variables
+    - Removes misleading 'hour' from interval naming, leaving other names intact.
+        TODO: is this an iris bug?
 
     Parameters
     ----------
-    cell_methods : the cell methods from a Cube (usually a tuple)
+    cube : the Cube to fix the cell_methods of
 
     Returns
     -------
-    A tuple of cell methods, with "hour" removed from interval names
+    A tuple of cell methods, with time: point possibly added and "hour" removed from interval names
     """
+    cell_methods = cube.cell_methods
+    
+    # Add missing CellMethod for instantaneous data
+    if any([coord.standard_name == "time" and not coord.has_bounds() for coord in cube.coords()]) and \
+        not any(["time" in cm.coord_names for cm in cell_methods]):
+        # i.e. variable has time but not time_bnds and doesn't have any time cell_methods
+        # Assume that if there are time_bnds they are not equal to the time values
+        cell_methods += (CellMethod('point', ('time',)),)
+
+    # Fix misleading interval naming
     return tuple(CellMethod(m.method, m.coord_names, _remove_hour_interval(m), m.comments) for m in cell_methods)
 
 
@@ -494,25 +483,6 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
-def increment_name(name, initial_num=1):
-    """
-    Increment string name or begin incrementing.
-
-    E.g. X -> X_1, X_1 -> X_2, X_999 -> X_1000
-
-    Inspired by iris.fileformats.netcdf.Saver._increment_name
-    """
-    num = initial_num
-    try:
-        split_name, endnum = name.rsplit("_", 1)
-        if endnum.isdigit():
-            num = int(endnum) + 1
-            name = split_name
-    except ValueError:
-        pass
-    return f"{name}_{num}"
-
-
 def _add_global_attrs(saver, infile, add_history=True):
     if add_history:
         add_global_history(infile, saver)
@@ -543,31 +513,11 @@ def process(infile, outfile, args):
     cubes = iris.load(infile)
 
     if args.one_nc_per_stash_variable:
-        # Keep a list of field names used in case of name collisions
-        field_name_list = []
-
         for c, fill, dims in process_cubes(cubes, mv, args):
-            field_name = c.var_name
+            # For one_nc_per_stash_variable, outfile should be a DelayedCubePath
+            filepath = outfile.resolve_cube(c)
 
-            # Check for field name collisions
-            # Check here rather than at file output so that old files can be overwritten
-            if field_name in field_name_list:
-                new_field_name = field_name
-                while new_field_name in field_name_list:
-                    new_field_name = increment_name(new_field_name)
-
-                logging.info("There is already an output field called {field_name}, renaming to {new_field_name}")
-                field_name = new_field_name
-
-            field_name_list.append(field_name)
-
-            # Prefix the filename with the field's name and _
-            if not isinstance(outfile, Path):
-                # Sometimes outfile is just a string
-                outfile = Path(outfile)
-            filename = f'{outfile.parent}/{field_name}_{outfile.name}'
-
-            with iris.fileformats.netcdf.Saver(filename, NC_FORMATS[args.ncformat]) as sman:
+            with iris.fileformats.netcdf.Saver(filepath, NC_FORMATS[args.ncformat]) as sman:
                 _write_cube(
                     c, sman, infile, dims, fill,
                     compression_level=args.compression,
@@ -609,8 +559,10 @@ def process_cubes(cubes, mv, args):
         fix_long_name(c, st.long_name)
         fix_units(c, st.units)
 
-        # Interval in cell methods isn't reliable so better to remove it.
-        c.cell_methods = fix_cell_methods(c.cell_methods)
+        # Fix cell_methods
+        #   Add time: point for instantaneous variables
+        #   Interval in cell methods isn't reliable so better to remove it.
+        c.cell_methods = fix_cell_methods(c)
 
         fix_latlon_coords(c, mv.grid_type, mv.d_lat, mv.d_lon)
         fix_level_coord(c, mv.z_rho, mv.z_theta)

@@ -8,6 +8,7 @@ from enum import Enum
 from pathlib import Path
 
 import um2nc
+from um2nc.common import DelayedCubePath
 from um2nc.stashmasters import STASHmaster
 from um2nc.um2netcdf import process, StrictWarning
 from um2nc.drivers.esm1p5 import Esm1p5Driver
@@ -315,9 +316,16 @@ def parse_args():
 def run_command(args):
     # Run selected command
     if args.command == "convert":
-        process(args.infile, args.outfile, args)
+        if args.one_nc_per_stash_variable:
+            # Single variable files need a DelayedCubePath to resolve the
+            # variable name for the output file once it is known
+            outfile = DelayedCubePath(args.outfile)
+        else:
+            outfile = Path(args.outfile)
+
+        process(args.infile, outfile, args)
     elif args.command == "driver":
-        driver = model_drivers[args.model_driver](Path(args.model_directory))
+        driver = model_drivers[args.model_driver](Path(args.model_directory), args.one_nc_per_stash_variable)
         driver.run_conversion(args.delete_ff, args)
 
 

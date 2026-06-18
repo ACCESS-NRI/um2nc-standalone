@@ -1,29 +1,8 @@
 from pathlib import Path
 import pytest
-import tarfile
 from unittest import mock
 import um2nc
 from um2nc.cli import run_command
-
-
-@pytest.fixture
-def unpack_fieldsfile(tmp_path):
-    """
-    A fieldfile with all-zero fields has been tar'ed up and compressed with lzma
-    in the expected directory structure.
-    zeroed_fieldsfile.tar.lama
-    └── atmosphere
-        ├── aiihca.pa01apr # This fieldsfile has all the fields set to zero
-        └── xhist # um2nc needs this file too
-
-    Compressed this file is 116kB, uncompressed it is 648MB.
-    """
-    src = "test/data/zeroed_fieldsfile.tar.lama"
-    dst = tmp_path / "zeroed_fieldsfile"
-    tar = tarfile.open(src)
-    tar.extractall(dst, filter="data")
-
-    return dst
 
 
 @pytest.mark.parametrize(
@@ -41,6 +20,8 @@ def unpack_fieldsfile(tmp_path):
         (False, 1),
     ],
 )
+@pytest.mark.filterwarnings("ignore:Units mismatch for cube")
+@pytest.mark.filterwarnings("ignore:Standard name mismatch for cube")
 def test_single_field_mock_output(unpack_fieldsfile, command, driver, input, output, single_field, expected_number_nc):
     input_dir = unpack_fieldsfile
 
@@ -67,10 +48,11 @@ def test_single_field_mock_output(unpack_fieldsfile, command, driver, input, out
 @pytest.mark.parametrize(
     "n", [1, 2, 3, 10]
 )
-def test_name_collisions(unpack_fieldsfile, n):
+def test_name_collisions(unpack_fieldsfile, cleanup_DelayedCubePath, n):
     input_dir = unpack_fieldsfile
 
-    base_filename = "file.nc"
+    base_stem, base_ext = "file", ".nc"
+    base_filename = f"{base_stem}{base_ext}"
     args_list = [
         "convert",
         "--one-nc-per-stash-variable",
@@ -100,10 +82,9 @@ def test_name_collisions(unpack_fieldsfile, n):
         assert len(filenames_list) == len(filenames_set) == n
 
         # Check that the vars were labelled correctly
-        # Get the variable name from the last file in the list
-        # The last file will always be the un-incremented one due to sorting
-        varname = filenames_list[-1].split(f'_{base_filename}')[0]
+        # Get the variable name from the first (unincremented) file in the list
+        varname = filenames_list[0].split(f'_{base_stem}')[0]
 
-        expected_paths = {f"{varname}_{base_filename}"} | {f"{varname}_{i}_{base_filename}" for i in range(1, n)}
+        expected_paths = {f"{varname}_{base_filename}"} | {f"{varname}_{base_stem}_{i}{base_ext}" for i in range(1, n)}
 
         assert filenames_set == expected_paths

@@ -17,8 +17,8 @@ import f90nml
 
 from functools import cached_property
 
-from um2nc.drivers.common import find_matching_files, get_ff_date
-from um2nc.drivers.common import ModelDriver
+from um2nc.common import DelayedCubePath
+from um2nc.drivers.common import ModelDriver, find_matching_files, get_ff_date
 from um2nc.um2netcdf import process
 
 
@@ -36,8 +36,8 @@ ESM1P5_UNIT_SUFFIXES = {
 
 class Esm1p5Driver(ModelDriver):
 
-    def __init__(self, model_directory):
-        super().__init__(model_directory)
+    def __init__(self, model_directory, one_nc_per_stash_variable=False):
+        super().__init__(model_directory, one_nc_per_stash_variable)
         self._atmosphere_dir = model_directory / "atmosphere"
         self._output_dir = self.atmosphere_dir / "netCDF"
         self._unit_suffixes = ESM1P5_UNIT_SUFFIXES
@@ -77,7 +77,7 @@ class Esm1p5Driver(ModelDriver):
         Parameters:
         -----------
         input_path: Path to input fields file.
-        output_path: Path for writing output netCDF.
+        output_path: Path or DelayedCubePath for writing output netCDF.
         process_args: conversion arguments.
         """
         process(input_path, output_path, process_args)
@@ -111,7 +111,7 @@ class Esm1p5Driver(ModelDriver):
 
         Returns:
         --------
-        output_path: Path for writing output netCDF.
+        output_path: Path or DelayedCubePath for writing output netCDF.
         """
 
         input_name = input_path.name
@@ -136,4 +136,8 @@ class Esm1p5Driver(ModelDriver):
             suffix = ""
 
         year, month, _ = get_ff_date(input_path)
-        return self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc"
+
+        if self.one_nc_per_stash_variable:
+            return DelayedCubePath(self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc")
+        else:
+            return self.output_dir / f"{stem}-{year:04d}{month:02d}{suffix}.nc"
