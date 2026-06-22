@@ -18,6 +18,10 @@ module load payu
 > [!IMPORTANT]  
 > You need to be a member of the `vk83` project on NCI to access the module. For more information check how to [Join relevant NCI projects](https://access-hive.org.au/getting_started/set_up_nci_account/#join-relevant-nci-projects)
 
+> [!WARNING]
+> Currently the `um2nc` version in the payu module is not the most-recently updated one that follows the usage instructions below. 
+> For usage instructions on the `um2nc` version enabled through `module load payu` please run `um2nc --help`.
+
 ### Local installation
 `um2nc` is available as a `conda` package in the [access-nri conda channel](https://anaconda.org/accessnri/um2nc).
 To install it run:
