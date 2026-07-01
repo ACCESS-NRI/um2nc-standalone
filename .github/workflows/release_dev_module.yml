@@ -1,0 +1,155 @@
+name: Release DEVELOPMENT um2nc module
+description: |
+  This workflow deploys DEVELOPMENT um2nc modules when a PR is opened/synchronised
+  having `main` as its base.
+  It can also be triggered manually (workflow_dispatch), by specifying the Git reference
+  used to create the um2nc binary executable. If no reference is provided, the workflow
+  will use the commit SHA of the workflow trigger event.
+
+on:
+  pull_request:
+    branches: main
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+env:
+  COMMENT_LABEL: 'deployment-${{ github.run_id }}-${{ github.run_attempt }}'
+
+jobs:
+  set_version:
+    name: Set version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+    steps:
+    - name: Set version
+      id: set-version
+      uses: access-nri/containerised-environments-infra/.github/actions/set_version@main
+  
+  get-date:
+    name: Get current date
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.get-date.outputs.date }}
+    steps:
+      - name: Get date
+        id: get-date
+        run: |
+          date=$(TZ='Australia/Sydney' date '+%FT%T %Z')
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy DEVELOPMENT module
+    needs: set_version
+    uses: ./.github/workflows/deploy_module.yml
+    with:
+      version: "${{ needs.set_version.outputs.version }}"
+      is_stable: false
+    secrets: inherit
+
+  initialise_pr_comment:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    needs: set_version
+    steps:
+      - name: Create pr_init_info JSON
+        id: create-pr-init-info
+        uses: access-nri/containerised-environments-infra/.github/actions/create_pr_init_info_json@main
+        with:
+          ref: main
+
+      - name: Set pr-init message
+        id: set-pr-init-message
+        uses: access-nri/containerised-environments-infra/.github/actions/set_message@main
+        with:
+          ref: main
+          message-type: pr-init
+          data-file: "${{ steps.create-pr-init-info.outputs.output-file }}"
+
+      - name: Comment on PR with deployment information
+        uses: access-nri/actions/.github/actions/comment@main
+        with:
+          message-file: "${{ steps.set-pr-init-message.outputs.message-file-path }}"
+          label: ${{ env.COMMENT_LABEL }}
+    
+      - name: Upload pr-init-info JSON as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: "${{ steps.create-pr-init-info.outputs.output-file }}"
+          name: pr-init-info
+  
+  update_pr_comment:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    needs: [get-date, deploy, initialise_pr_comment]
+    # Run if initialise_pr_comment is successful
+    if: always() && !cancelled() && needs.initialise_pr_comment.result == 'success'
+    steps:
+      - name: Download all hpc target deployment info artifacts
+        uses: actions/download-artifact@v8
+        id: download-artifacts
+        with:
+          pattern: deployment_info_*
+          merge-multiple: true
+          path: downloaded_artifacts
+      
+      - name: Create all_deployments_info JSON
+        id: create-all-deployments-info
+        continue-on-error: true
+        uses: access-nri/containerised-environments-infra/.github/actions/create_all_deployments_info_json@main
+        with:
+          ref: main
+          started-at: "${{ needs.get-date.outputs.date }}"
+          hpc-target-deployment-info-json-dir: "${{ steps.download-artifacts.outputs.download-path }}"
+    
+      - name: Download pr-init-info JSON as artifact
+        id: download-pr-init-info
+        uses: actions/download-artifact@v8
+
+      - name: Set PR message
+        id: set-pr-message
+        uses: access-nri/containerised-environments-infra/.github/actions/set_message@main
+        with:
+          ref: main
+          message-type: pr-update
+          data-file: ${{ steps.create-all-deployments-info.outcome == 'success' && steps.create-all-deployments-info.outputs.output-file || format('{0}/pr_init_info.json', steps.download-pr-init-info.outputs.download-path) }}
+
+      - name: Comment on PR with deployment information
+        uses: access-nri/actions/.github/actions/comment@main
+        with:
+          message-file: "${{ steps.set-pr-message.outputs.message-file-path }}"
+          label: ${{ env.COMMENT_LABEL }}
+    
+      - name: Upload all_deployments_info JSON as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: "${{ steps.create-all-deployments-info.outputs.output-file }}"
+          name: all_deployments_info
+  
+  update_pr_when_cancelled:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    needs: [get-date, deploy, initialise_pr_comment]
+    # Run if the workflow was cancelled and initialise_pr_comment is successful
+    if: cancelled() && needs.initialise_pr_comment.result == 'success'
+    steps:
+      - name: Download pr-init-info JSON as artifact
+        id: download-pr-init-info
+        uses: actions/download-artifact@v8
+
+      - name: Set PR message
+        id: set-pr-message
+        uses: access-nri/containerised-environments-infra/.github/actions/set_message@main
+        with:
+          ref: main
+          message-type: pr-cancelled
+          data-file: "${{ steps.download-pr-init-info.outputs.download-path }}/pr_init_info.json"
+
+      - name: Comment on PR with deployment information
+        uses: access-nri/actions/.github/actions/comment@main
+        with:
+          message-file: "${{ steps.set-pr-message.outputs.message-file-path }}"
+          label: ${{ env.COMMENT_LABEL }}

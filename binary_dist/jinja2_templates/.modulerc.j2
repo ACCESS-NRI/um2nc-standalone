@@ -1,0 +1,9 @@
+#%Module1.0
+
+# Default version when using `module load {{ env['MODULE_NAME'] }}`
+module-version {{ env['MODULE_NAME'] }}/{{ env['MODULE_VERSION'] }} default
+
+{% if env['MODULE_TYPE'] == "DEVELOPMENT" %}
+# Default development version when using `module load {{ env['MODULE_NAME'] }}/dev`
+module-version {{ env['MODULE_NAME'] }}/{{ env['MODULE_VERSION'] }} dev
+{% endif %}

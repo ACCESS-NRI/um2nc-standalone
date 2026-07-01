@@ -1,11 +1,20 @@
 name: CD
 
 on:
-    push:
-      tags:
-        - '*'
+  push:
+    tags:
+      - '*'
 
 jobs:
+  check-version:
+    name: Check version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check version
+        uses: access-nri/actions/.github/actions/version-check@main
+        with: 
+          versioning-scheme: semver
+
   get-package-name:
     name: Get package name
     runs-on: ubuntu-latest
@@ -13,7 +22,7 @@ jobs:
         package-name: ${{ steps.get-package-name.outputs.package-name }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-tags: true
           fetch-depth: 0
@@ -22,22 +31,26 @@ jobs:
         id: get-package-name
         run: |
           echo "package-name=$(yq '.project.name' pyproject.toml)" >> $GITHUB_OUTPUT
-  
+
+  ci:
+    name: Run CI tests
+    uses: ./.github/workflows/CI.yml
+    
   release-conda-package:
     name: Build with conda and upload
     runs-on: ubuntu-latest
-    needs: get-package-name
+    needs: [check-version, get-package-name, ci]
     permissions:
       contents: write
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
             fetch-tags: true
             fetch-depth: 0 
 
       - name: Setup conda build environment
-        uses: mamba-org/setup-micromamba@7f29b8b80078b1b601dfa018b0f7425c587c63bb # v2.0.6
+        uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
         with:
           environment-file: .conda/env_build.yml
           create-args: >-
@@ -57,7 +70,7 @@ jobs:
         id: build-and-upload
         env:
           PACKAGE_VERSION: ${{ steps.get-version.outputs.version }}
-        uses: ACCESS-NRI/action-build-and-upload-conda-packages@v3.0.0
+        uses: ACCESS-NRI/action-build-and-upload-conda-packages@v3.1.0
         with:
           meta_yaml_dir: .conda
           user: ${{ secrets.ANACONDA_USER_NAME }}
@@ -67,16 +80,43 @@ jobs:
       
       - name: Re-format output paths
         id: reformat-paths
-        # Needed to have the correct newline-separated files format for the following release step
         run: |
             paths=$(tr ' ' '\n' <<< "${{steps.build-and-upload.outputs.paths}}")
             echo "newline-separated-paths=$paths" >> $GITHUB_OUTPUT
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: conda-packages
+          path: ${{steps.reformat-paths.outputs.newline-separated-paths}}
+
+  deploy-binary-executable:
+    name: Deploy binary executable
+    needs: release-conda-package
+    uses: ./.github/workflows/deploy_module.yml
+    with:
+      version: ${{ github.ref_name }}
+      is_stable: true
+    secrets: inherit
+    
+  create-github-release:
+    runs-on: ubuntu-latest
+    name: Create GitHub release with conda packages and binary executable
+    needs: [get-package-name, deploy-binary-executable]
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        id: download-artifacts
+        with:
+          merge-multiple: true
 
       - name: Create Release
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 #v2.0.8
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda #v3.0.0
         with:
-            tag_name: ${{ github.ref_name }}
-            name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
-            generate_release_notes: true
-            fail_on_unmatched_files: true
-            files: ${{steps.reformat-paths.outputs.newline-separated-paths}}
+          tag_name: ${{ github.ref_name }}
+          name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: ${{steps.download-artifacts.outputs.download-path}}/*

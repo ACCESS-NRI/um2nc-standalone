@@ -2,10 +2,6 @@
 
 # Basic binary compatibility test script for um2nc.
 # See INTEGRATION_README.md for details on test usage, data and options.
-#
-# -----------------------------------------------------------------
-# Prepare options
-# -----------------------------------------------------------------
 
 function usage {
  cat <<- EOF
@@ -15,27 +11,32 @@ Compares 'um2nc' output against previous versions.
 Usage: regression_tests.sh [--keep] [-d DATA_CHOICE] [-v DATA_VERSION]
 
 Options:
--k, --keep            Keep output netCDF data upon test completion.
-                      If absent, output netCDF data will only be kept for failed test sessions.
+-h, --help            Display this help message and exit.
 -d    DATA_CHOICE     Choice of test reference data.
                       Options: "full", "intermediate", "light".
                       Default: "intermediate".
+-k, --keep            Keep output netCDF data upon test completion.
+                      If absent, output netCDF data will only be kept for failed test sessions.
+-q, --quiet           Suppress warnings arising from um2nc. Still prints output and error messages.
 -v    DATA_VERSION    Version of test reference data to use.
-                      Options: "0", "1".
-                      Default: latest release version.
+                      Options: 0, 1
+                      Default: 1
+--exe PATH            Path to um2nc executable to test. Default: "um2nc" (i.e. um2nc in PATH).
 EOF
 }
 
 
-
+FAILED_FILES=()
 TEST_DATA_PARENT_DIR=/g/data/vk83/testing/data/um2nc/integration-tests
+NCCMP_EXE=/apps/nccmp/1.8.5.0/bin/nccmp
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
 TEST_DATA_VERSION_DEFAULT=1
 CLEAN_OUTPUT=true
+QUIET=
 
-while getopts ":-:d:hkv:" opt; do
+while getopts ":-:hd:kqv:" opt; do
     case ${opt} in
         -)
             case ${OPTARG} in
@@ -46,12 +47,23 @@ while getopts ":-:d:hkv:" opt; do
                 keep)
                     CLEAN_OUTPUT=false
                 ;;
+                quiet)
+                    QUIET=true
+                ;;
+                exe)
+                    UM2NC_EXE="${!OPTIND}"
+                    OPTIND=$(( OPTIND + 1 ))
+                ;;
                 *)
                     echo "Invalid option: \"--${OPTARG}\"." >&2
                     usage
                     exit 1
                 ;;
             esac
+        ;;
+        h)
+            usage
+            exit 0
         ;;
         d)
             case ${OPTARG} in
@@ -65,12 +77,11 @@ while getopts ":-:d:hkv:" opt; do
                 ;;
             esac
         ;;
-        h)
-            usage
-            exit 0
-        ;;
         k)
             CLEAN_OUTPUT=false
+        ;;
+        q)
+            QUIET=true
         ;;
         v)
             TEST_DATA_VERSION=${OPTARG}
@@ -100,6 +111,8 @@ TEST_DATA_VERSION="${TEST_DATA_VERSION:-$TEST_DATA_VERSION_DEFAULT}"
 
 TEST_DATA_REFERENCE_DIR=${TEST_DATA_PARENT_DIR}/${TEST_DATA_VERSION}/${TEST_DATA_CHOICE}
 
+UM2NC_EXE="${UM2NC_EXE:-um2nc}"
+
 if [ ! -d "${TEST_DATA_REFERENCE_DIR}" ]; then
     echo "ERROR: Test reference data directory \"${TEST_DATA_REFERENCE_DIR}\" does not exist." >&2
     exit 1
@@ -113,14 +126,12 @@ if [ ! -d "${TEST_DATA_INPUT_DIR}" ]; then
 fi
 
 OUTPUT_DIR=$(mktemp -d)
-
 functrap() {
-    code="$?"
-    if ([ "$code" -eq 0 ] && $CLEAN_OUTPUT) || [ "$code" -eq 2 ]; then
+    exit_code=$?
+    if [[ "$exit_code" == 0 && "$CLEAN_OUTPUT" == true ]]; then
         rm -rf "$OUTPUT_DIR"
     fi
 }
-trap "exit 2" SIGHUP SIGINT SIGQUIT SIGILL SIGABRT SIGTERM
 trap functrap EXIT
 
 
@@ -149,12 +160,7 @@ function run_um2nc {
     # Run um2nc conversion. Exit if conversion fails.
     ifile="${@: -2:1}"
     echo "Converting \"${ifile}\"."
-    um2nc "$@"
-
-    if [ "$?" -ne 0 ]; then
-        echo "Conversion of \"${ifile}\" failed. Exiting." >&2
-        exit 1
-    fi
+    "${UM2NC_EXE}" "${QUIET+-q}" "$@"  || { echo "Conversion of \"${ifile}\" failed." >&2; exit 1; }
 }
 
 function diff_warn {
@@ -163,7 +169,7 @@ function diff_warn {
     file1="${@: -2:1}"
     file2="${@: -1:1}"
     echo "Comparing \"$file1\" and \"$file2\"."
-    nccmp "$@"
+    "$NCCMP_EXE" "$@"
     if [ "$?" -ne 0 ]; then
         FAILED_FILES+=($file1,$file2)
     fi
@@ -175,11 +181,12 @@ function diff_warn {
 
 # Test 1:
 # Execute nomask variant, pressure masking is turned OFF & all cubes are kept.
-run_um2nc    --nohist \
-             --nomask \
-             --simple \
-             "$source_ff" \
-             "$out_nomask_nc"
+run_um2nc \
+    --nohist \
+    --nomask \
+    --simple \
+    "$source_ff" \
+    "$out_nomask_nc"
 
 diff_warn -degh "$orig_nomask_nc"  "$out_nomask_nc"
 
@@ -202,13 +209,16 @@ run_um2nc    --simple \
 
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
 
-if [ -n "$FAILED_FILES" ]; then # If any comparisons failed
-    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
+if [ "${#FAILED_FILES[@]}" -gt 0 ]; then # If any comparisons failed
+    echo "Failed tests: ${#FAILED_FILES[@]}" >&2
     for files in ${FAILED_FILES[@]}; do
         echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
     done
     echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
     exit 1
-elif ! $CLEAN_OUTPUT; then # If tests successful and '--keep' option present
-    echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+else # Tests successful
+    if [[ "$CLEAN_OUTPUT" != true ]]; then
+        echo "The netCDF output files can be found in \"${OUTPUT_DIR}\"."
+    fi
+    echo "All tests passed successfully."
 fi
