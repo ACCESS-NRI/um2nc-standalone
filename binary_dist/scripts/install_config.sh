@@ -9,7 +9,7 @@ export TRAP_PRIORITY_LAST=90 # Runs last (e.g. used for commands that delete fil
 
 # Maximum number of DEVELOPMENT versions to keep simultaneously.
 # If a new deployment causes the total to exceed this limit, the oldest version is deleted.
-export MAX_DEV_VERSIONS=3
+export MAX_N_DEV_VERSIONS=3
 
 # Sanity check on MODULE_TYPE
 if [[ "$MODULE_TYPE" != STABLE && "$MODULE_TYPE" != DEVELOPMENT ]]; then
