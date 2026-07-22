@@ -3,7 +3,10 @@ name: CD
 on:
     push:
       tags:
-        - '*'
+        - '**'
+
+env:
+  CONDA_ARTIFACT_NAME: _conda_package
 
 jobs:
   get-package-name:
@@ -13,7 +16,7 @@ jobs:
         package-name: ${{ steps.get-package-name.outputs.package-name }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-tags: true
           fetch-depth: 0
@@ -31,7 +34,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
             fetch-tags: true
             fetch-depth: 0 
@@ -57,7 +60,7 @@ jobs:
         id: build-and-upload
         env:
           PACKAGE_VERSION: ${{ steps.get-version.outputs.version }}
-        uses: ACCESS-NRI/action-build-and-upload-conda-packages@v3.0.0
+        uses: ACCESS-NRI/action-build-and-upload-conda-packages@v3.1.0
         with:
           meta_yaml_dir: .conda
           user: ${{ secrets.ANACONDA_USER_NAME }}
@@ -65,18 +68,58 @@ jobs:
           label: main
           conda_build_args: -c accessnri -c conda-forge -c nodefaults
       
-      - name: Re-format output paths
-        id: reformat-paths
-        # Needed to have the correct newline-separated files format for the following release step
-        run: |
-            paths=$(tr ' ' '\n' <<< "${{steps.build-and-upload.outputs.paths}}")
-            echo "newline-separated-paths=$paths" >> $GITHUB_OUTPUT
+      - name: Upload conda artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.CONDA_ARTIFACT_NAME }}
+          path: ${{steps.build-and-upload.outputs.paths}}
+    
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [get-package-name, release-conda-package]
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.CONDA_ARTIFACT_NAME }}
+          path: artifact_dir
 
       - name: Create Release
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 #v2.0.8
+        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 #v2.3.3
         with:
-            tag_name: ${{ github.ref_name }}
-            name: ${{needs.get-package-name.outputs.package-name}} ${{ github.ref_name }}
-            generate_release_notes: true
-            fail_on_unmatched_files: true
-            files: ${{steps.reformat-paths.outputs.newline-separated-paths}}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ needs.get-package-name.outputs.package-name }} ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifact_dir/*
+    
+  cleanup-on-failure:
+    name: Cleanup on failure
+    runs-on: ubuntu-latest
+    needs: create-github-release
+    # Run this job if any of the previous jobs failed, or if the workflow was cancelled
+    if: always() && needs.create-github-release.result != 'success' || cancelled()
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0 
+      
+      # Delete newly created tag
+      - name: Cleanup tag
+        run: |
+          git push origin ':${{ github.ref }}'
+          echo "A job in the current workflow failed. Tag '${{ github.ref }}' was deleted."
+      
+      # Delete newly created GitHub release
+      - name: Cleanup GitHub release
+        run: |
+           gh release delete '${{ github.ref_name }}' && echo "GitHub release was deleted." || echo "No GitHub release '${{ github.ref_name }}' to delete."
