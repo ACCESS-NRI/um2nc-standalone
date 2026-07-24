@@ -23,7 +23,7 @@ dependencies = [
     "mule",
     "netcdf4",
     "numpy <2",
-    "scitools-iris",
+    "scitools-iris >=3.11.1",
 ]
 
 [project.scripts]
