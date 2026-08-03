@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
 
-from um2nc.common import UnsupportedTimeSeriesError
+from um2nc.common import UnsupportedTimeSeriesError, DelayedCubePath
 
 
 class ModelDriver(ABC):
@@ -107,7 +107,11 @@ class ModelDriver(ABC):
                 )
 
             else:
-                logging.info(f"Successfully converted {input_path} to {output_path}")
+                msg = f"Successfully converted {input_path}"
+                if not(isinstance(output_path, DelayedCubePath)):
+                    msg += f" to {output_path}"
+                logging.info(msg)
+
                 if delete_ff:
                     os.remove(input_path)
 

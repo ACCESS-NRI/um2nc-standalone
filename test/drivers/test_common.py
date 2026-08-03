@@ -7,7 +7,7 @@ from unittest import mock
 
 import um2nc.drivers.common as drivers_common
 from um2nc.stashmasters import STASHmaster
-from um2nc.common import UnsupportedTimeSeriesError
+from um2nc.common import UnsupportedTimeSeriesError, DelayedCubePath
 
 
 # Arguments for use in tests of the conversion wrapper
@@ -144,6 +144,24 @@ def test_run_conversion_logging(caplog, driver_mock_io_map):
         for input, output in io_map.items():
             assert input in caplog.text
             assert output in caplog.text
+
+
+def test_run_conversion_logging_DelayedCubePath(caplog, driver_mock_io_map):
+    """
+    Test that only the input path is reported when the output is a DelayedCubePath
+    """
+    driver = TestDriver(Path("fake_model_dir"))
+
+    io_map = {"fake_file": DelayedCubePath("fake_output_path")}
+    driver_mock_io_map.return_value = io_map
+
+    with caplog.at_level(logging.INFO):
+        driver.run_conversion(delete_ff=False, process_args=ARGS)
+        assert len(caplog.records) == 1
+
+        for input, output in io_map.items():
+            assert input in caplog.text
+            assert "DelayedCubePath" not in caplog.text
 
 
 @pytest.fixture
