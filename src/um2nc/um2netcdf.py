@@ -483,17 +483,27 @@ def apply_mask(c, heaviside, hcrit):
             raise Exception("Unable to match levels of heaviside function to variable %s" % c.name())
 
 
-def _add_global_attrs(saver, infile, add_history=True):
+def get_realm(cube, stashmaster, default="unknown"):
+    """Return the realm associated with a cube."""
+    item_code = to_item_code(cube.attributes[STASH])
+    realm = StashVar(item_code, stashmaster=stashmaster).realm
+    if not realm:
+        realm = default
+        warnings.warn(f"Realm for variable {item_code} unknown. Setting 'realm={default}'.")
+
+    return realm
+
+def _add_global_attrs(saver, infile, add_history=True, realm=None):
     if add_history:
         add_global_history(infile, saver)
+    if realm is not None:
+        saver.update_global_attributes({"realm": realm})
 
     saver.update_global_attributes({"Conventions": "CF-1.6"})
 
 
-def _write_cube(cube, saver, infile, dims, fill, compression_level=1, add_history=True):
+def _write_cube(cube, saver, infile, dims, fill, compression_level=1):
     logging.info(f"Processing cube: {cube.name()}, {cube.var_name}")
-
-    _add_global_attrs(saver, infile, add_history=add_history)
 
     saver.write(cube, zlib=True, complevel=compression_level, unlimited_dimensions=dims, fill_value=fill)
 
@@ -518,18 +528,19 @@ def process(infile, outfile, args):
             filepath = outfile.resolve_cube(c)
 
             with iris.fileformats.netcdf.Saver(filepath, NC_FORMATS[args.ncformat]) as sman:
+                realm = get_realm(c, stashmaster=args.model)
+                _add_global_attrs(sman, infile, add_history=not args.nohist, realm=realm)
                 _write_cube(
                     c, sman, infile, dims, fill,
                     compression_level=args.compression,
-                    add_history=not args.nohist
                 )
     else:
         with iris.fileformats.netcdf.Saver(outfile, NC_FORMATS[args.ncformat]) as sman:
+            _add_global_attrs(sman, infile, add_history=not args.nohist)
             for c, fill, dims in process_cubes(cubes, mv, args):
                 _write_cube(
                     c, sman, infile, dims, fill,
                     compression_level=args.compression,
-                    add_history=not args.nohist
                 )
 
 def process_cubes(cubes, mv, args):

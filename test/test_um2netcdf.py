@@ -11,6 +11,7 @@ import operator
 from um2nc.common import StrictWarning, UnsupportedTimeSeriesError
 import um2nc.um2netcdf as um2nc
 import um2nc.cli as um2nc_cli
+from um2nc.stashmasters import STASHmaster
 
 import pytest
 import numpy as np
@@ -1341,10 +1342,6 @@ def test__write_cube(tmp_path):
     # The data in the cubes should be identical
     assert all(cube.data == cube_from_file.data)
 
-    # Cube summary should be identical apart from the history and Conventions
-    for attr in ['history', 'Conventions']:
-        # These are updated by _write_cube
-        cube.attributes[attr] = cube_from_file.attributes[attr]
     assert str(cube) == str(cube_from_file)
 
 
@@ -1375,3 +1372,27 @@ def test_instantaneous_variable_cell_methods(unpack_fieldsfile, cleanup_DelayedC
     # The cube itself should have a cell_method with method=='point' and coord_name=='time'
     cms = cube_list[0].cell_methods
     assert any([cm.method == 'point' and len(cm.coord_names)==1 and 'time' in cm.coord_names for cm in cms])
+
+
+@pytest.mark.parametrize(
+    "section, item, stashmaster, expected_realm",
+    [
+        (0, 2, STASHmaster.CMIP6.value, "atmos"),
+        (0, 20, STASHmaster.CMIP6.value, "land"),
+        (0, 252, STASHmaster.CMIP6.value, "atmos aerosol"),
+        (0, 252, STASHmaster.ACCESS_ESM1p6.value, "atmos aerosol"),
+        (3, 173, STASHmaster.CMIP6.value, "unknown"),
+        (3, 173, STASHmaster.ACCESS_ESM1p6.value, "land")
+    ]
+)
+def test_get_realm(section, item, stashmaster, expected_realm):
+    """
+    Test that get_realm extracts the correct realm.
+    """
+    # Create a cube with the specified item code
+    cube = iris.cube.Cube(
+        shape = (1,),
+        attributes = {"STASH": iris.fileformats.pp.STASH(model=1, section=section, item=item)}
+    )
+    realm = um2nc.get_realm(cube, stashmaster=stashmaster)
+    assert realm == expected_realm
