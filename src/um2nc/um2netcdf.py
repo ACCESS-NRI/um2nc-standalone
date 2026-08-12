@@ -29,7 +29,7 @@ from iris.fileformats.pp import PPField
 
 import um2nc
 from um2nc.common import PostProcessingError, StrictWarning, UnsupportedTimeSeriesError
-from um2nc.stashmasters import StashVar
+from um2nc.stashmasters import StashVar, NONE_OVERRIDE
 
 # Opt-in to the new behaviour to avoid warnings
 iris.FUTURE.date_microseconds = True
@@ -888,25 +888,26 @@ def fix_standard_name(cube, um_standard_name):
     cube : iris cube to modify (changes the name in place)
     um_standard_name : the UM Stash standard name
     """
+    if um_standard_name == NONE_OVERRIDE:
+        cube.standard_name = None
+        return
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
-    if cube.standard_name:
-        if cube.standard_name == "x_wind":
+    if cube.standard_name == "x_wind":
             cube.standard_name = "eastward_wind"
-        if cube.standard_name == "y_wind":
+    if cube.standard_name == "y_wind":
             cube.standard_name = "northward_wind"
 
-        if um_standard_name and cube.standard_name != um_standard_name:
+    if um_standard_name:
+        if cube.standard_name and (cube.standard_name != um_standard_name):
             msg = (
-                f"Standard name mismatch for cube {cube.item_code}. "
-                f"standard_name from Iris: {cube.standard_name}, "
-                f"standard_name from un2nc: {um_standard_name}. "
-                "Using um2nc standard_name."
-            )
+                    f"Standard name mismatch for cube {cube.item_code}. "
+                    f"standard_name from Iris: {cube.standard_name}, "
+                    f"standard_name from un2nc: {um_standard_name}. "
+                    "Using um2nc standard_name."
+                )
             warnings.warn(msg, category=RuntimeWarning)
 
-            cube.standard_name = um_standard_name
-    elif um_standard_name:
         # If there's no standard_name from iris, use one from STASH
         cube.standard_name = um_standard_name
 
