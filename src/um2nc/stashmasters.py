@@ -4,6 +4,7 @@
 # variables in a single file
 from enum import Enum
 
+
 CMIP6_DEFAULT_STASHMASTER = {
     2: ["U COMPNT OF WIND AFTER TIMESTEP", "ua", "m s-1", "eastward_wind", ""],
     3: ["V COMPNT OF WIND AFTER TIMESTEP", "va", "m s-1", "northward_wind", ""],
@@ -2781,8 +2782,8 @@ CMIP6_DEFAULT_STASHMASTER = {
     32044: ["OCFF_CLD BV OUT (retired)", "", "", "", ""],
     32045: ["NITR_ACC BV OUT (retired)", "", "", "", ""],
     32046: ["NITR_DISS BV OUT (retired)", "", "", "", ""],
-    33001: ["ATM TRACER  1               AFTER TS", "", "", "", ""],
-    33002: ["ATM TRACER  2               AFTER TS", "", "", "", ""],
+    33001: ["ATM TRACER  1               AFTER TS", "", "kg kg-1", "mass_mixing_ratio_of_tracer_1_in_air", ""], # This is not a CF standard name
+    33002: ["ATM TRACER  2               AFTER TS", "", "kg kg-1", "mass_mixing_ratio_of_tracer_2_in_air", ""], # This is not a CF standard name
     33003: ["ATM TRACER  3               AFTER TS", "", "", "", ""],
     33004: ["ATM TRACER  4               AFTER TS", "", "", "", ""],
     33005: ["ATM TRACER  5               AFTER TS", "", "", "", ""],
