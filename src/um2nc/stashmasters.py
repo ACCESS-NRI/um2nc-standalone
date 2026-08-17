@@ -4,6 +4,7 @@
 # variables in a single file
 from enum import Enum
 
+# Override the iris standard_name with None
 NONE_OVERRIDE = "_um2nc_none_overrride"
 
 CMIP6_DEFAULT_STASHMASTER = {
