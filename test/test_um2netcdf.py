@@ -11,6 +11,7 @@ import operator
 from um2nc.common import StrictWarning, UnsupportedTimeSeriesError
 import um2nc.um2netcdf as um2nc
 import um2nc.cli as um2nc_cli
+from um2nc.stashmasters import NONE_OVERRIDE
 
 import pytest
 import numpy as np
@@ -522,6 +523,16 @@ def test_fix_standard_name_add_missing_name_from_um(x_wind_cube):
         expected = "standard-name-slot"
         um2nc.fix_standard_name(x_wind_cube, expected)
         assert x_wind_cube.standard_name == expected
+
+
+def test_fix_standard_name_none_override():
+    # ensure the standard name set to None when the NONE_OVERRIDE value is present
+    cube = iris.cube.Cube(
+        data=np.array([0]),
+        standard_name="surface_temperature"
+    )
+    um2nc.fix_standard_name(cube, NONE_OVERRIDE)
+    assert cube.standard_name is None
 
 
 def test_fix_long_name(x_wind_cube):

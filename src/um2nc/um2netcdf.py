@@ -29,7 +29,7 @@ from iris.fileformats.pp import PPField
 
 import um2nc
 from um2nc.common import PostProcessingError, StrictWarning, UnsupportedTimeSeriesError
-from um2nc.stashmasters import StashVar
+from um2nc.stashmasters import StashVar, NONE_OVERRIDE
 
 # Opt-in to the new behaviour to avoid warnings
 iris.FUTURE.date_microseconds = True
@@ -888,6 +888,9 @@ def fix_standard_name(cube, um_standard_name):
     cube : iris cube to modify (changes the name in place)
     um_standard_name : the UM Stash standard name
     """
+    if um_standard_name == NONE_OVERRIDE:
+        cube.standard_name = None
+        return
 
     # The iris name mapping seems wrong for these - perhaps assuming rotated grids?
     if cube.standard_name:
