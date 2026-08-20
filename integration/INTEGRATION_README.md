@@ -19,7 +19,7 @@ Options:
                           Options: "full", "intermediate", "light".
                           Default: "intermediate".
     -v    DATA_VERSION    Version of test reference data to use.
-                          Options: "0", "1".
+                          Options: "0", "1", "2.2.0".
                           Default: latest release version
 
 ## Data choices
@@ -86,5 +86,11 @@ module load pythonlib/um2netcdf4/xp65
 
 ### Version `1`
 As for version `0` but using the `--simple` option to get more consistent variable names.
+
+
+### Version `2.2.0`
+The version 2.2.0 data was created using the `um2nc convert --simple` command using commit `b7bbcdf`: https://github.com/ACCESS-NRI/um2nc-standalone/tree/b7bbcdf7b1440c6890e350cedab499d42234b85a.
+The only changes compared to the version 1 test data are changes to the `cell_methods` attributes, and `standard_name` for field s33i001.
+
 
 All test data is located in `/g/data/vk83/testing/data/um2nc/integration-tests`.

@@ -21,7 +21,7 @@ Options:
                       Options: "full", "intermediate", "light".
                       Default: "intermediate".
 -v    DATA_VERSION    Version of test reference data to use.
-                      Options: "0", "1".
+                      Options: "0", "1", "2.2.0".
                       Default: latest release version.
 EOF
 }
@@ -32,7 +32,7 @@ TEST_DATA_PARENT_DIR=/g/data/vk83/testing/data/um2nc/integration-tests
 
 # Default values, overwritten by command line arguments if present:
 TEST_DATA_CHOICE_DEFAULT=intermediate
-TEST_DATA_VERSION_DEFAULT=1
+TEST_DATA_VERSION_DEFAULT=2.2.0
 CLEAN_OUTPUT=true
 
 while getopts ":-:d:hkv:" opt; do
@@ -203,7 +203,7 @@ run_um2nc    --simple \
 diff_warn -deg "$orig_hist_nc"  "$out_hist_nc"
 
 if [ -n "$FAILED_FILES" ]; then # If any comparisons failed
-    echo "Failed tests: ${#FAILED_FILES[@]}" &>2
+    echo "Failed tests: ${#FAILED_FILES[@]}" >&2
     for files in ${FAILED_FILES[@]}; do
         echo "Failed comparison between \"${files/,/\" and \"}\"." # Using bash Parameter expansion with ${parameter/pattern/substitution}
     done
