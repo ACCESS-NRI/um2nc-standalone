@@ -189,7 +189,7 @@ driver_args = argparse.ArgumentParser(add_help=False)
 
 driver_args.add_argument(
     "model_directory",
-    type=str,
+    type=Path,
     help="Path to a simulation's output directory containing UM files for conversion.",
 )
 driver_args.add_argument(
@@ -267,11 +267,6 @@ esm1p6 = driver_subparsers.add_parser(
 esm1p6.set_defaults(simple=True, strict=True, verbose=True, model=STASHmaster.ACCESS_ESM1p5.value)
 
 
-model_drivers = {
-    "esm1p5":  Esm1p5Driver,
-    "esm1p6":  Esm1p6Driver
-}
-
 # Keep track of all um2nc subcommands
 all_subcommands = tuple(subparsers.choices.keys())
 
@@ -324,8 +319,13 @@ def run_command(args):
             outfile = Path(args.outfile)
 
         process(args.infile, outfile, args)
+
     elif args.command == "driver":
-        driver = model_drivers[args.model_driver](Path(args.model_directory), args.one_nc_per_stash_variable)
+        match args.model_driver:
+            case "esm1p5":
+                driver = Esm1p5Driver(args.model_directory, args.one_nc_per_stash_variable)
+            case "esm1p6":
+                driver = Esm1p6Driver(args.model_directory, args.one_nc_per_stash_variable)
         driver.run_conversion(args.delete_ff, args)
 
 
