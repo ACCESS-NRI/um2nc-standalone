@@ -30,7 +30,7 @@ dependencies = [
 um2nc = "um2nc.cli:main"
 
 [project.urls]
-Repository = "https://github.com/ACCESS-NRI/um2nc-standalone"
+Repository = "https://github.com/ACCESS-NRI/um2nc"
 
 [build-system]
 build-backend = "setuptools.build_meta"
@@ -54,5 +54,5 @@ local_scheme = "node-and-date"
 branch = true
 
 [tool.coverage.html]
-title = "Coverage report: um2nc-standalone"
+title = "Coverage report: um2nc"
 directory = "coverage_html"

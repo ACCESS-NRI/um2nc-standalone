@@ -338,7 +338,7 @@ def fix_fill_value(cube, custom_fill_value=None):
     return fill_value
 
 
-# TODO: this review https://github.com/ACCESS-NRI/um2nc-standalone/pull/118
+# TODO: this review https://github.com/ACCESS-NRI/um2nc/pull/118
 #     indicates these time functions can be simplified. Suggestion: modularise
 #     functionality to simplify logic:
 #   * Extract origin time shift to a function?
@@ -359,7 +359,7 @@ def fix_forecast_reference_time(cube):
 
         # TODO: add reference year as a configurable arg?
         # TODO: determine if the start year should be changed from 1600
-        #  see https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1792886613
+        #  see https://github.com/ACCESS-NRI/um2nc/pull/118/files#r1792886613
         if time.units.calendar == cf_units.CALENDAR_PROLEPTIC_GREGORIAN and refdate.year < 1600:
             convert_proleptic(time)
         else:
@@ -389,7 +389,7 @@ def fix_forecast_reference_time(cube):
 
 # TODO: rename time arg to pre-emptively avoid a clash with builtin time module
 # TODO: refactor to add a calendar arg here, see
-#       https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794321677
+#       https://github.com/ACCESS-NRI/um2nc/pull/118/files#r1794321677
 def convert_proleptic(time):
     # Convert units from hours to days and shift origin from 1970 to 0001
     newunits = cf_units.Unit("days since 0001-01-01 00:00", calendar=cf_units.CALENDAR_PROLEPTIC_GREGORIAN)
@@ -399,7 +399,7 @@ def convert_proleptic(time):
     # TODO: refactor manual looping with pythonic iteration
     #
     # TODO: limit the looping as per this review suggestion:
-    #  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118/files#r1794315128
+    #  https://github.com/ACCESS-NRI/um2nc/pull/118/files#r1794315128
     for i in range(len(time.points)):
         date = time.units.num2date(tvals[i])
         newdate = cftime.DatetimeProlepticGregorian(

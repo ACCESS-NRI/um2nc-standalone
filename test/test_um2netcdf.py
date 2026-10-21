@@ -1214,7 +1214,7 @@ def forecast_ref_time_points():
 
 
 # FIXME: unit.calendar needs updating as per:
-#  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118#issuecomment-2404034473
+#  https://github.com/ACCESS-NRI/um2nc/pull/118#issuecomment-2404034473
 @pytest.fixture
 def forecast_ref_time_coord(forecast_ref_time_points):
     # units & point data ripped from aiihca.paa1jan data file:
@@ -1230,7 +1230,7 @@ def forecast_ref_time_coord(forecast_ref_time_points):
 
 
 # FIXME: unit.calendar needs updating as per:
-#  https://github.com/ACCESS-NRI/um2nc-standalone/pull/118#issuecomment-2404034473
+#  https://github.com/ACCESS-NRI/um2nc/pull/118#issuecomment-2404034473
 @pytest.fixture
 def time_coord(time_points):
     # units data ripped from aiihca data file
