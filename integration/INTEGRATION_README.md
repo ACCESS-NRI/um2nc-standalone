@@ -73,7 +73,7 @@ Available versions for comparison are:
 
 ### Version `0`
 Version `0` netCDF outputs were created using the `um2netcdf.py` script available
-prior to the development of `um2nc`: https://github.com/ACCESS-NRI/um2nc-standalone/blob/f62105b45eb39d2beed5a7ac71f439ff90f0f00c/src/um2netcdf.py
+prior to the development of `um2nc`: https://github.com/ACCESS-NRI/um2nc/blob/f62105b45eb39d2beed5a7ac71f439ff90f0f00c/src/um2netcdf.py
 
 The conversion was performed within the following `payu1.1.5` environment, active on Gadi:
 https://github.com/ACCESS-NRI/payu-condaenv/releases/tag/1.1.5
@@ -89,7 +89,7 @@ As for version `0` but using the `--simple` option to get more consistent variab
 
 
 ### Version `2.2.0`
-The version 2.2.0 data was created using the `um2nc convert --simple` command using commit `b7bbcdf`: https://github.com/ACCESS-NRI/um2nc-standalone/tree/b7bbcdf7b1440c6890e350cedab499d42234b85a.
+The version 2.2.0 data was created using the `um2nc convert --simple` command using commit `b7bbcdf`: https://github.com/ACCESS-NRI/um2nc/tree/b7bbcdf7b1440c6890e350cedab499d42234b85a.
 The only changes compared to the version 1 test data are changes to the `cell_methods` attributes, and `standard_name` for field s33i001.
 
 

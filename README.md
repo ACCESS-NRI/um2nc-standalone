@@ -62,9 +62,9 @@ for detailed usage information for the `um2nc driver` command.
 ## Development/Testing instructions
 For development/testing, it is recommended to install `um2nc` as a development package within a `micromamba`/`conda` testing environment.
 
-### Clone um2nc-standalone GitHub repo
+### Clone um2nc GitHub repo
 ```
-git clone git@github.com:ACCESS-NRI/um2nc-standalone.git
+git clone git@github.com:ACCESS-NRI/um2nc.git
 ```
 
 ### Create a micromamba/conda testing environment
@@ -72,7 +72,7 @@ git clone git@github.com:ACCESS-NRI/um2nc-standalone.git
 > In the following instructions `micromamba` can be replaced with `conda`.
 
 ```
-cd um2nc-standalone
+cd um2nc
 micromamba env create -n um2nc_dev --file .conda/env_dev.yml
 micromamba activate um2nc_dev
 ```
@@ -84,7 +84,7 @@ pip install --no-deps --no-build-isolation -e .
 
 ### Running the tests
 
-The `um2nc-standalone` project uses `pytest` and `pytest-cov`.<br>
+The `um2nc` project uses `pytest` and `pytest-cov`.<br>
 To run the tests and generate a coverage report (with missing lines) run:
 
 ```
@@ -95,6 +95,6 @@ python3 -m pytest --cov-report=term-missing --cov=um2nc
 
 ## Further information
 `um2nc` is developed and supported by [ACCESS-NRI](https://www.access-nri.org.au/) to facilitate the use of [ACCESS models](https://access-hive.org.au/models/) and data.
-Requests for support in using `um2nc` can be made on the [ACCESS-HIVE Forum](https://forum.access-hive.org.au/). Bug reports and suggestions are welcomed as [GitHub issues](https://github.com/ACCESS-NRI/um2nc-standalone/issues).
+Requests for support in using `um2nc` can be made on the [ACCESS-HIVE Forum](https://forum.access-hive.org.au/). Bug reports and suggestions are welcomed as [GitHub issues](https://github.com/ACCESS-NRI/um2nc/issues).
 
 
